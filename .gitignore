@@ -130,7 +130,7 @@ dmypy.json
 
 .vscode
 
-playlist.csv
+*.csv
 
 sensitive.py
 
