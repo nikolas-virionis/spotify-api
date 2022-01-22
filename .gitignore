@@ -134,3 +134,4 @@ dmypy.json
 
 sensitive.py
 
+*.json
