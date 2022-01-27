@@ -9,7 +9,7 @@ setup(
     description='The number-utility module makes it simple for you to do number manipulation and perform various operations on numbers.',
     py_modules=["spotify-recommender"],
     package_dir={'': 'src'},
-    requires=['pandas', 'requests', 'base64', 'operator', 'json'],
+    requires=['pandas', 'requests', 'operator', 'json'],
     extras_require={
         "dev": [
             "pytest >= 3.7",

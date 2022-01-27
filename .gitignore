@@ -134,8 +134,16 @@ dmypy.json
 
 sensitive.py
 
+sensitiveOG.py
+
+
 *.json
 
 test/
 
 util/
+
+.spotify-recommender-util/
+
+test.ipynb
+

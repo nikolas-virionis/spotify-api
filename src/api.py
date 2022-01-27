@@ -5,19 +5,16 @@ from auth import get_auth
 import operator
 import json
 from functools import reduce
+import os
 
+
+def playlist_url_to_id(url):
+    uri = url.split('?')[0]
+    id = uri.split('open.spotify.com/playlist/')[1]
+    return id
 
 
 class SpotifyAPI:
-    def __init__(self, playlist_id, user_id, playlist_url):
-        self.__playlist_id = playlist_id
-        self.__user_id = user_id
-        self.__playlist_url = playlist_url
-        self.__auth_token = get_auth(CLIENT_ID, CLIENT_SECRET)
-        self.__headers = {"Accept": "application/json",
-                          "Content-Type": "application/json", "Authorization": self.__auth_token}
-        self.__artists = []
-        self.__songs = []
 
     def __get_total_song_count(self):
         playlist_res = get(
@@ -33,7 +30,8 @@ class SpotifyAPI:
 
     def __get_song_genres(self, song):
         genres = []
-        for artist in song["track"]["artists"]:
+        song_artists = song["track"]["artists"] if 'track' in list(song.keys()) else song["artists"]
+        for artist in song_artists:
             id = artist["id"]
             if id not in self.__artists:
                 artist_genres_res = get(
@@ -52,7 +50,7 @@ class SpotifyAPI:
     def __song_data(self, song):
         return song["track"]['id'], song["track"]['name'], song["track"]['popularity'], [artist["name"] for artist in song["track"]["artists"]]
 
-    def get_playlist_items(self):
+    def __get_playlist_items(self):
         self.__all_genres = []
         for offset in range(0, self.__get_total_song_count(), 100):
             all_genres_res = get(
@@ -62,31 +60,100 @@ class SpotifyAPI:
                     song), self.__get_song_genres(song)
                 self.__songs.append({"id": id, "name": name, "artists": artist,
                                      "popularity": popularity, "genres": song_genres})
-                self.__all_genres = self.__add_genres(self.__all_genres, song_genres)
+                self.__all_genres = self.__add_genres(
+                    self.__all_genres, song_genres)
 
-    def playlist_adjustments(self):
+    def __playlist_adjustments(self):
         songs = self.__songs[-self.__get_total_song_count():]
+        self.__all_artists = list(self.__artists.keys())
         playlist = pd.DataFrame(data=songs, columns=[
-                        'id', 'name', 'artists', 'popularity', 'genres'])
+            'id', 'name', 'artists', 'popularity', 'genres'])
+        playlist["genres_indexed"] = [self.__genres_indexed(eval(playlist["genres"][x]) if type(
+            playlist["genres"][x]) == 'str' else playlist["genres"][x]) for x in range(len(playlist["genres"]))]
+        playlist["artists_indexed"] = [self.__artists_indexed(eval(playlist["artists"][x]) if type(
+            playlist["artists"][x]) == 'str' else playlist["artists"][x]) for x in range(len(playlist["artists"]))]
         self.__playlist = playlist
 
-    def playlist_to_csv(self):
-        df = pd.DataFrame(data=[{'artists':self.__artists, 'songs':self.__songs, 'all_genres':self.__all_genres}], columns=['artists', 'songs', 'all_genres'])
+    def __get_playlist_from_csv(self):
+        df = pd.read_parquet('./.spotify-recommender-util/util.parquet')
+
+        self.__artists, self.__songs, self.__all_genres = list(map(lambda arr: arr if type(
+            arr) == 'str' else eval(arr), df['artists'][0], df['songs'][0], df['all_genres'][0]))
+
+        self.__playlist = pd.read_csv('playlist.csv')
+
+    def __get_playlist_from_parquet(self):
+        df = pd.read_parquet('./.spotify-recommender-util/util.parquet')
+
+        self.__artists, self.__songs, self.__all_genres = list(map(lambda arr: arr if type(
+            arr) == 'str' else eval(arr), df['artists'][0], df['songs'][0], df['all_genres'][0]))
+
+        self.__all_artists = list(self.__artists.keys())
+        self.__playlist = pd.read_parquet(
+            './.spotify-recommender-util/playlist.parquet')
+
+    def __get_playlist(self):
+        answer = input(
+            'Do you want to get the playlist data via CSV saved previously or read from spotify, *which will take a few minutes* depending on the playlist size (csv/web)? ')
+        while answer.lower() not in ['csv', 'web']:
+            answer = input("Please select a valid response: ")
+        if answer.lower() == 'csv':
+            self.__get_playlist_from_csv()
+            return False
+        if answer.lower() == 'parquet':
+            self.__get_playlist_from_parquet()
+            return False
+
+        return True
+
+    def __playlist_to_parquet(self):
+        if not os.path.exists('./.spotify-recommender-util'):
+            os.mkdir('./.spotify-recommender-util')
+
+        df = pd.DataFrame(data=[{'artists': self.__artists, 'songs': self.__songs,
+                          'all_genres': self.__all_genres}], columns=['artists', 'songs', 'all_genres'])
 
         df.to_parquet('./.spotify-recommender-util/util.parquet')
 
-        self.__playlist.drop_duplicates(keep='first').to_csv('playlist.csv', header=True, index=None)
+        self.__playlist[['id', 'name', 'artists', 'genres', 'popularity', 'genres_indexed', 'artists_indexed']].to_parquet('./.spotify-recommender-util/playlist.parquet')
 
+    def __init__(self, auth_token, user_id, playlist_id=None, playlist_url=None):
+        if not auth_token:
+            raise ValueError('auth_token is required')
+        self.__user_id = user_id
+        self.__auth_token = auth_token
+        self.__headers = {"Accept": "application/json",
+                          "Content-Type": "application/json", "Authorization": self.__auth_token}
+        self.__artists = {}
+        self.__songs = []
 
+        if self.__get_playlist():
+            if playlist_id:
+                self.__playlist_id = playlist_id
+            else:
+                if not playlist_url:
+                    raise ValueError(
+                        'Either the playlist url or its id must be specified')
+                self.__playlist_id = playlist_url_to_id(playlist_url)
+                self.__playlist_url = playlist_url
 
-    def get_playlist_from_csv(self):
-        df = pd.read_parquet('./.spotify-recommender-util/util.parquet')
+            self.__get_playlist_items()
+            self.__playlist_adjustments()
+            self.__playlist_to_parquet()
 
-        self.__artists, self.__songs, self.__all_genres = list(map(lambda arr: arr if type(arr) == 'str' else eval(arr), df['artists'][0], df['songs'][0], df['all_genres'][0]))
+        self.__knn_prepared_data(self.__playlist)
+        self.__prepare_favorites_playlist()
 
-        self.__all_artists = list(self.__artists.keys())
-        self.__playlist = pd.read_csv('playlist.csv')
+    def playlist_to_csv(self):
+        if not os.path.exists('./.spotify-recommender-util'):
+            os.mkdir('./.spotify-recommender-util')
+        df = pd.DataFrame(data=[{'artists': self.__artists, 'songs': self.__songs,
+                          'all_genres': self.__all_genres}], columns=['artists', 'songs', 'all_genres'])
 
+        df.to_parquet('./.spotify-recommender-util/util.parquet')
+
+        self.__playlist[['id', 'name', 'artists', 'genres', 'popularity']].drop_duplicates(
+            keep='first').to_csv('playlist.csv', header=True, index=None)
 
     def __genres_indexed(self, genres):
         indexed = []
@@ -96,17 +163,13 @@ class SpotifyAPI:
             for genre in genres:
                 index = all_genres_x == genre
                 if index:
-                    continue_outer = True
-                    indexed.append(int(True))
-                    break
-
+                    'clipboard'
             if continue_outer:
                 continue
 
             indexed.append(int(False))
 
         return indexed
-
 
     def __artists_indexed(self, artists):
         indexed = []
@@ -128,20 +191,14 @@ class SpotifyAPI:
         return indexed
 
     def __knn_prepared_data(self, df):
-        df = df[['id', 'name', 'genres', 'artists',
-                'popularity', 'genres_indexed', 'artists_indexed']]
+        data = df[['id', 'name', 'genres', 'artists',
+                   'popularity', 'genres_indexed', 'artists_indexed']]
         list = []
-        for index in range(len(df['id'])):
-            list.append({'id': df['id'][index], 'name': df['name'][index], 'genres': df['genres'][index], 'artists': df['artists'][index],
-                        'popularity': df['popularity'][index], 'genres_indexed': df['genres_indexed'][index], 'artists_indexed': df['artists_indexed'][index]})
+        for index in range(len(data['id'])):
+            list.append({'id': data['id'][index], 'name': data['name'][index], 'genres': data['genres'][index], 'artists': data['artists'][index],
+                        'popularity': data['popularity'][index], 'genres_indexed': data['genres_indexed'][index], 'artists_indexed': data['artists_indexed'][index]})
 
         self.__song_dict = list
-
-    def __compute_distance(self, a, b):
-        genres_distance = self.__list_distance(a['genres_indexed'], b['genres_indexed'])
-        artists_distance = self.__list_distance(a['artists_indexed'], b['artists_indexed'])
-        popularity_distance = abs(a['popularity'] - b['popularity'])
-        return genres_distance + artists_distance * 0.4 + (popularity_distance * 0.005)
 
     def __list_distance(self, a, b):
         distance = 0
@@ -157,11 +214,19 @@ class SpotifyAPI:
 
         return distance
 
-    def __get_neighbors(self, song, K):
+    def __compute_distance(self, a, b):
+        genres_distance = self.__list_distance(
+            a['genres_indexed'], b['genres_indexed'])
+        artists_distance = self.__list_distance(
+            a['artists_indexed'], b['artists_indexed'])
+        popularity_distance = abs(a['popularity'] - b['popularity'])
+        return genres_distance + artists_distance * 0.4 + (popularity_distance * 0.005)
+
+    def __get_neighbors(self, song, K, song_dict):
         distances = []
-        for song_index, song_value in enumerate(self.__song_dict):
+        for song_index, song_value in enumerate(song_dict):
             if (song_index != song):
-                dist = self.__compute_distance(self.__song_dict[song], song_value)
+                dist = self.__compute_distance(song_dict[song], song_value)
                 distances.append((song_index, dist))
         distances.sort(key=operator.itemgetter(1))
         neighbors = []
@@ -169,63 +234,133 @@ class SpotifyAPI:
             neighbors.append([*distances[x]])
         return neighbors
 
-
-    def get_recommendations_for_song(self, song_name, K = 50):
-        self.__song_name = song_name
-        if K > 100:
-            print('K limit exceded. Maximum value for K is 100')
-            K = 100
+    def __get_index_for_song(self, song):
+        if len(self.__playlist['name'][self.__playlist['name'] == song] == 0):
+            raise ValueError(f'Playlist does not contain the song {song!r}')
         item = self.__playlist[[self.__playlist['name'][x] ==
-                        song_name for x in range(len(self.__playlist['name']))]]
+                                song for x in range(len(self.__playlist['name']))]]
         index = item.index[0]
-        self.__neighbors = self.__get_neighbors(index, K)
-        print(self.__song_dict[index]['name'], self.__song_dict[index]['artists'],
-            self.__song_dict[index]['genres'], self.__song_dict[index]['popularity'])
-        for neighbor, index in zip(self.__neighbors, range(1, K + 1)):
-            print(
-                f'{index}. {self.__song_dict[neighbor[0]]["name"]} \t {self.__song_dict[neighbor[0]]["artists"]} \t {self.__song_dict[neighbor[0]]["genres"]} \t {self.__song_dict[neighbor[0]]["popularity"]} \t {neighbor[1]}')
-    
-    def playlist_exists(self, name):
-        request = get('https://api.spotify.com/v1/me/playlists', headers=self.__headers).json()
+        return index
 
-        playlists = list(map(lambda playlist: (playlist['id'], playlist['name']), request['items']))
+    def get_recommendations_for_song(self, song, K, with_distance: bool = False, generate_csv: bool = False, generate_parquet: bool = False):
+        try:
+            if K > 99:
+                print('K limit exceded. Maximum value for K is 99')
+                K = 99
+            elif K < 1:
+                raise ValueError('Value for K must be between 1 and 99')
+
+
+            df = self.__get_recommendations('song', song, K)
+            playlist_name = f'{song} Related'
+            if generate_csv:
+                df.to_csv(f'{playlist_name}.csv')
+            if generate_parquet:
+                df.to_parquet(f'{playlist_name}.parquet', compression='snappy')
+
+            if with_distance:
+                return df
+
+            return df.drop(columns=['distance'])
+        except ValueError as e:
+            print(e)
+
+    def __get_desired_dict_fields(self, index):
+        dict = self.__song_dict[index]
+        desired_fields = [dict['id'], dict['name'],
+                          dict['artists'], dict['genres'], dict['popularity']]
+        return desired_fields
+
+    def __song_list_to_df(self, neighbors):
+        data = list(
+            map(lambda x: list(self.__get_desired_dict_fields(x[0]) + [x[1]]), neighbors))
+
+        return pd.DataFrame(data=data, columns=['id', 'name', 'artists', 'genres', 'popularity', 'distance'])
+
+    def __get_recommendations(self, type, info, K=50):
+        index = 0
+        if type == 'song':
+            index = self.__get_index_for_song(info)
+        elif type in ['medium', 'short']:
+            index = len(info) - 1
+        else:
+            raise ValueError('Type does not correspond to a valid option')
+        song_dict = self.__song_dict if type == 'song' else info
+        neighbors = self.__get_neighbors(index, K, song_dict)
+        return self.__song_list_to_df(neighbors)
+
+    def playlist_exists(self, name):
+        request = get('https://api.spotify.com/v1/me/playlists',
+                      headers=self.__headers).json()
+
+        playlists = list(map(lambda playlist: (
+            playlist['id'], playlist['name']), request['items']))
 
         for playlist in playlists:
             if playlist[1] == name:
                 return playlist[0]
-            
+
         return False
 
-    def __create_playlist(self):
-        playlist_name = f"{self.__song_name!r} Related"
+    def __create_playlist(self, type):
+        playlist_name = ''
+        description = ''
+        if type == 'song':
+            playlist_name = f"{self.__song_name!r} Related"
+            description = f"Songs related to {self.__song_name!r}"
+        elif type in ['short', 'medium']:
+            playlist_name = "Recent-ish Favorites" if type == 'medium' else "Latest Favorites"
+            description = f"Songs related to your {type} term top 5"
+        else:
+            raise ValueError('type not valid')
         new_id = ""
         playlist_id_found = self.playlist_exists(playlist_name)
         if playlist_id_found:
             new_id = playlist_id_found
-            
-            playlist_tracks = list(map(lambda track: {'uri': track['track']['uri']}, get(f'https://api.spotify.com/v1/playlists/{new_id}/tracks', headers=self.__headers).json()['items']))
 
-            delete_json = delete(f'https://api.spotify.com/v1/playlists/{new_id}/tracks',  headers=self.__headers, data=json.dumps({"tracks": playlist_tracks})).json()
-            print(delete_json)
+            playlist_tracks = list(map(lambda track: {'uri': track['track']['uri']}, get(
+                f'https://api.spotify.com/v1/playlists/{new_id}/tracks', headers=self.__headers).json()['items']))
+
+            delete_json = delete(f'https://api.spotify.com/v1/playlists/{new_id}/tracks',
+                                 headers=self.__headers, data=json.dumps({"tracks": playlist_tracks})).json()
+                                 
         else:
-            data = {"name": playlist_name, "description": f"Songs related to {self.__song_name!r}", "public": False}
-            playlist_creation = post(f'https://api.spotify.com/v1/users/{self.__user_id}/playlists', headers=self.__headers, data=json.dumps(data))
+            data = {"name": playlist_name,
+                    "description": description, "public": False}
+            playlist_creation = post(
+                f'https://api.spotify.com/v1/users/{self.__user_id}/playlists', headers=self.__headers, data=json.dumps(data))
             new_id = playlist_creation.json()['id']
         return new_id
 
+    def build_playlist(self, type, additional_info, K):
+        if K > 99:
+            print('K limit exceded. Maximum value for K is 99')
+            K = 99
+        elif K < 1:
+            raise ValueError('Value for K must be between 1 and 99')
+        song_uris = ''
+        if type == 'song':
+            index = self.__get_index_for_song(additional_info)
+            song_uris = f'spotify:track:{self.__song_dict[index]["id"]}'
+            for neighbor in self.__get_recommendations('song', additional_info, K)['id']:
+                song_uris += f',spotify:track:{self.__song_dict[neighbor]["id"]}'
+        elif type in ['medium', 'short']:
+            for neighbor in self[f'__{type}_fav']['id']:
+                song_uris += f',spotify:track:{neighbor}'
 
-    def build_playlist(self):
-        item = self.__playlist[[self.__playlist['name'][x] == self.__song_name for x in range(len(self.__playlist['name']))]]
-        index = item.index[0]
-        song_uris = f'spotify:track:{self.__song_dict[index]["id"]}'
-        for neighbor in self.__neighbors:
-            song_uris += f',spotify:track:{self.__song_dict[neighbor]["id"]}'
+            song_uris = song_uris[1:]
+        else:
+            raise ValueError('Invalid type')
 
-        add_songs_req = post(f'https://api.spotify.com/v1/playlists/{self.__create_playlist()}/tracks?uris={song_uris}', headers=self.__headers, data=json.dumps({}))
+        add_songs_req = post(
+            f'https://api.spotify.com/v1/playlists/{self.__create_playlist(type)}/tracks?uris={song_uris}', headers=self.__headers, data=json.dumps({}))
         add_songs_req.json()
 
     def __get_genres(self, genres):
-        all_genres = genres[0][:]
+        try:
+            all_genres = genres[0][:]
+        except IndexError:
+            raise ValueError('Playlist chosen does not correspond to any of the users favorite songs')
 
         for index in range(1, len(genres)):
             for i in range(0, len(all_genres)):
@@ -233,7 +368,6 @@ class SpotifyAPI:
 
         return all_genres
 
-        
     def __get_artists(self, artists):
         all_artists = artists[0][:]
 
@@ -243,31 +377,93 @@ class SpotifyAPI:
 
         return all_artists
 
-    def __get_mid_term_top_5(self):
-        top_5 = get('https://api.spotify.com/v1/me/top/tracks?time_range=medium_term&limit=5', headers=self.__headers).json()
-        top_5_songs = list(filter(lambda song: song['name'] in list(self.__playlist['name']), list(map(lambda song: {'name': song['name'], 'genres': self.__get_song_genres(song), 'artists': list(map(lambda artist: artist['name'],song['artists'])), 'popularity': song['popularity']},top_5['items']))))
+    def __get_top_5(self, time_range='medium'):
+        if time_range not in ['medium', 'short']:
+            raise ValueError(
+                'time_range must be either medium_term or short_term')
+        top_5 = get(
+            f'https://api.spotify.com/v1/me/top/tracks?time_range={time_range}_term&limit=5', headers=self.__headers).json()
+        top_5_songs = list(filter(lambda song: song['name'] in list(self.__playlist['name']), list(map(lambda song: {'name': song['name'], 'genres': self.__get_song_genres(
+            song), 'artists': list(map(lambda artist: artist['name'], song['artists'])), 'popularity': song['popularity']}, top_5['items']))))
 
         return top_5_songs
 
-    def __prepare_fav_data(self):
-        top_5_songs = self.__get_mid_term_top_5()
-        temp_genres = list(reduce(lambda acc, x: acc + list(set(x['genres']) - set(acc)), top_5_songs, []))
-        temp_artists = list(reduce(lambda acc, x: acc + list(set(x['artists']) - set(acc)), top_5_songs, []))
-        latest_fav = {'id': "", 'name': "Latest Favorites", 'genres': temp_genres, 'artists': temp_artists}
+    def __prepare_fav_data(self, term):
+        top_5_songs = self.__get_top_5(term)
+        
+        temp_genres = list(reduce(lambda acc, x: acc +
+                                  list(set(x['genres']) - set(acc)), top_5_songs, []))
+        temp_artists = list(reduce(
+            lambda acc, x: acc + list(set(x['artists']) - set(acc)), top_5_songs, []))
+        latest_fav = {'id': "", 'name': "Recent-ish Favorites" if type ==
+                      'medium' else "Latest Favorites", 'genres': temp_genres, 'artists': temp_artists}
 
-        latest_fav['genres_indexed'] = self.__get_genres(list(map(lambda song: self.__genres_indexed(song['genres']), top_5_songs)))
+        latest_fav['genres_indexed'] = self.__get_genres(
+            list(map(lambda song: self.__genres_indexed(song['genres']), top_5_songs)))
 
-        latest_fav['artists_indexed'] = self.__get_artists(list(map(lambda song: self.__artists_indexed(song['artists']), top_5_songs)))
+        latest_fav['artists_indexed'] = self.__get_artists(
+            list(map(lambda song: self.__artists_indexed(song['artists']), top_5_songs)))
 
-        latest_fav['popularity'] = int(reduce(lambda acc, song: acc + int(song['popularity']), top_5_songs, 0) / len(top_5_songs))
+        latest_fav['popularity'] = int(reduce(
+            lambda acc, song: acc + int(song['popularity']), top_5_songs, 0) / len(top_5_songs))
 
         return latest_fav
 
-    def __end_prepared_fav_data(self):
-        if len(self.__song_dict) == len(self.__songs):
-            self.__song_dict.append(self.__prepare_fav_data())
-        elif len(self.__song_dict) == len(self.__songs) + 1:
-            self.__song_dict.pop()
-            self.__song_dict.append(self.____prepare_fav_data())
+    def __end_prepared_fav_data(self, type):
+        song_dict = self.__song_dict[:]
+        fav = self.__prepare_fav_data(type)
+        song_dict.append(fav)
+        return song_dict
+
+    def get_playlist(self):
+        return self.__playlist[['id', 'name', 'artists', 'genres', 'popularity']]
+
+    def get_short_term_favorites_playlist(self, with_distance: bool = False, generate_csv: bool = False, generate_parquet: bool = False):
+        df = self.__short_fav
+        playlist_name = 'Latest Favorites'
+        if generate_csv:
+            df.to_csv(f'{playlist_name}.csv')
+        if generate_parquet:
+            df.to_parquet(f'{playlist_name}.parquet', compression='snappy')
+
+        if with_distance:
+            return df
         else:
-            raise Exception("error in lists indexes")
+            return df.drop(columns=['distance'])
+
+    def get_medium_term_favorites_playlist(self, with_distance: bool = False, generate_csv: bool = False, generate_parquet: bool = False):
+        df = self.__medium_fav
+        playlist_name = 'Recent-ish Favorites'
+        if generate_csv:
+            df.to_csv(f'{playlist_name}.csv')
+        if generate_parquet:
+            df.to_parquet(f'{playlist_name}.parquet', compression='snappy')
+
+        if with_distance:
+            return df
+
+        return df.drop(columns=['distance'])
+
+    def __prepare_favorites_playlist(self):
+        self.__short_fav = self.__get_recommendations(
+            'short',  self.__end_prepared_fav_data('short'))
+        self.__medium_fav = self.__get_recommendations(
+            'medium',  self.__end_prepared_fav_data('medium'))
+
+
+def start_api(user_id, playlist_url=None, playlist_id=None):
+    if not playlist_url and not playlist_id:
+        raise ValueError(
+            'It is necessary to specify a playlist either with playlist id or playlist url')
+    get_auth()
+    auth_token = input('Paste here the auth token: ')
+    while not auth_token:
+        auth_token = input('Enter a valid auth token: ')
+
+    auth_token = f'Bearer {auth_token}'
+
+    return SpotifyAPI(auth_token=auth_token, playlist_id=playlist_id, user_id=user_id, playlist_url=playlist_url)
+
+
+api = start_api(user_id='nikolas.virionis',
+                playlist_url='https://open.spotify.com/playlist/4zwbIPLRSveLdXdWQIJbgW?si=0a62e823020640b1', playlist_id=None)
