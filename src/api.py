@@ -444,7 +444,8 @@ class SpotifyAPI:
             for neighbor in self.__get_recommendations('song', additional_info, K)['id']:
                 song_uris += f',spotify:track:{self.__song_dict[neighbor]["id"]}'
         elif type in ['medium', 'short']:
-            for neighbor in self[f'__{type}_fav']['id']:
+            ids = self.__medium_fav['id'] if type == 'medium' else self.__short_fav['id']
+            for neighbor in ids:
                 song_uris += f',spotify:track:{neighbor}'
 
             song_uris = song_uris[1:]
