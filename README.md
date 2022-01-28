@@ -9,4 +9,5 @@ This script, in jupyter notebook format for organization purposes, applies the t
 There are also 2 variations from that, which consist of medium term favorites related top 100 and "short term top 5" related top 50 songs. They vary from OG model since the base song(s) is(are) not chosen by hand but statistically
 
 ## DISCLAIMER ##
-Not fit for direct use since some information such as client id, client secret, auth token (which changes each hour or so) with the right scopes (about 10 among 20, chosen by hand), playlist id and user id, all of which are, now, in a .env so that it is not made public, have to be informed in order for the Spotify Web API to work properly
+Not fit for direct use since some information such as client id, client secret, both of which are, now, in a hidden script on .gitignore so that it is not made public, have to be informed in order for the Spotify Web API to work properly
+And also, these scripts are deprecated, so they will not have any maintenance or overtime improvements
