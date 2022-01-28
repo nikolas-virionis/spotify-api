@@ -522,7 +522,7 @@ class SpotifyAPI:
 
         return pd.DataFrame(data=data, columns=['id', 'name', 'artists', 'genres', 'popularity', 'distance'])
 
-    def __get_recommendations(self, type, info, K=50):
+    def __get_recommendations(self, type, info, K=51):
         """
         General purpose function to get recommendations for any type supported by the package
 
@@ -671,7 +671,7 @@ class SpotifyAPI:
             df.to_parquet(f'{playlist_name}.parquet', compression='snappy')
 
         if build_playlist:
-            self.build_playlist('short', 50)
+            self.build_playlist('short', 51)
 
         if with_distance:
             return df
@@ -700,7 +700,7 @@ class SpotifyAPI:
             df.to_parquet(f'{playlist_name}.parquet', compression='snappy')
 
         if build_playlist:
-            self.build_playlist('medium', 50)
+            self.build_playlist('medium', 51)
         
         if with_distance:
             return df
