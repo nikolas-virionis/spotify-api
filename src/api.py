@@ -15,13 +15,26 @@ def playlist_url_to_id(url):
 
 
 class SpotifyAPI:
+    """
+    ### Spotify API is the Class that provides access to the playlists recommendations
+    """
 
     def __get_total_song_count(self):
+        """
+        Function returns the total number of songs in the playlist
+        """
         playlist_res = get(
             f'https://api.spotify.com/v1/playlists/{self.__playlist_id}', headers=self.__headers)
         return playlist_res.json()["tracks"]["total"]
 
     def __add_genres(self, list, genres):
+        """
+        Function represents a way to have only unique values for a given list while constantly appending new genre values
+
+        ## Parameters
+         - list: the overall, big, complete, list of genres
+         - the possibly new genre values
+        """
         for genre in genres:
             if genre not in list:
                 list.append(genre)
@@ -29,6 +42,12 @@ class SpotifyAPI:
         return list
 
     def __get_song_genres(self, song):
+        """
+        Function that gets all the genres for a given song
+
+        ## Parameters
+         - song: the song dictionary
+        """
         genres = []
         song_artists = song["track"]["artists"] if 'track' in list(song.keys()) else song["artists"]
         for artist in song_artists:
@@ -48,9 +67,23 @@ class SpotifyAPI:
         return genres
 
     def __song_data(self, song):
+        """
+        Function that gets additional information about the song
+        like its name, artists, id, popularity
+
+        ## Parameters
+         - song: the song raw dictionary
+        """
         return song["track"]['id'], song["track"]['name'], song["track"]['popularity'], [artist["name"] for artist in song["track"]["artists"]]
 
     def __get_playlist_items(self):
+        """
+        Function that gets the items (songs) inside the playlist
+
+        ## Note
+        Ran automatically but can last as long as 2.5 seconds for each song (can be worse depending on the network connection) inside of te playlist, not because it is compute demanding but because it needs to do a up to a bunch of http requests per song, which can take a while
+
+        """
         self.__all_genres = []
         for offset in range(0, self.__get_total_song_count(), 100):
             all_genres_res = get(
@@ -64,6 +97,10 @@ class SpotifyAPI:
                     self.__all_genres, song_genres)
 
     def __playlist_adjustments(self):
+        """
+        Function that does a bunch of adjustments to the overall formatting of the playlist, before making it visible
+
+        """
         songs = self.__songs[-self.__get_total_song_count():]
         self.__all_artists = list(self.__artists.keys())
         playlist = pd.DataFrame(data=songs, columns=[
@@ -75,6 +112,10 @@ class SpotifyAPI:
         self.__playlist = playlist
 
     def __get_playlist_from_csv(self):
+        """
+        Function that creates the playlist variable from a CSV file previouusly created by this same API
+
+        """
         df = pd.read_parquet('./.spotify-recommender-util/util.parquet')
 
         self.__artists, self.__songs, self.__all_genres = list(map(lambda arr: arr if type(
@@ -83,6 +124,10 @@ class SpotifyAPI:
         self.__playlist = pd.read_csv('playlist.csv')
 
     def __get_playlist_from_parquet(self):
+        """
+        "Secret" dev function that creates the playlist variable from a parquet file, in a hidden folder, previouusly created by this same API, so that in dev it was not necessary to make the thousans of http requests al the times there was a test. Now the challenge is open for you to try to find the way to get thi playlist to run
+
+        """
         df = pd.read_parquet('./.spotify-recommender-util/util.parquet')
 
         self.__artists, self.__songs, self.__all_genres = list(map(lambda arr: arr if type(
@@ -93,9 +138,13 @@ class SpotifyAPI:
             './.spotify-recommender-util/playlist.parquet')
 
     def __get_playlist(self):
+        """
+        General purpose function to get the playlist, either from CSV or web requests
+
+        """
         answer = input(
             'Do you want to get the playlist data via CSV saved previously or read from spotify, *which will take a few minutes* depending on the playlist size (csv/web)? ')
-        while answer.lower() not in ['csv', 'web']:
+        while answer.lower() not in ['csv', 'web', 'parquet']:
             answer = input("Please select a valid response: ")
         if answer.lower() == 'csv':
             self.__get_playlist_from_csv()
@@ -107,6 +156,10 @@ class SpotifyAPI:
         return True
 
     def __playlist_to_parquet(self):
+        """
+        Backup dev automatic function that saves the playlist as a parquet file inside a hidden directory
+
+        """
         if not os.path.exists('./.spotify-recommender-util'):
             os.mkdir('./.spotify-recommender-util')
 
@@ -452,6 +505,22 @@ class SpotifyAPI:
 
 
 def start_api(user_id, playlist_url=None, playlist_id=None):
+    """
+    ### Function that prepares for and initializes the API
+    
+    ## Note: 
+    Internet Connection is required
+    
+    
+    # Parameters:
+     - user_id: the id of user, present in the user account profile
+     - playlist_url(optional): the url for the playlist, which is visible when trying to share it
+     - playlist_id (optional): the id of the playlist, an unique big hash which identifies the playlist
+
+    ## Note:
+    Although both the playlist_url and playlist_id are optional, one of them is required, though the choice is up to you
+    
+    """
     if not playlist_url and not playlist_id:
         raise ValueError(
             'It is necessary to specify a playlist either with playlist id or playlist url')
