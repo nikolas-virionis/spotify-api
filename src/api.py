@@ -49,7 +49,8 @@ class SpotifyAPI:
          - song: the song dictionary
         """
         genres = []
-        song_artists = song["track"]["artists"] if 'track' in list(song.keys()) else song["artists"]
+        song_artists = song["track"]["artists"] if 'track' in list(
+            song.keys()) else song["artists"]
         for artist in song_artists:
             id = artist["id"]
             if id not in self.__artists:
@@ -272,7 +273,7 @@ class SpotifyAPI:
         ### Parameters
          - a: one song's list of genres or artists
          - b: counterpart song's list of genres or artists
-        
+
         ### Note
         For obvious reasons although both the parameters have two value options (genres, artists), when one of the parameters is specified as one of those, the other follows
         """
@@ -403,7 +404,7 @@ class SpotifyAPI:
 
             delete_json = delete(f'https://api.spotify.com/v1/playlists/{new_id}/tracks',
                                  headers=self.__headers, data=json.dumps({"tracks": playlist_tracks})).json()
-                                 
+
         else:
             data = {"name": playlist_name,
                     "description": description, "public": False}
@@ -413,14 +414,14 @@ class SpotifyAPI:
 
         return new_id
 
-    def build_playlist(self, type, K, additional_info = None):
+    def build_playlist(self, type, K, additional_info=None):
         """
         Function that fills the new playlist with the recommendations for the given type 
         type: the type of the playlist being created ('song', 'short', 'medium'):
          - 'song': a playlist related to a song
          - 'short': a playlist related to the short term favorites for that given user
          - 'medium': a playlist related to the medium term favorites for that given user
-        
+
         ## Note:
         This function will change the user's library by filling the previously created empty playlist
 
@@ -454,10 +455,21 @@ class SpotifyAPI:
             f'https://api.spotify.com/v1/playlists/{self.__create_playlist(type)}/tracks?uris={song_uris}', headers=self.__headers, data=json.dumps({}))
         add_songs_req.json()
 
-
     def get_recommendations_for_song(self, song, K, with_distance: bool = False, generate_csv: bool = False, generate_parquet: bool = False, build_playlist: bool = False):
         """
-        
+        Playlist which centralises the actions for a recommendation made for a given song
+
+        ## Parameters
+         - song: The desired song name
+         - K: desired number K of neighbors to be returned
+         - with_distance (bool): Whether to allow the distance column to the DataFrame returned, which will have no actual value for most use cases, since  it does not obey any actual unit, it is just a mathematical value to determine the coset songs
+         - generate_csv (bool): Whether to generate a CSV file containing the recommended playlist
+         - generate_parquet (bool): Whether to generate a parquet file containing the recommended playlist
+         - build_playlist (bool): Whether to build the playlist to the user's library
+
+        ## Note
+        The build_playlist option when set to True will change the user's library
+
         """
         try:
             if K > 99:
@@ -466,13 +478,15 @@ class SpotifyAPI:
             elif K < 1:
                 raise ValueError('Value for K must be between 1 and 99')
 
-
             df = self.__get_recommendations('song', song, K)
             playlist_name = f'{song} Related'
             if generate_csv:
                 df.to_csv(f'{playlist_name}.csv')
             if generate_parquet:
                 df.to_parquet(f'{playlist_name}.parquet', compression='snappy')
+
+            if build_playlist:
+                self.build_playlist('song', K, additional_info=song)
 
             if with_distance:
                 return df
@@ -482,18 +496,47 @@ class SpotifyAPI:
             print(e)
 
     def __get_desired_dict_fields(self, index):
+        """
+        Function that returns the usual fields for a given song
+
+        ### Parameters
+         - index: The index of the song inside the song list
+
+        """
         dict = self.__song_dict[index]
         desired_fields = [dict['id'], dict['name'],
                           dict['artists'], dict['genres'], dict['popularity']]
         return desired_fields
 
     def __song_list_to_df(self, neighbors):
+        """
+        Function that returns DataFrame representation of the list of neighbor songs
+
+        ### Parameters
+         - neighbors: list of a given song's neighbors
+
+        """
         data = list(
             map(lambda x: list(self.__get_desired_dict_fields(x[0]) + [x[1]]), neighbors))
 
         return pd.DataFrame(data=data, columns=['id', 'name', 'artists', 'genres', 'popularity', 'distance'])
 
     def __get_recommendations(self, type, info, K=50):
+        """
+        General purpose function to get recommendations for any type supported by the package
+
+        ### Parameters
+         - info: the changed song_dict list if the type is short or medium or else it is the name of the song to get recommendations from
+         - K: desired number K of neighbors to be returned
+         - type: the type of the playlist being created ('song', 'short', 'medium'), meaning:
+            
+            --- 'song': a playlist related to a song
+
+            --- 'short': a playlist related to the short term favorites for that given user
+
+            --- 'medium': a playlist related to the medium term favorites for that given user
+         
+        """
         index = 0
         if type == 'song':
             index = self.__get_index_for_song(info)
@@ -505,12 +548,19 @@ class SpotifyAPI:
         neighbors = self.__get_neighbors(index, K, song_dict)
         return self.__song_list_to_df(neighbors)
 
-
     def __get_genres(self, genres):
+        """
+        Function to unite all the genres from different songs into one list of genres
+
+
+        ### Parameters
+         - genres: the list of lists of genres from the different songs
+        """
         try:
             all_genres = genres[0][:]
         except IndexError:
-            raise ValueError('Playlist chosen does not correspond to any of the users favorite songs')
+            raise ValueError(
+                'Playlist chosen does not correspond to any of the users favorite songs')
 
         for index in range(1, len(genres)):
             for i in range(0, len(all_genres)):
@@ -519,7 +569,18 @@ class SpotifyAPI:
         return all_genres
 
     def __get_artists(self, artists):
-        all_artists = artists[0][:]
+        """
+        Function to unite all the artists from different songs into one list of artists
+
+
+        ### Parameters
+         - artists: the list of lists of artists from the different songs
+        """
+        try:
+            all_artists = artists[0][:]
+        except IndexError:
+            raise ValueError(
+                'Playlist chosen does not correspond to any of the users favorite songs')
 
         for index in range(1, len(artists)):
             for i in range(0, len(all_artists)):
@@ -528,6 +589,12 @@ class SpotifyAPI:
         return all_artists
 
     def __get_top_5(self, time_range='medium'):
+        """
+        Function that gets and initially formats the top 5 songs in a given time_range
+
+        ### Parameters
+         - time_range: The time range to get the top 5 songs from ('medium', 'short')
+        """
         if time_range not in ['medium', 'short']:
             raise ValueError(
                 'time_range must be either medium_term or short_term')
@@ -539,8 +606,14 @@ class SpotifyAPI:
         return top_5_songs
 
     def __prepare_fav_data(self, term):
+        """
+        Function that expands on the formatting of the top_5 some time_range favorites
+
+        ### Parameters
+         - time_range: The time range to get the top 5 songs from ('medium', 'short')
+        """
         top_5_songs = self.__get_top_5(term)
-        
+
         temp_genres = list(reduce(lambda acc, x: acc +
                                   list(set(x['genres']) - set(acc)), top_5_songs, []))
         temp_artists = list(reduce(
@@ -560,15 +633,35 @@ class SpotifyAPI:
         return latest_fav
 
     def __end_prepared_fav_data(self, type):
+        """
+        Final preparation for favorite data before getting visible
+        
+        """
         song_dict = self.__song_dict[:]
         fav = self.__prepare_fav_data(type)
         song_dict.append(fav)
         return song_dict
 
     def get_playlist(self):
+        """
+        Function that returns the playlist as pandas DataFrame with the needed human readable columns
+        """
         return self.__playlist[['id', 'name', 'artists', 'genres', 'popularity']]
 
-    def get_short_term_favorites_playlist(self, with_distance: bool = False, generate_csv: bool = False, generate_parquet: bool = False):
+    def get_short_term_favorites_playlist(self, with_distance: bool = False, generate_csv: bool = False, generate_parquet: bool = False, build_playlist: bool = False):
+        """
+        Playlist which centralises the actions for a recommendation made for top 5 songs short term
+
+        ## Parameters
+         - with_distance (bool): Whether to allow the distance column to the DataFrame returned, which will have no actual value for most use cases, since  it does not obey any actual unit, it is just a mathematical value to determine the coset songs
+         - generate_csv (bool): Whether to generate a CSV file containing the recommended playlist
+         - generate_parquet (bool): Whether to generate a parquet file containing the recommended playlist
+         - build_playlist (bool): Whether to build the playlist to the user's library
+
+        ## Note
+        The build_playlist option when set to True will change the user's library
+
+        """
         df = self.__short_fav
         playlist_name = 'Latest Favorites'
         if generate_csv:
@@ -576,12 +669,28 @@ class SpotifyAPI:
         if generate_parquet:
             df.to_parquet(f'{playlist_name}.parquet', compression='snappy')
 
+        if build_playlist:
+            self.build_playlist('short', 50)
+
         if with_distance:
             return df
-        else:
-            return df.drop(columns=['distance'])
+        
+        return df.drop(columns=['distance'])
 
-    def get_medium_term_favorites_playlist(self, with_distance: bool = False, generate_csv: bool = False, generate_parquet: bool = False):
+    def get_medium_term_favorites_playlist(self, with_distance: bool = False, generate_csv: bool = False, generate_parquet: bool = False, build_playlist: bool = False):
+        """
+        Playlist which centralises the actions for a recommendation made for top 5 songs medium term
+
+        ## Parameters
+         - with_distance (bool): Whether to allow the distance column to the DataFrame returned, which will have no actual value for most use cases, since  it does not obey any actual unit, it is just a mathematical value to determine the coset songs
+         - generate_csv (bool): Whether to generate a CSV file containing the recommended playlist
+         - generate_parquet (bool): Whether to generate a parquet file containing the recommended playlist
+         - build_playlist (bool): Whether to build the playlist to the user's library
+
+        ## Note
+        The build_playlist option when set to True will change the user's library
+
+        """
         df = self.__medium_fav
         playlist_name = 'Recent-ish Favorites'
         if generate_csv:
@@ -589,12 +698,18 @@ class SpotifyAPI:
         if generate_parquet:
             df.to_parquet(f'{playlist_name}.parquet', compression='snappy')
 
+        if build_playlist:
+            self.build_playlist('medium', 50)
+        
         if with_distance:
             return df
 
         return df.drop(columns=['distance'])
 
     def __prepare_favorites_playlist(self):
+        """
+        Automatic creation of both the favorites related recommendations
+        """
         self.__short_fav = self.__get_recommendations(
             'short',  self.__end_prepared_fav_data('short'))
         self.__medium_fav = self.__get_recommendations(
@@ -604,11 +719,11 @@ class SpotifyAPI:
 def start_api(user_id, playlist_url=None, playlist_id=None):
     """
     ### Function that prepares for and initializes the API
-    
+
     ## Note: 
     Internet Connection is required
-    
-    
+
+
     # Parameters:
      - user_id: the id of user, present in the user account profile
      - playlist_url(optional): the url for the playlist, which is visible when trying to share it
@@ -616,7 +731,7 @@ def start_api(user_id, playlist_url=None, playlist_id=None):
 
     ## Note:
     Although both the playlist_url and playlist_id are optional, one of them is required, though the choice is up to you
-    
+
     """
     if not playlist_url and not playlist_id:
         raise ValueError(
