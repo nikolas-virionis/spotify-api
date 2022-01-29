@@ -748,9 +748,3 @@ def start_api(user_id, playlist_url=None, playlist_id=None):
     auth_token = f'Bearer {auth_token}'
 
     return SpotifyAPI(auth_token=auth_token, playlist_id=playlist_id, user_id=user_id, playlist_url=playlist_url)
-
-
-api = start_api(user_id='nikolas.virionis', playlist_url = 'https://open.spotify.com/playlist/4zwbIPLRSveLdXdWQIJbgW?si=0a62e823020640b1', playlist_id=None)
-
-
-api.get_recommendations_for_song('Out Of Love', K=50)
