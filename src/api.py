@@ -104,13 +104,13 @@ class SpotifyAPI:
         """
         songs = self.__songs[-self.__get_total_song_count():]
         self.__all_artists = list(self.__artists.keys())
-        playlist = pd.DataFrame(data=songs, columns=[
-            'id', 'name', 'artists', 'popularity', 'genres'])
+        playlist = pd.DataFrame(data=list(songs))
+        # , columns=['id', 'name', 'artists', 'popularity', 'genres']
         playlist["genres_indexed"] = [self.__genres_indexed(eval(playlist["genres"][x]) if type(
             playlist["genres"][x]) == 'str' else playlist["genres"][x]) for x in range(len(playlist["genres"]))]
         playlist["artists_indexed"] = [self.__artists_indexed(eval(playlist["artists"][x]) if type(
             playlist["artists"][x]) == 'str' else playlist["artists"][x]) for x in range(len(playlist["artists"]))]
-        self.__playlist = playlist.drop_duplicates(subset='id', keep='first')
+        self.__playlist = playlist
 
     def __get_playlist_from_csv(self):
         """
@@ -118,9 +118,10 @@ class SpotifyAPI:
 
         """
         df = pd.read_parquet('./.spotify-recommender-util/util.parquet')
-
+        # print(list(map(lambda arr: arr if type(
+        #     arr) != 'str' else eval(arr), [df['artists'][0], df['songs'][0], df['all_genres'][0]])))
         self.__artists, self.__songs, self.__all_genres = list(map(lambda arr: arr if type(
-            arr) == 'str' else eval(arr), df['artists'][0], df['songs'][0], df['all_genres'][0]))
+            arr) != 'str' else eval(arr), [df['artists'][0], df['songs'][0], df['all_genres'][0]]))
 
         self.__playlist = pd.read_csv('playlist.csv')
 
@@ -161,18 +162,18 @@ class SpotifyAPI:
         self.__songs = []
 
         if self.__get_playlist():
-            if playlist_id:
-                self.__playlist_id = playlist_id
-            else:
-                if not playlist_url:
-                    raise ValueError(
-                        'Either the playlist url or its id must be specified')
-                self.__playlist_id = playlist_url_to_id(playlist_url)
-                self.__playlist_url = playlist_url
-
             self.__get_playlist_items()
-            self.__playlist_adjustments()
 
+        if playlist_id:
+            self.__playlist_id = playlist_id
+        else:
+            if not playlist_url:
+                raise ValueError(
+                    'Either the playlist url or its id must be specified')
+            self.__playlist_id = playlist_url_to_id(playlist_url)
+            self.__playlist_url = playlist_url
+
+        self.__playlist_adjustments()
         self.__knn_prepared_data(self.__playlist)
         self.__prepare_favorites_playlist()
 
@@ -299,7 +300,7 @@ class SpotifyAPI:
          - popularity: the difference between the two song's popularity, considering it a basic absolute value from the actual difference between the values
 
         At the end there is a weighted multiplication of all the factors that implies two things:
-         - They are in really different scales
+         - They are in really different scales.drop_duplicates(subset='id', keep='first')
          - They have different importance levels to the final result of the calculation
 
 
@@ -342,7 +343,8 @@ class SpotifyAPI:
         ### Parameters
          - song: song name
         """
-        if len(self.__playlist['name'][self.__playlist['name'] == song] == 0):
+        if song not in list(self.__playlist['name']):
+            # print(self.__playlist['name'])
             raise ValueError(f'Playlist does not contain the song {song!r}')
         item = self.__playlist[[self.__playlist['name'][x] ==
                                 song for x in range(len(self.__playlist['name']))]]
@@ -746,3 +748,9 @@ def start_api(user_id, playlist_url=None, playlist_id=None):
     auth_token = f'Bearer {auth_token}'
 
     return SpotifyAPI(auth_token=auth_token, playlist_id=playlist_id, user_id=user_id, playlist_url=playlist_url)
+
+
+api = start_api(user_id='nikolas.virionis', playlist_url = 'https://open.spotify.com/playlist/4zwbIPLRSveLdXdWQIJbgW?si=0a62e823020640b1', playlist_id=None)
+
+
+api.get_recommendations_for_song('Out Of Love', K=50)
