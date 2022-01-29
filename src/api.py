@@ -417,7 +417,7 @@ class SpotifyAPI:
 
         return new_id
 
-    def build_playlist(self, type, K, additional_info=None):
+    def __build_playlist(self, type, K, additional_info=None):
         """
         Function that fills the new playlist with the recommendations for the given type 
         type: the type of the playlist being created ('song', 'short', 'medium'):
@@ -490,7 +490,7 @@ class SpotifyAPI:
                 df.to_parquet(f'{playlist_name}.parquet', compression='snappy')
 
             if build_playlist:
-                self.build_playlist('song', K, additional_info=song)
+                self.__build_playlist('song', K, additional_info=song)
 
             if with_distance:
                 return df
@@ -674,7 +674,7 @@ class SpotifyAPI:
             df.to_parquet(f'{playlist_name}.parquet', compression='snappy')
 
         if build_playlist:
-            self.build_playlist('short', 51)
+            self.__build_playlist('short', 51)
 
         if with_distance:
             return df
@@ -703,7 +703,7 @@ class SpotifyAPI:
             df.to_parquet(f'{playlist_name}.parquet', compression='snappy')
 
         if build_playlist:
-            self.build_playlist('medium', 51)
+            self.__build_playlist('medium', 51)
         
         if with_distance:
             return df
