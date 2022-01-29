@@ -6,7 +6,7 @@ with open("./README.md", "r") as fh:
 setup(
     name='spotify_recommender',
     version='2.0.3',
-    description='The number-utility module makes it simple for you to do number manipulation and perform various operations on numbers.',
+    description='Python package which takes the songs of a greater playlist as starting point to make recommendations of songs based on up to 5 specific songs within that playlist, using K-Nearest-Neighbors Technique',
     py_modules=["spotify_recommender"],
     package_dir={'src': 'src'},
     requires=['pandas', 'requests', 'webbrowser',],
