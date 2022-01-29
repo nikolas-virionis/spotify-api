@@ -4,12 +4,13 @@ with open("./README.md", "r") as fh:
     long_description = fh.read()
 
 setup(
-    name='spotify-recommender',
+    name='spotify_recommender',
     version='2.0.3',
     description='The number-utility module makes it simple for you to do number manipulation and perform various operations on numbers.',
     py_modules=["spotify_recommender"],
-    package_dir={'': 'src'},
-    requires=['pandas', 'requests', 'webbrowser'],
+    package_dir={'src': 'src'},
+    requires=['pandas', 'requests', 'webbrowser',],
+    install_requires=['pandas', 'requests', 'webbrowser',],
     extras_require={
         "dev": [
             "pytest >= 3.7",
