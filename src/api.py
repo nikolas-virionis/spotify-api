@@ -110,7 +110,7 @@ class SpotifyAPI:
             playlist["genres"][x]) == 'str' else playlist["genres"][x]) for x in range(len(playlist["genres"]))]
         playlist["artists_indexed"] = [self.__artists_indexed(eval(playlist["artists"][x]) if type(
             playlist["artists"][x]) == 'str' else playlist["artists"][x]) for x in range(len(playlist["artists"]))]
-        self.__playlist = playlist
+        self.__playlist = playlist.drop_duplicates(subset='id', keep='first')
 
     def __get_playlist_from_csv(self):
         """
@@ -179,7 +179,7 @@ class SpotifyAPI:
     def playlist_to_csv(self):
         """
         #### Function to convert playlist to CSV format
-        #### Really useful if the package is being used in a .py file since it is not worth it to use it directly through web requests everytime even more when the playlist has not changed since last package execution
+        #### Really useful if the package is being used in a .py file since it is not worth it to use it directly through web requests everytime even more when the playlist has not changed since last package usage
         """
         if not os.path.exists('./.spotify-recommender-util'):
             os.mkdir('./.spotify-recommender-util')
@@ -188,8 +188,9 @@ class SpotifyAPI:
 
         df.to_parquet('./.spotify-recommender-util/util.parquet')
 
-        self.__playlist[['id', 'name', 'artists', 'genres', 'popularity']].drop_duplicates(
-            keep='first').to_csv('playlist.csv', header=True, index=None)
+        playlist = self.__playlist[['id', 'name', 'artists', 'genres', 'popularity']]
+
+        playlist.to_csv('playlist.csv')
 
     def __genres_indexed(self, genres):
         """
@@ -348,7 +349,7 @@ class SpotifyAPI:
         index = item.index[0]
         return index
 
-    def playlist_exists(self, name):
+    def __playlist_exists(self, name):
         """
         Function used to check if a playlist exists inside the user's library
 
@@ -395,7 +396,7 @@ class SpotifyAPI:
         else:
             raise ValueError('type not valid')
         new_id = ""
-        playlist_id_found = self.playlist_exists(playlist_name)
+        playlist_id_found = self.__playlist_exists(playlist_name)
         if playlist_id_found:
             new_id = playlist_id_found
 
