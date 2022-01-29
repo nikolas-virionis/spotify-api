@@ -5,9 +5,9 @@ with open("./README.md", "r") as fh:
 
 setup(
     name='spotify-recommender',
-    version='2.0.0',
+    version='2.0.3',
     description='The number-utility module makes it simple for you to do number manipulation and perform various operations on numbers.',
-    py_modules=["spotify-recommender"],
+    py_modules=["spotify_recommender"],
     package_dir={'': 'src'},
     requires=['pandas', 'requests', 'webbrowser'],
     extras_require={
