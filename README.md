@@ -3,7 +3,8 @@
 <img src='https://storage.googleapis.com/pr-newsroom-wp/1/2018/11/Spotify_Logo_CMYK_Green.png' width='60%'>
 
 - [Setup](#setup)
-
+- [Methods](#methods)
+- [Packages used](#packages-used)
 - [OG Scripts](#og-scripts)
 
 ## Setup
@@ -19,12 +20,12 @@
  The perfect use case for this package is that of one big playlist (500+ songs), which you feel like listening to some of them, then others but never all of them
  Still, in the first versions of this package, this playlist will have to have at least two of your favorite songs.
   - ### Patience
- <br>It may seem funny or a joke, but the first mapping process of the playlist to a local pandas DataFrame, it will take a good while, up to 2.5 to 3 second per song, at 20-40Mbps Internet connection, being in Latam. All these factors play a part in the time for it to load.
+ It may seem funny or a joke, but the first mapping process of the playlist to a local pandas DataFrame, it will take a good while, up to 2.5 to 3 second per song, at 20-40Mbps Internet connection, being in Latam. All these factors play a part in the time for it to load.
  Just to make it clear, cpu, ram, these will not help much, the issue is to have up to 5 different http requests per song, which make this take so long
   - Jupyter Notebook<br>
  Not exactly a requirement but it is advised that a jupyter notebook is used ( even more advised to use the vscode extension for jupyter notebooks ), because it is important, or at least more confortable, to have the variable still in memory and then decide how to use it, without having to run the script multiple times
   - Spotify access<br>
- I mean, you know that already, right?
+ I mean, you know thJsonat already, right?
 
   - Installing the package<br>
 ~~~ps1
@@ -55,16 +56,83 @@ api = start_api(playlist_url='<PLAYLIST_URL>', user_id='<USER_ID>')
   
   Then generate it, after that hit crtl+A / command+A to select it all then crtl+C / command+C to copy it
   Then paste it in the field requiring it and press enter
-  Then if you already have a previously generated CSV file format playlist, type csv then enter, if you do not have the playlist as previously generated, press web, but know that it will take a good while as said [here](#patience)
+  Then if you already have a previously generated CSV file format playlist, type csv then enter, if you do not have the playlist as previously generated, press web, but know that it will take a good while as said [here](#patience),and if this is the case, go get a coffee, or tea if you are into that sort of thing.
+  
+  
+## Methods
+ - get_playlist()
+~~~python
+api.get_playlist()
+# Function that returns the pandas DataFrame representing the base playlist
+~~~ 
+ - playlist_to_csv()
+~~~python
+api.playlist_to_csv()
+# Function that creates a csv format file containing the items in the playlist
+# Especially useful when re running the script without having changed the playlist
+~~~ 
+ - get_medium_term_favorites_playlist(with_distance: bool, generate_csv: bool, generate_parquet: bool, build_playlist: bool)
+~~~python
+api.get_medium_term_favorites_playlist(generate_csv=True, build_playlist=True)
+# Function that returns the pandas DataFrame representing the 
+# medium term top 5 recommendation playlist
+# All parameters are defaulted to False
+# The "distance" is a mathematical value with no explicit units, that is 
+# used by te algorithm to find the closest songs
+# build_playlist will change the user's library
+~~~ 
+ - get_short_term_favorites_playlist(with_distance: bool, generate_csv: bool, generate_parquet: bool, build_playlist: bool)
+~~~python
+api.get_short_term_favorites_playlist(generate_csv=True, build_playlist=True)
+# Function that returns the pandas DataFrame representing the 
+# short term top 5 recommendation playlist
+# All parameters are defaulted to False
+# The "distance" is a mathematical value with no explicit units, that is 
+# used by te algorithm to find the closest songs
+# build_playlist will change the user's library
+~~~ 
+ - get_recommendations_for_song(song: str, K: int, with_distance: bool, generate_csv: bool, generate_parquet: bool, build_playlist: bool)
+~~~python
+api.get_recommendations_for_song(song='<SONG_NAME>', K=50)
+# Function that creates returns the pandas DataFrame representing the 
+# given song recommendation playlist
+# the 'song' and 'K' parameters are mandatory and the rest is
+# defaulted to False
+# The "distance" is a mathematical value with no explicit units, that is 
+# used by te algorithm to find the closest songs
+# build_playlist will change the user's library
+~~~ 
 
 
 ## OG Scripts
-## Context
+### Context
 This script, in jupyter notebook format for organization purposes, applies the technique called K Nearest Neighbors to find the 50 closest songs to either one chosen or one of the users top 5(short term), all within a specific Spotify playlist, in order to maintain the most consistency in terms of the specific chosen style, and creates a new playlist with those songs in the user's library, using their genres, artists and overall popularity as metrics to determine indexes of comparison between songs
 
 ### Variations
 There are also 2 variations from that, which consist of medium term favorites related top 100 and "short term top 5" related top 50 songs. They vary from OG model since the base song(s) is(are) not chosen by hand but statistically
 
-## DISCLAIMER ##
-Not fit for direct use since some information such as client id, client secret, both of which are, now, in a hidden script on .gitignore so that it is not made public, have to be informed in order for the Spotify Web API to work properly
-And also, these scripts are deprecated, so they will not have any maintenance or overtime improvements
+### DISCLAIMER ###
+Not fit for direct use since some information such as client id, client secret, both of which are, now, in a hidden script on .gitignore so that it is not made public, have to be informed in order for the Spotify Web API to work properly.
+And also, these scripJsonts are deprecated, so they will not have any maintenance or overtime improvements
+
+
+
+
+
+## Packages used
+ - Pandas 
+~~~ps1
+pip install pandas
+~~~
+ - Requests
+~~~ps1
+pip install requests
+~~~
+ - Webbrowser
+~~~ps1
+pip install webbrowser
+~~~
+ - Json (json)
+ - Operator (operator)
+ - Functools (functools)
+ - Os (os)
