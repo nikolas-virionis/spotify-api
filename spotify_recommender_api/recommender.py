@@ -1,7 +1,7 @@
 from requests import get, post, delete
 import pandas as pd
-from sensitive import *
-from auth import get_auth
+from spotify_recommender_api.sensitive import *
+from spotify_recommender_api.authentication import get_auth
 import operator
 import json
 from functools import reduce
@@ -189,7 +189,8 @@ class SpotifyAPI:
 
         df.to_parquet('./.spotify-recommender-util/util.parquet')
 
-        playlist = self.__playlist[['id', 'name', 'artists', 'genres', 'popularity']]
+        playlist = self.__playlist[['id', 'name',
+                                    'artists', 'genres', 'popularity']]
 
         playlist.to_csv('playlist.csv')
 
@@ -533,13 +534,13 @@ class SpotifyAPI:
          - info: the changed song_dict list if the type is short or medium or else it is the name of the song to get recommendations from
          - K: desired number K of neighbors to be returned
          - type: the type of the playlist being created ('song', 'short', 'medium'), meaning:
-            
+
             --- 'song': a playlist related to a song
 
             --- 'short': a playlist related to the short term favorites for that given user
 
             --- 'medium': a playlist related to the medium term favorites for that given user
-         
+
         """
         index = 0
         if type == 'song':
@@ -639,7 +640,7 @@ class SpotifyAPI:
     def __end_prepared_fav_data(self, type):
         """
         Final preparation for favorite data before getting visible
-        
+
         """
         song_dict = self.__song_dict[:]
         fav = self.__prepare_fav_data(type)
@@ -678,7 +679,7 @@ class SpotifyAPI:
 
         if with_distance:
             return df
-        
+
         return df.drop(columns=['distance'])
 
     def get_medium_term_favorites_playlist(self, with_distance: bool = False, generate_csv: bool = False, generate_parquet: bool = False, build_playlist: bool = False):
@@ -704,7 +705,7 @@ class SpotifyAPI:
 
         if build_playlist:
             self.__build_playlist('medium', 51)
-        
+
         if with_distance:
             return df
 

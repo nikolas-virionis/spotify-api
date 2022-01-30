@@ -29,7 +29,7 @@
 
   - Installing the package<br>
 ~~~ps1
-pip install spotify-recommender
+pip install spotify-recommender-api
 ~~~
 
 
@@ -37,7 +37,7 @@ pip install spotify-recommender
 
 Firstly, it's necessary to import the method start_api from the package spotify_recommender.api:
  ~~~ python
- from spotify_recommender.api import start_api
+ from spotify_recommender_api.recommender import start_api
  ~~~
 
 ### Starting the api
