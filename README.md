@@ -151,10 +151,7 @@ pip install pandas
 ~~~ps1
 pip install requests
 ~~~
- - Webbrowser
-~~~ps1
-pip install webbrowser
-~~~
+ - Webbrowser (webbrowser)
  - Json (json)
  - Operator (operator)
  - Functools (functools)
