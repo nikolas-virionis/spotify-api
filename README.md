@@ -43,10 +43,11 @@ Firstly, it's necessary to import the method start_api from the package spotify_
 ### Starting the api
   - Gathering the initial information: (playlist_url, user_id)<br>
   
-  --- Playlist URL: The playlist url is available when right clicking the playlist name / or going to the three dots that represent the playlist options 
-  --- Playlist ID: The playlist id is available the hash string between the last '/' in and the '?' in the playlist url
-
-  --- User ID: The use rid is available when clicking the account profile information
+  --- Playlist URL: The playlist url is available when right clicking the playlist name / or going to the three dots that represent the playlist options <br>
+  --- Playlist ID: The playlist id is available the hash string between the last '/' in and the '?' in the playlist url<br>
+  <img src='./readme-pictures/Playlist Configs.png' width='25%'><br>
+  --- User ID: The use rid is available when clicking the account, and accessing its information, on spotify's website<br>
+  <img src='./readme-pictures/Account.png' width='25%'><br>
   
   - Calling the function:
 ~~~python
@@ -60,8 +61,10 @@ Though, to be honest, it is easier and more convenient to use the playlist URL
 
   - Getting the Auth Token:
   It is a hash token that expires 60 minutes after it is generated, first you need to say that you want to be redirected (y)
-  But if it is not the first time you are executing the script in less than an hour, then press(n) and paste the token, Otherwise press "Get Token", and then select the 5 scope options:
+  But if it is not the first time you are executing the script in less than an hour, then press(n) and paste the token <br>
+  Otherwise press "Get Token", and then select the 5 scope options:<br>
   
+  <img src='./readme-pictures/OAuth Scopes.png' width='40%'><br>
   
   Then request it, after that hit crtl+A / command+A to select it all then crtl+C / command+C to copy it
   Then, back to python, paste it in the field requiring it and press enter
