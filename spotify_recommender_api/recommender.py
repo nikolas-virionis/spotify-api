@@ -161,9 +161,6 @@ class SpotifyAPI:
         self.__artists = {}
         self.__songs = []
 
-        if self.__get_playlist():
-            self.__get_playlist_items()
-
         if playlist_id:
             self.__playlist_id = playlist_id
         else:
@@ -172,6 +169,10 @@ class SpotifyAPI:
                     'Either the playlist url or its id must be specified')
             self.__playlist_id = playlist_url_to_id(playlist_url)
             self.__playlist_url = playlist_url
+            
+        if self.__get_playlist():
+            self.__get_playlist_items()
+
 
         self.__playlist_adjustments()
         self.__knn_prepared_data(self.__playlist)
@@ -741,6 +742,12 @@ def start_api(user_id, playlist_url=None, playlist_id=None):
     if not playlist_url and not playlist_id:
         raise ValueError(
             'It is necessary to specify a playlist either with playlist id or playlist url')
+    if playlist_url and not playlist_id:
+        playlist_id = False
+    if playlist_id and not playlist_url:
+        playlist_url = False
+    
+        
     get_auth()
     auth_token = input('Paste here the auth token: ')
     while not auth_token:
@@ -749,3 +756,6 @@ def start_api(user_id, playlist_url=None, playlist_id=None):
     auth_token = f'Bearer {auth_token}'
 
     return SpotifyAPI(auth_token=auth_token, playlist_id=playlist_id, user_id=user_id, playlist_url=playlist_url)
+
+
+api = start_api(user_id='nikolas.virionis', playlist_url='https://open.spotify.com/playlist/4zwbIPLRSveLdXdWQIJbgW?si=dec705884b68451c')

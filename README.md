@@ -19,9 +19,9 @@
   - <strong>A fitting playlist</strong><br>
  The perfect use case for this package is that of one big playlist (500+ songs), which you feel like listening to some of them, then others but never all of them
  Still, in the first versions of this package, this playlist will have to have at least two of your favorite songs.
-  - ### Patience
- It may seem funny or a joke, but the first mapping process of the playlist to a local pandas DataFrame, it will take a good while, up to 2.5 to 3 second per song, at 20-40Mbps Internet connection, being in Latam. All these factors play a part in the time for it to load.
- Just to make it clear, cpu, ram, these will not help much, the issue is to have up to 5 different http requests per song, which make this take so long
+  - ## <strong>Patience</strong>
+    It may seem funny or a joke, but the first mapping process of the playlist to a local pandas DataFrame, it will take a good while, up to 2.5 to 3 second per song, at 20-40Mbps Internet connection, being in Latam. All these factors play a part in the time for it to load.
+    Just to make it clear, cpu, ram, these will not help much, the issue is to have up to 5 different http requests per song, which make this take so long
   - Jupyter Notebook<br>
  Not exactly a requirement but it is advised that a jupyter notebook is used ( even more advised to use the vscode extension for jupyter notebooks ), because it is important, or at least more confortable, to have the variable still in memory and then decide how to use it, without having to run the script multiple times
   - Spotify access<br>
@@ -41,8 +41,10 @@ Firstly, it's necessary to import the method start_api from the package spotify_
  ~~~
 
 ### Starting the api
-  - Gathering the initial information: (playlist_url, user_id)
+  - Gathering the initial information: (playlist_url, user_id)<br>
+  
   --- Playlist URL: The playlist url is available when right clicking the playlist name / or going to the three dots that represent the playlist options 
+  --- Playlist ID: The playlist id is available the hash string between the last '/' in and the '?' in the playlist url
 
   --- User ID: The use rid is available when clicking the account profile information
   
@@ -50,12 +52,19 @@ Firstly, it's necessary to import the method start_api from the package spotify_
 ~~~python
 api = start_api(playlist_url='<PLAYLIST_URL>', user_id='<USER_ID>')
 ~~~
+Or
+~~~python
+api = start_api(playlist_id='<PLAYLIST_ID>', user_id='<USER_ID>')
+~~~
+Though, to be honest, it is easier and more convenient to use the playlist URL
 
   - Getting the Auth Token:
-  It is a hash token that expires 60 minutes after it is generated, first you need to say that you want to be redirected (y), then press "Get Token", and then select the 5 scope options, but if it is not the first time you are executing the script in less than an hour, then press(n) and paste the token:
+  It is a hash token that expires 60 minutes after it is generated, first you need to say that you want to be redirected (y)
+  But if it is not the first time you are executing the script in less than an hour, then press(n) and paste the token, Otherwise press "Get Token", and then select the 5 scope options:
   
-  Then generate it, after that hit crtl+A / command+A to select it all then crtl+C / command+C to copy it
-  Then paste it in the field requiring it and press enter
+  
+  Then request it, after that hit crtl+A / command+A to select it all then crtl+C / command+C to copy it
+  Then, back to python, paste it in the field requiring it and press enter
   Then if you already have a previously generated CSV file format playlist, type csv then enter, if you do not have the playlist as previously generated, press web, but know that it will take a good while as said [here](#patience),and if this is the case, go get a coffee, or tea if you are into that sort of thing.
   
   
