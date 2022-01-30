@@ -69,19 +69,24 @@ Though, to be honest, it is easier and more convenient to use the playlist URL
   
   
 ## Methods
- - get_playlist()
+ - get_playlist
 ~~~python
+# Method Use Example
 api.get_playlist()
 # Function that returns the pandas DataFrame representing the base playlist
 ~~~ 
- - playlist_to_csv()
+ - playlist_to_csv
 ~~~python
+# Method Use Example
 api.playlist_to_csv()
 # Function that creates a csv format file containing the items in the playlist
 # Especially useful when re running the script without having changed the playlist
 ~~~ 
- - get_medium_term_favorites_playlist(with_distance: bool, generate_csv: bool, generate_parquet: bool, build_playlist: bool)
+ - get_medium_term_favorites_playlist
 ~~~python
+# Parameters
+get_medium_term_favorites_playlist(with_distance: bool, generate_csv: bool, generate_parquet: bool, build_playlist: bool)
+# Method Use Example
 api.get_medium_term_favorites_playlist(generate_csv=True, build_playlist=True)
 # Function that returns the pandas DataFrame representing the 
 # medium term top 5 recommendation playlist
@@ -90,8 +95,11 @@ api.get_medium_term_favorites_playlist(generate_csv=True, build_playlist=True)
 # used by te algorithm to find the closest songs
 # build_playlist will change the user's library
 ~~~ 
- - get_short_term_favorites_playlist(with_distance: bool, generate_csv: bool, generate_parquet: bool, build_playlist: bool)
+ - get_short_term_favorites_playlist
 ~~~python
+# Parameters
+get_short_term_favorites_playlist(with_distance: bool, generate_csv: bool, generate_parquet: bool, build_playlist: bool)
+# Method Use Example
 api.get_short_term_favorites_playlist(generate_csv=True, build_playlist=True)
 # Function that returns the pandas DataFrame representing the 
 # short term top 5 recommendation playlist
@@ -100,8 +108,11 @@ api.get_short_term_favorites_playlist(generate_csv=True, build_playlist=True)
 # used by te algorithm to find the closest songs
 # build_playlist will change the user's library
 ~~~ 
- - get_recommendations_for_song(song: str, K: int, with_distance: bool, generate_csv: bool, generate_parquet: bool, build_playlist: bool)
+ - get_recommendations_for_song
 ~~~python
+# Parameters
+get_recommendations_for_song(song: str, K: int, with_distance: bool, generate_csv: bool, generate_parquet: bool, build_playlist: bool)
+# Method Use Example
 api.get_recommendations_for_song(song='<SONG_NAME>', K=50)
 # Function that creates returns the pandas DataFrame representing the 
 # given song recommendation playlist
