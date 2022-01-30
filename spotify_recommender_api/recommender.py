@@ -565,6 +565,7 @@ class SpotifyAPI:
         try:
             all_genres = genres[0][:]
         except IndexError:
+            self.__deny_favorites = True
             raise ValueError(
                 'Playlist chosen does not correspond to any of the users favorite songs')
 
@@ -668,6 +669,9 @@ class SpotifyAPI:
         The build_playlist option when set to True will change the user's library
 
         """
+        if self.__deny_favorites:
+            print("The chosen playlist does not contain the user's favorite songs")
+            return
         df = self.__short_fav
         playlist_name = 'Latest Favorites'
         if generate_csv:
@@ -697,6 +701,9 @@ class SpotifyAPI:
         The build_playlist option when set to True will change the user's library
 
         """
+        if self.__deny_favorites:
+            print("The chosen playlist does not contain the user's favorite songs")
+            return
         df = self.__medium_fav
         playlist_name = 'Recent-ish Favorites'
         if generate_csv:
@@ -716,10 +723,13 @@ class SpotifyAPI:
         """
         Automatic creation of both the favorites related recommendations
         """
-        self.__short_fav = self.__get_recommendations(
-            'short',  self.__end_prepared_fav_data('short'))
-        self.__medium_fav = self.__get_recommendations(
-            'medium',  self.__end_prepared_fav_data('medium'))
+        try:
+            self.__short_fav = self.__get_recommendations(
+                'short',  self.__end_prepared_fav_data('short'))
+            self.__medium_fav = self.__get_recommendations(
+                'medium',  self.__end_prepared_fav_data('medium'))
+        except ValueError:
+            return
 
 
 def start_api(user_id, playlist_url=None, playlist_id=None):
