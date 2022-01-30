@@ -447,7 +447,7 @@ class SpotifyAPI:
             index = self.__get_index_for_song(additional_info)
             song_uris = f'spotify:track:{self.__song_dict[index]["id"]}'
             for neighbor in self.__get_recommendations('song', additional_info, K)['id']:
-                song_uris += f',spotify:track:{self.__song_dict[neighbor]["id"]}'
+                song_uris += f',spotify:track:{neighbor}'
         elif type in ['medium', 'short']:
             ids = self.__medium_fav['id'] if type == 'medium' else self.__short_fav['id']
             for neighbor in ids:
@@ -484,6 +484,7 @@ class SpotifyAPI:
             elif K < 1:
                 raise ValueError('Value for K must be between 1 and 99')
 
+            self.__song_name = song
             df = self.__get_recommendations('song', song, K)
             playlist_name = f'{song} Related'
             if generate_csv:
