@@ -461,7 +461,7 @@ class SpotifyAPI:
             f'https://api.spotify.com/v1/playlists/{self.__create_playlist(type)}/tracks?uris={song_uris}', headers=self.__headers, data=json.dumps({}))
         add_songs_req.json()
 
-    def get_recommendations_for_song(self, song, K, with_distance: bool = False, generate_csv: bool = False, generate_parquet: bool = False, build_playlist: bool = False):
+    def get_recommendations_for_song(self, song, K, with_distance: bool = False, generate_csv: bool = False, generate_parquet: bool = False, build_playlist: bool = False, print_base_caracteristics: bool = False):
         """
         Playlist which centralises the actions for a recommendation made for a given song
 
@@ -472,6 +472,7 @@ class SpotifyAPI:
          - generate_csv (bool): Whether to generate a CSV file containing the recommended playlist
          - generate_parquet (bool): Whether to generate a parquet file containing the recommended playlist
          - build_playlist (bool): Whether to build the playlist to the user's library
+         - print_base_caracteristics (bool): Whether to print the base / informed song information, in order to check why such predictions were made by the algorithm
 
         ## Note
         The build_playlist option when set to True will change the user's library
@@ -487,8 +488,16 @@ class SpotifyAPI:
             self.__song_name = song
             df = self.__get_recommendations('song', song, K)
             playlist_name = f'{song} Related'
+
+            if print_base_caracteristics:
+                index = self.__get_index_for_song(song)
+                caracteristics = self.__song_dict[index]
+                name, genres, artists, popularity = list(caracteristics.values())[1:5]
+                print(f'{name = }\n{artists = }\n{genres = }\n{popularity = }')
+
             if generate_csv:
                 df.to_csv(f'{playlist_name}.csv')
+
             if generate_parquet:
                 df.to_parquet(f'{playlist_name}.parquet', compression='snappy')
 

@@ -125,7 +125,7 @@ api.get_short_term_favorites_playlist(generate_csv=True, build_playlist=True)
  - get_recommendations_for_song
 ~~~python
 # Parameters
-get_recommendations_for_song(song: str, K: int, with_distance: bool, generate_csv: bool, generate_parquet: bool, build_playlist: bool)
+get_recommendations_for_song(song: str, K: int, with_distance: bool, generate_csv: bool, generate_parquet: bool, build_playlist: bool, print_base_caracteristics: bool)
 # Method Use Example
 api.get_recommendations_for_song(song='<SONG_NAME>', K=50)
 # Function that creates returns the pandas DataFrame representing the 
@@ -134,6 +134,7 @@ api.get_recommendations_for_song(song='<SONG_NAME>', K=50)
 # defaulted to False
 # The "distance" is a mathematical value with no explicit units, that is 
 # used by te algorithm to find the closest songs
+# print_base_caracteristics will display the parameter song information
 # build_playlist will change the user's library
 ~~~ 
 
