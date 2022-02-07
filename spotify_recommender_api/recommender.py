@@ -160,6 +160,7 @@ class SpotifyAPI:
                           "Content-Type": "application/json", "Authorization": self.__auth_token}
         self.__artists = {}
         self.__songs = []
+        self.__deny_favorites = False
 
         if playlist_id:
             self.__playlist_id = playlist_id
