@@ -36,7 +36,7 @@
   - Jupyter Notebook<br>
  Not exactly a requirement but it is advised that a jupyter notebook is used ( even more advised to use the vscode extension for jupyter notebooks ), because it is important, or at least more confortable, to have the variable still in memory and then decide how to use it, without having to run the script multiple times
   - Spotify access<br>
- I mean, you know thJsonat already, right?
+ I mean, you know that already, right?
 
   - Installing the package<br>
 ~~~ps1
