@@ -1,6 +1,6 @@
 # spotify-recommender
 
-<img src='https://storage.googleapis.com/pr-newsroom-wp/1/2018/11/Spotify_Logo_CMYK_Green.png' width='60%'>
+<img src='./readme-pictures/Spotify Logo.png' width='60%'>
 
 - [Use Case](#use-case)
 - [Setup](#setup)
