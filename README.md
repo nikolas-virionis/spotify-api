@@ -8,6 +8,7 @@
 - [Packages used](#packages-used)
 - [OG Scripts](#og-scripts)
 
+
 ## Use Case
  - This is the first section of this readme, because, you will see, this package can help, but nothing is perfect, so it will, as long as you fit in this very very particular use case ;(
  - The perfect use case for this is that one playlist (or more) that you put a bunch of songs in different times and mood styles, and when you listen to it, you feel like only listening to a part of it, some days later, that part is useless, but some other part is awesome. The big issue here is that those "parts" are shuffled all over the playlist. Then how would one find those songs that they are craving, today, tomorrow, and later? Speaking from experience, it is not worth it to map manually a 1000 song playlist and filter out 50, or 100.
