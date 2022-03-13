@@ -170,10 +170,9 @@ class SpotifyAPI:
                     'Either the playlist url or its id must be specified')
             self.__playlist_id = playlist_url_to_id(playlist_url)
             self.__playlist_url = playlist_url
-            
+
         if self.__get_playlist():
             self.__get_playlist_items()
-
 
         self.__playlist_adjustments()
         self.__knn_prepared_data(self.__playlist)
@@ -211,7 +210,10 @@ class SpotifyAPI:
             for genre in genres:
                 index = all_genres_x == genre
                 if index:
-                    'clipboard'
+                    continue_outer = True
+                    indexed.append(int(True))
+                    break
+
             if continue_outer:
                 continue
 
@@ -316,7 +318,7 @@ class SpotifyAPI:
         artists_distance = self.__list_distance(
             a['artists_indexed'], b['artists_indexed'])
         popularity_distance = abs(a['popularity'] - b['popularity'])
-        return genres_distance + artists_distance * 0.4 + (popularity_distance * 0.005)
+        return genres_distance + artists_distance * 0.38 + popularity_distance * 0.03
 
     def __get_neighbors(self, song, K, song_dict):
         """
@@ -493,7 +495,8 @@ class SpotifyAPI:
             if print_base_caracteristics:
                 index = self.__get_index_for_song(song)
                 caracteristics = self.__song_dict[index]
-                name, genres, artists, popularity = list(caracteristics.values())[1:5]
+                name, genres, artists, popularity = list(
+                    caracteristics.values())[1:5]
                 print(f'{name = }\n{artists = }\n{genres = }\n{popularity = }')
 
             if generate_csv:
@@ -767,8 +770,7 @@ def start_api(user_id, playlist_url=None, playlist_id=None):
         playlist_id = False
     if playlist_id and not playlist_url:
         playlist_url = False
-    
-        
+
     get_auth()
     auth_token = input('Paste here the auth token: ')
     while not auth_token:
