@@ -1,3 +1,4 @@
+from calendar import c
 from requests import get, post, delete
 import pandas as pd
 from spotify_recommender_api.sensitive import *
@@ -16,7 +17,7 @@ def playlist_url_to_id(url):
 
 class SpotifyAPI:
     """
-    ### Spotify API is the Class that provides access to the playlists recommendations
+    # Spotify API is the Class that provides access to the playlists recommendations
     """
 
     def __get_total_song_count(self):
@@ -31,7 +32,7 @@ class SpotifyAPI:
         """
         Function represents a way to have only unique values for a given list while constantly appending new genre values
 
-        ## Parameters
+        # Parameters
          - list: the overall, big, complete, list of genres
          - the possibly new genre values
         """
@@ -45,7 +46,7 @@ class SpotifyAPI:
         """
         Function that gets all the genres for a given song
 
-        ## Parameters
+        # Parameters
          - song: the song dictionary
         """
         genres = []
@@ -72,7 +73,7 @@ class SpotifyAPI:
         Function that gets additional information about the song
         like its name, artists, id, popularity
 
-        ## Parameters
+        # Parameters
          - song: the song raw dictionary
         """
         return song["track"]['id'], song["track"]['name'], song["track"]['popularity'], [artist["name"] for artist in song["track"]["artists"]]
@@ -81,14 +82,14 @@ class SpotifyAPI:
         """
         Function that gets the items (songs) inside the playlist
 
-        ## Note
+        # Note
         Ran automatically but can last as long as 2.5 seconds for each song (can be worse depending on the network connection) inside of te playlist, not because it is compute demanding but because it needs to do a up to a bunch of http requests per song, which can take a while
 
         """
         self.__all_genres = []
         for offset in range(0, self.__get_total_song_count(), 100):
             all_genres_res = get(
-                f'https://api.spotify.com/v1/playlists/{self.__playlist_id}/tracks?limit=100&offset={offset}', headers=self.__headers)
+                f'https://api.spotify.com/v1/playlists/{self.__playlist_id}/tracks?limit=100&{offset=}', headers=self.__headers)
             for song in all_genres_res.json()["items"]:
                 (id, name, popularity, artist), song_genres = self.__song_data(
                     song), self.__get_song_genres(song)
@@ -142,15 +143,15 @@ class SpotifyAPI:
 
     def __init__(self, auth_token, user_id, playlist_id=None, playlist_url=None):
         """
-        #### Spotify API is the Class that provides access to the playlists recommendations
+        # Spotify API is the Class that provides access to the playlists recommendations
 
-        ## Parameters
+        # Parameters
          - auth_token: The authentication token for the Spotify API, base64 encoded string that allows the use of the API's functionalities
          - playlist_id: The playlist ID hash in Spotify
          - playlist_url: The url used while sharing the playlist
          - user_id: The user ID, visible in the Spotify profile account settings
 
-        #### It will trigger most of the API functions and can take a good while to complete
+        # It will trigger most of the API functions and can take a good while to complete
         """
         if not auth_token:
             raise ValueError('auth_token is required')
@@ -180,8 +181,8 @@ class SpotifyAPI:
 
     def playlist_to_csv(self):
         """
-        #### Function to convert playlist to CSV format
-        #### Really useful if the package is being used in a .py file since it is not worth it to use it directly through web requests everytime even more when the playlist has not changed since last package usage
+        # Function to convert playlist to CSV format
+        # Really useful if the package is being used in a .py file since it is not worth it to use it directly through web requests everytime even more when the playlist has not changed since last package usage
         """
         if not os.path.exists('./.spotify-recommender-util'):
             os.mkdir('./.spotify-recommender-util')
@@ -197,10 +198,10 @@ class SpotifyAPI:
 
     def __genres_indexed(self, genres):
         """
-        #### Function that returns the list of genres, mapped to the overall list of genres, in a binary format
-        ##### Useful for the overall execution of the algorithm which determines the distance between each song
+        # Function that returns the list of genres, mapped to the overall list of genres, in a binary format
+        # Useful for the overall execution of the algorithm which determines the distance between each song
 
-        ### Parameters
+        # Parameters
          - genres: list of genres for a given song
         """
         indexed = []
@@ -223,10 +224,10 @@ class SpotifyAPI:
 
     def __artists_indexed(self, artists):
         """
-        #### Function that returns the list of artists, mapped to the overall list of artists, in a binary format
-        ##### Useful for the overall execution of the algorithm which determines the distance between each song
+        # Function that returns the list of artists, mapped to the overall list of artists, in a binary format
+        # Useful for the overall execution of the algorithm which determines the distance between each song
 
-        ### Parameters
+        # Parameters
          - artists: list of artists for a given song
         """
         indexed = []
@@ -251,37 +252,38 @@ class SpotifyAPI:
         """
         Function to prepare the data for the algorithm which calculates the distances between the songs
 
-        ### Parameters
+        # Parameters
          - df: the playlist DataFrame
 
 
-        ### Note
+        # Note
         It will make a copy of the playlist to a list, to avoid changing the original DataFrame playlist
         And also leave it in an easier to iterate over format
         """
         data = df[['id', 'name', 'genres', 'artists',
                    'popularity', 'genres_indexed', 'artists_indexed']]
-        list = []
-        for index in range(len(data['id'])):
-            list.append({'id': data['id'][index], 'name': data['name'][index], 'genres': data['genres'][index], 'artists': data['artists'][index],
-                        'popularity': data['popularity'][index], 'genres_indexed': data['genres_indexed'][index], 'artists_indexed': data['artists_indexed'][index]})
 
-        self.__song_dict = list
+        array = []
+        for id, name, genres, artists, popularity, genres_indexed, artists_indexed in zip(data['id'], data['name'], data['genres'], data['artists'], data['popularity'], data['genres_indexed'], data['artists_indexed']):
+            array.append({'id': id, 'name': name, 'genres': genres, 'artists': artists,
+                          'popularity': popularity, 'genres_indexed': genres_indexed, 'artists_indexed': artists_indexed})
+
+        self.__song_dict = array
 
     def __list_distance(self, a, b):
         """
         The weighted algorithm that calculates the distance between two songs according to either the distance between each song list of genres or the distance between each song list of artists
 
 
-        ### Note
+        # Note
         The "distance" is a mathematical value that represents how different two songs are considering some parameter such as their genres or artists
 
 
-        ### Parameters
+        # Parameters
          - a: one song's list of genres or artists
          - b: counterpart song's list of genres or artists
 
-        ### Note
+        # Note
         For obvious reasons although both the parameters have two value options (genres, artists), when one of the parameters is specified as one of those, the other follows
         """
         distance = 0
@@ -309,7 +311,7 @@ class SpotifyAPI:
          - They have different importance levels to the final result of the calculation
 
 
-        ### Parameters
+        # Parameters
          - a: the song a, having all it's caracteristics
          - b: the song b, having all it's caracteristics
         """
@@ -325,7 +327,7 @@ class SpotifyAPI:
         Function thats using the distance calculated above, returns the K nearest neighbors for a given song
 
 
-        ### Parameters
+        # Parameters
          - song: song's index in the songs list
          - K: desired number K of neighbors to be returned
          - song_dict: the list of songs
@@ -345,7 +347,7 @@ class SpotifyAPI:
         """
         Function that returns the index of a given song in the list of songs
 
-        ### Parameters
+        # Parameters
          - song: song name
         """
         if song not in list(self.__playlist['name']):
@@ -362,16 +364,21 @@ class SpotifyAPI:
 
         Used before the creation of a new playlist, related to a song or some term favorites
 
-        ### Parameters
+        # Parameters
          - name: name of the playlist being created, which could easily be bypassed, if the playlist names were not made automatically
         """
-        request = get('https://api.spotify.com/v1/me/playlists',
-                      headers=self.__headers).json()
+        total_playlist_count = get(
+            f'https://api.spotify.com/v1/me/playlists?limit=1', headers=self.__headers).json()['total']
+        playlists = []
+        for offset in range(0, total_playlist_count, 50):
+            request = get(
+                f'https://api.spotify.com/v1/me/playlists?limit=50&{offset=}',  headers=self.__headers).json()
 
-        playlists = list(map(lambda playlist: (
-            playlist['id'], playlist['name']), request['items']))
+            playlists += list(map(lambda playlist: (
+                playlist['id'], playlist['name']), request['items']))
 
         for playlist in playlists:
+
             if playlist[1] == name:
                 return playlist[0]
 
@@ -383,10 +390,10 @@ class SpotifyAPI:
 
         This playlist may be a new one just created or a playlist that was previously created and now had all its songs removed
 
-        ## Note:
+        # Note:
         This function will change the user's library either making a new playlist or making a playlist empty
 
-        ### Parameters
+        # Parameters
          - type: the type of the playlist being created ('song', 'short', 'medium'), meaning:
             --- 'song': a playlist related to a song
             --- 'short': a playlist related to the short term favorites for that given user
@@ -430,10 +437,10 @@ class SpotifyAPI:
          - 'short': a playlist related to the short term favorites for that given user
          - 'medium': a playlist related to the medium term favorites for that given user
 
-        ## Note:
+        # Note:
         This function will change the user's library by filling the previously created empty playlist
 
-        ### Parameters
+        # Parameters
          - type: the type of the playlist being created 
          - K: desired number K of neighbors to be returned
          - additional_info (optional): the song name when the type is 'song'
@@ -468,7 +475,7 @@ class SpotifyAPI:
         """
         Playlist which centralises the actions for a recommendation made for a given song
 
-        ## Parameters
+        # Parameters
          - song: The desired song name
          - K: desired number K of neighbors to be returned
          - with_distance (bool): Whether to allow the distance column to the DataFrame returned, which will have no actual value for most use cases, since  it does not obey any actual unit, it is just a mathematical value to determine the coset songs
@@ -477,7 +484,7 @@ class SpotifyAPI:
          - build_playlist (bool): Whether to build the playlist to the user's library
          - print_base_caracteristics (bool): Whether to print the base / informed song information, in order to check why such predictions were made by the algorithm
 
-        ## Note
+        # Note
         The build_playlist option when set to True will change the user's library
 
         """
@@ -519,7 +526,7 @@ class SpotifyAPI:
         """
         Function that returns the usual fields for a given song
 
-        ### Parameters
+        # Parameters
          - index: The index of the song inside the song list
 
         """
@@ -532,7 +539,7 @@ class SpotifyAPI:
         """
         Function that returns DataFrame representation of the list of neighbor songs
 
-        ### Parameters
+        # Parameters
          - neighbors: list of a given song's neighbors
 
         """
@@ -545,7 +552,7 @@ class SpotifyAPI:
         """
         General purpose function to get recommendations for any type supported by the package
 
-        ### Parameters
+        # Parameters
          - info: the changed song_dict list if the type is short or medium or else it is the name of the song to get recommendations from
          - K: desired number K of neighbors to be returned
          - type: the type of the playlist being created ('song', 'short', 'medium'), meaning:
@@ -573,7 +580,7 @@ class SpotifyAPI:
         Function to unite all the genres from different songs into one list of genres
 
 
-        ### Parameters
+        # Parameters
          - genres: the list of lists of genres from the different songs
         """
         try:
@@ -594,7 +601,7 @@ class SpotifyAPI:
         Function to unite all the artists from different songs into one list of artists
 
 
-        ### Parameters
+        # Parameters
          - artists: the list of lists of artists from the different songs
         """
         try:
@@ -613,7 +620,7 @@ class SpotifyAPI:
         """
         Function that gets and initially formats the top 5 songs in a given time_range
 
-        ### Parameters
+        # Parameters
          - time_range: The time range to get the top 5 songs from ('medium', 'short')
         """
         if time_range not in ['medium', 'short']:
@@ -630,7 +637,7 @@ class SpotifyAPI:
         """
         Function that expands on the formatting of the top_5 some time_range favorites
 
-        ### Parameters
+        # Parameters
          - time_range: The time range to get the top 5 songs from ('medium', 'short')
         """
         top_5_songs = self.__get_top_5(term)
@@ -673,13 +680,13 @@ class SpotifyAPI:
         """
         Playlist which centralises the actions for a recommendation made for top 5 songs short term
 
-        ## Parameters
+        # Parameters
          - with_distance (bool): Whether to allow the distance column to the DataFrame returned, which will have no actual value for most use cases, since  it does not obey any actual unit, it is just a mathematical value to determine the coset songs
          - generate_csv (bool): Whether to generate a CSV file containing the recommended playlist
          - generate_parquet (bool): Whether to generate a parquet file containing the recommended playlist
          - build_playlist (bool): Whether to build the playlist to the user's library
 
-        ## Note
+        # Note
         The build_playlist option when set to True will change the user's library
 
         """
@@ -705,13 +712,13 @@ class SpotifyAPI:
         """
         Playlist which centralises the actions for a recommendation made for top 5 songs medium term
 
-        ## Parameters
+        # Parameters
          - with_distance (bool): Whether to allow the distance column to the DataFrame returned, which will have no actual value for most use cases, since  it does not obey any actual unit, it is just a mathematical value to determine the coset songs
          - generate_csv (bool): Whether to generate a CSV file containing the recommended playlist
          - generate_parquet (bool): Whether to generate a parquet file containing the recommended playlist
          - build_playlist (bool): Whether to build the playlist to the user's library
 
-        ## Note
+        # Note
         The build_playlist option when set to True will change the user's library
 
         """
@@ -748,9 +755,9 @@ class SpotifyAPI:
 
 def start_api(user_id, playlist_url=None, playlist_id=None):
     """
-    ### Function that prepares for and initializes the API
+    # Function that prepares for and initializes the API
 
-    ## Note: 
+    # Note: 
     Internet Connection is required
 
 
@@ -759,7 +766,7 @@ def start_api(user_id, playlist_url=None, playlist_id=None):
      - playlist_url(optional): the url for the playlist, which is visible when trying to share it
      - playlist_id (optional): the id of the playlist, an unique big hash which identifies the playlist
 
-    ## Note:
+    # Note:
     Although both the playlist_url and playlist_id are optional, one of them is required, though the choice is up to you
 
     """
