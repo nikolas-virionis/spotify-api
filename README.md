@@ -108,7 +108,7 @@ api.get_medium_term_favorites_playlist(generate_csv=True, build_playlist=True)
 # All parameters are defaulted to False
 # The "distance" is a mathematical value with no explicit units, that is 
 # used by te algorithm to find the closest songs
-# build_playlist will change the user's library
+# BUILD_PLAYLIST WILL CHANGE THE USER'S LIBRARY IF SET TO TRUE
 ~~~ 
  - get_short_term_favorites_playlist
 ~~~python
@@ -121,7 +121,7 @@ api.get_short_term_favorites_playlist(generate_csv=True, build_playlist=True)
 # All parameters are defaulted to False
 # The "distance" is a mathematical value with no explicit units, that is 
 # used by te algorithm to find the closest songs
-# build_playlist will change the user's library
+# BUILD_PLAYLIST WILL CHANGE THE USER'S LIBRARY IF SET TO TRUE
 ~~~ 
  - get_recommendations_for_song
 ~~~python
@@ -129,14 +129,25 @@ api.get_short_term_favorites_playlist(generate_csv=True, build_playlist=True)
 get_recommendations_for_song(song: str, K: int, with_distance: bool, generate_csv: bool, generate_parquet: bool, build_playlist: bool, print_base_caracteristics: bool)
 # Method Use Example
 api.get_recommendations_for_song(song='<SONG_NAME>', K=50)
-# Function that creates returns the pandas DataFrame representing the 
+# Function that returns the pandas DataFrame representing the 
 # given song recommendation playlist
 # the 'song' and 'K' parameters are mandatory and the rest is
 # defaulted to False
 # The "distance" is a mathematical value with no explicit units, that is 
 # used by te algorithm to find the closest songs
 # print_base_caracteristics will display the parameter song information
-# build_playlist will change the user's library
+# BUILD_PLAYLIST WILL CHANGE THE USER'S LIBRARY IF SET TO TRUE
+~~~ 
+ - get_most_listened
+~~~python
+# Parameters
+get_most_listened(time_range: str = 'long', K: int = 50, build_playlist: bool = False)
+# Method Use Example
+api.get_most_listened(time_range='short', K=53)
+# Function that returns the pandas DataFrame representing the 
+# given time range most listened tracks playlist
+# No parameters are mandatory but the default values should be noted 
+# BUILD_PLAYLIST WILL CHANGE THE USER'S LIBRARY IF SET TO TRUE
 ~~~ 
 
 
