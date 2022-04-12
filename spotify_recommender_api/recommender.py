@@ -1,4 +1,3 @@
-from calendar import c
 from requests import get, post, delete
 import pandas as pd
 from spotify_recommender_api.sensitive import *
@@ -384,7 +383,7 @@ class SpotifyAPI:
 
         return False
 
-    def __create_playlist(self, type):
+    def __create_playlist(self, type: str):
         """
         Function that will return the empty playlist id, to be filled in later by the recommender songs
 
@@ -407,6 +406,10 @@ class SpotifyAPI:
         elif type in ['short', 'medium']:
             playlist_name = "Recent-ish Favorites" if type == 'medium' else "Latest Favorites"
             description = f"Songs related to your {type} term top 5"
+
+        elif 'most-listened' in type:
+            playlist_name = f"{type.replace('most-listened-', '').capitalize()} Term Most-listened Tracks"
+            description = f"The most listened tracks in a {type.replace('most-listened', '')} period of time"
         else:
             raise ValueError('type not valid')
         new_id = ""
@@ -447,28 +450,35 @@ class SpotifyAPI:
 
 
         """
-        if K > 99:
+        if K > 99 and 'most-listened' not in type:
             print('K limit exceded. Maximum value for K is 99')
             K = 99
         elif K < 1:
             raise ValueError('Value for K must be between 1 and 99')
-        song_uris = ''
+        uris = ''
         if type == 'song':
             index = self.__get_index_for_song(additional_info)
-            song_uris = f'spotify:track:{self.__song_dict[index]["id"]}'
+            uris = f'spotify:track:{self.__song_dict[index]["id"]}'
             for neighbor in self.__get_recommendations('song', additional_info, K)['id']:
-                song_uris += f',spotify:track:{neighbor}'
+                uris += f',spotify:track:{neighbor}'
         elif type in ['medium', 'short']:
             ids = self.__medium_fav['id'] if type == 'medium' else self.__short_fav['id']
             for neighbor in ids:
-                song_uris += f',spotify:track:{neighbor}'
+                uris += f',spotify:track:{neighbor}'
 
-            song_uris = song_uris[1:]
+            uris = uris[1:]
+
+        elif 'most-listened' in type:
+            ids = additional_info
+            for song in ids:
+                uris += f',spotify:track:{song}'
+
+            uris = uris[1:]
         else:
             raise ValueError('Invalid type')
 
         add_songs_req = post(
-            f'https://api.spotify.com/v1/playlists/{self.__create_playlist(type)}/tracks?uris={song_uris}', headers=self.__headers, data=json.dumps({}))
+            f'https://api.spotify.com/v1/playlists/{self.__create_playlist(type)}/tracks?{uris=!s}', headers=self.__headers, data=json.dumps({}))
         add_songs_req.json()
 
     def get_recommendations_for_song(self, song, K, with_distance: bool = False, generate_csv: bool = False, generate_parquet: bool = False, build_playlist: bool = False, print_base_caracteristics: bool = False):
@@ -627,7 +637,7 @@ class SpotifyAPI:
             raise ValueError(
                 'time_range must be either medium_term or short_term')
         top_5 = get(
-            f'https://api.spotify.com/v1/me/top/tracks?time_range={time_range}_term&limit=5', headers=self.__headers).json()
+            f'https://api.spotify.com/v1/me/top/tracks?{time_range=!s}_term&limit=5', headers=self.__headers).json()
         top_5_songs = list(filter(lambda song: song['name'] in list(self.__playlist['name']), list(map(lambda song: {'name': song['name'], 'genres': self.__get_song_genres(
             song), 'artists': list(map(lambda artist: artist['name'], song['artists'])), 'popularity': song['popularity']}, top_5['items']))))
 
@@ -751,6 +761,40 @@ class SpotifyAPI:
                 'medium',  self.__end_prepared_fav_data('medium'))
         except ValueError:
             return
+
+    def get_most_listened(self, time_range: str = 'long', K: int = 50, build_playlist: bool = False):
+        """Function that creates the most-listened songs playlist for a given period of time in the users profile
+
+        Args:
+            time_range (str, optional): time range ('long', 'medium', 'short'). Defaults to 'long'.
+            K (int, optional): _description_. Defaults to 50.
+
+        Raises:
+            ValueError: time range does not correspond to a valid time range ('long', 'medium', 'short')
+            ValueError: K number of songs must be between 1 and 100
+
+
+        Returns:
+            pd.DataFrame: pandas DataFrame containing the top K songs in the time range
+        """
+        if time_range not in ['long', 'medium', 'short']:
+            raise ValueError(
+                'time_range must be long, medium or short')
+
+        if K > 100 or K < 1:
+            raise ValueError('K must be between 1 and 100')
+
+        top = get(
+            f'https://api.spotify.com/v1/me/top/tracks?{time_range=!s}_term&limit={K}', headers=self.__headers).json()
+
+        top_songs = list(map(lambda song: {'id': song['id'], 'name': song['name'], 'genres': self.__get_song_genres(song), 'artists': list(map(
+            lambda artist: artist['name'], song['artists'])), 'popularity': song['popularity']}, top['items']))
+
+        if build_playlist:
+            self.__build_playlist(
+                f'most-listened-{time_range}', K, additional_info=list(map(lambda x: x['id'], top_songs)))
+
+        return pd.DataFrame(data=list(map(lambda x: {'name': x['name'], 'genres': x['genres'], 'artists': x['artists'], 'popularity': x['popularity']}, top_songs)), columns=['name', 'artists', 'genres', 'popularity'])
 
 
 def start_api(user_id, playlist_url=None, playlist_id=None):
