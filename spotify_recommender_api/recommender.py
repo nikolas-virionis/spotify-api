@@ -6,6 +6,7 @@ import operator
 import json
 from functools import reduce
 import os
+import re
 
 
 def playlist_url_to_id(url):
@@ -796,8 +797,42 @@ class SpotifyAPI:
 
         return pd.DataFrame(data=list(map(lambda x: {'name': x['name'], 'genres': x['genres'], 'artists': x['artists'], 'popularity': x['popularity']}, top_songs)), columns=['name', 'artists', 'genres', 'popularity'])
 
+    def update_all_generated_playlists(self, K: int = 50):
+        """Update all package generated playlists in batch
 
-def start_api(user_id, playlist_url=None, playlist_id=None):
+        Args:
+            K (int, optional): Number of songs in the new playlists. Defaults to 50.
+        """
+        total_playlist_count = get(
+            f'https://api.spotify.com/v1/me/playlists?limit=1', headers=self.__headers).json()['total']
+        playlists = []
+        for offset in range(0, total_playlist_count, 50):
+            request = get(
+                f'https://api.spotify.com/v1/me/playlists?limit=50&{offset=}',  headers=self.__headers).json()
+
+            playlists += list(map(lambda playlist: (
+                playlist['id'], playlist['name']), request['items']))
+
+        for id, name in playlists:
+            try:
+                if re.match(r"\'(.*?)\' Related", name) or re.match(r'\"(.*?)\" Related', name):
+                    song_name = name.replace(" Related", '')[1:-1]
+                    self.__song_name = song_name
+                    self.__build_playlist(
+                        type='song', K=K, additional_info=song_name)
+                elif name in ['Long Term Most-listened Tracks', 'Medium Term Most-listened Tracks', 'Short Term Most-listened Tracks']:
+                    self.get_most_listened(time_range=name.split(
+                        " ")[0].lower(), K=K, build_playlist=True)
+                elif name == 'Recent-ish Favorites':
+                    self.__build_playlist(type='medium', K=K)
+                elif name == 'Latest Favorites':
+                    self.__build_playlist(type='short', K=K)
+            except ValueError as e:
+                print(
+                    f"Unfortunately we couldn't update a playlist because\n {e}")
+
+
+def start_api(user_id, *, playlist_url=None, playlist_id=None):
     """
     # Function that prepares for and initializes the API
 
@@ -811,7 +846,7 @@ def start_api(user_id, playlist_url=None, playlist_id=None):
      - playlist_id (optional): the id of the playlist, an unique big hash which identifies the playlist
 
     # Note:
-    Although both the playlist_url and playlist_id are optional, one of them is required, though the choice is up to you
+    Although both the playlist_url and playlist_id are optional, informing at least one of them is required, though the choice is up to you
 
     """
     if not playlist_url and not playlist_id:
