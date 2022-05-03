@@ -13,7 +13,7 @@
  - This is the first section of this readme, because, you will see, this package can help, but nothing is perfect, so it will, as long as you fit in this very, very, particular use case ;(
  - The perfect use case for this is that one playlist (or more) that you put a bunch of songs in different times and mood styles, and when you listen to it, you feel like only listening to a part of it, some days later, that part is useless, but some other part is awesome. The big issue here is that those "parts" are shuffled all over the playlist. Then how would one find those songs that they are craving, today, tomorrow, and later? Speaking from experience, it is not worth it to map manually a 1000 song playlist and filter out 50, or 100.
  - This package comes to solve this issue, roughly, because it tries to find the K (number of songs in the new recommendation playlist) nearest songs in terms of genres, artists and popularity, using the KNN supervised machine learning technique
- - One issue with this is that spotify api is not the best, E.g. A LOT of artists do not have any gender associated to them
+ - One issue with this is that spotify api is not the best, E.g. A LOT of artists do not have any genre associated to them
  - Other issue is that spotify api does not provide, at the time of publish of version 2.4.0, neither song nor album genres, which compromise a good portion of the accuracy of the recommendations, still i recommend you give it a try
 
 
