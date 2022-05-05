@@ -768,7 +768,7 @@ class SpotifyAPI:
 
         Args:
             time_range (str, optional): time range ('long', 'medium', 'short'). Defaults to 'long'.
-            K (int, optional): _description_. Defaults to 50.
+            K (int, optional): Number of the most listened songs to return. Defaults to 50.
 
         Raises:
             ValueError: time range does not correspond to a valid time range ('long', 'medium', 'short')
@@ -833,22 +833,26 @@ class SpotifyAPI:
 
 
 def start_api(user_id, *, playlist_url=None, playlist_id=None):
-    """
-    # Function that prepares for and initializes the API
+    """Function that prepares for and initializes the API
 
-    # Note: 
+    ## Note: 
     Internet Connection is required
 
+    Args:
+        user_id: the id of user, present in the user account profile
+        playlist_url(str, optional, keyword-argument only): the url for the playlist, which is visible when trying to share it. Defaults to None.
+        playlist_id (str, optional, keyword-argument only): the id of the playlist, an unique big hash which identifies the playlist. Defaults to None.
 
-    # Parameters:
-     - user_id: the id of user, present in the user account profile
-     - playlist_url(optional): the url for the playlist, which is visible when trying to share it
-     - playlist_id (optional): the id of the playlist, an unique big hash which identifies the playlist
+    Raises:
+        ValueError: at least one of the playlist related arguments have to be specified
 
-    # Note:
+    Returns:
+        SpotifyAPI: The instance of the SpotifyAPI class
+
+    ## Note:
     Although both the playlist_url and playlist_id are optional, informing at least one of them is required, though the choice is up to you
-
     """
+
     if not playlist_url and not playlist_id:
         raise ValueError(
             'It is necessary to specify a playlist either with playlist id or playlist url')
