@@ -10,11 +10,11 @@
 
 
 ## Use Case
- - This is the first section of this readme, because, you will see, this package can help, but nothing is perfect, so it will, as long as you fit in this very very particular use case ;(
+ - This is the first section of this readme, because, you will see, this package can help, but nothing is perfect, so it will, as long as you fit in this very, very, particular use case ;(
  - The perfect use case for this is that one playlist (or more) that you put a bunch of songs in different times and mood styles, and when you listen to it, you feel like only listening to a part of it, some days later, that part is useless, but some other part is awesome. The big issue here is that those "parts" are shuffled all over the playlist. Then how would one find those songs that they are craving, today, tomorrow, and later? Speaking from experience, it is not worth it to map manually a 1000 song playlist and filter out 50, or 100.
- - This package comes to solve this issue, roughly, because it tries to find the K (number of songs in the new recommendation playlist) nearest songs in terms of genres, artists and popuarity, using the KNN supervised machine learning technique
- - One issue with this is that spotify api is not the best, E.g. A LOT of artists do not have any gender associated to them
- - Other issue is that spotify api does not provide, at the time of publish of version 2.1.2, neither song nor album genres, which compromise a good portion of the accuracy of the recommendations, still i recommend you give it a try
+ - This package comes to solve this issue, roughly, because it tries to find the K (number of songs in the new recommendation playlist) nearest songs in terms of genres, artists and popularity, using the KNN supervised machine learning technique
+ - One issue with this is that spotify api is not the best, E.g. A LOT of artists do not have any genre associated to them
+ - Other issue is that spotify api does not provide, at the time of publish of version 2.4.0, neither song nor album genres, which compromise a good portion of the accuracy of the recommendations, still i recommend you give it a try
 
 
 
@@ -23,13 +23,13 @@
 
 ### Requirements:
   - Python installed<br>
- The ideal version, to run the package is 3.8.x, the version in which the package was built over,<br> however,
- older versions of python 3 shouldn't have any issues, as the package does not use any <br> 
+ The ideal version, to run the package is 3.8.x, the version in which the package was built over, however,
+ older versions of python 3 shouldn't have any issues, as the package does not use any 
  fancy, new methods, not supported by older versions of Python 3.x
   - Network Connection<br>
  So that a wide range of songs can be analised, it is imperative to have a network connection, at least for the first time executing a script using this package
   - <strong>A fitting playlist</strong><br>
- The perfect use case for this package is that of one big playlist (500+ songs), which you feel like listening to some of them, then others but never all of them
+ The perfect use case for this package is that of one big playlist (200+ songs), which you feel like listening to some of them, then others but never, or rarely, all of them
  Still, in the first versions of this package, this playlist will have to have at least two of your favorite songs.
   - ## <strong>Patience</strong>
     It may seem funny or a joke, but the first mapping process of the playlist to a local pandas DataFrame, it will take a good while, up to 2.5 to 3 second per song, at 20-40Mbps Internet connection, being in Latam. All these factors play a part in the time for it to load.
@@ -37,17 +37,17 @@
   - Jupyter Notebook<br>
  Not exactly a requirement but it is advised that a jupyter notebook is used ( even more advised to use the vscode extension for jupyter notebooks ), because it is important, or at least more confortable, to have the variable still in memory and then decide how to use it, without having to run the script multiple times
   - Spotify access<br>
- I mean, you know thJsonat already, right?
+ I mean, you knew that already, right?
 
-  - Installing the package<br>
+  - ### Installing the package<br>
 ~~~ps1
 pip install spotify-recommender-api
 ~~~
 
 
-  - Importing the package<br>
+  - ### Importing the package<br>
 
-Firstly, it's necessary to import the method start_api from the package spotify_recommender.api:
+Firstly, it's necessary to import the method start_api from the package spotify_recommender_api.recommender:
  ~~~ python
  from spotify_recommender_api.recommender import start_api
  ~~~
@@ -100,7 +100,8 @@ api.playlist_to_csv()
  - get_medium_term_favorites_playlist
 ~~~python
 # Parameters
-get_medium_term_favorites_playlist(with_distance: bool, generate_csv: bool, generate_parquet: bool, build_playlist: bool)
+get_medium_term_favorites_playlist(with_distance: bool, generate_csv: bool, 
+                        generate_parquet: bool, build_playlist: bool)
 # Method Use Example
 api.get_medium_term_favorites_playlist(generate_csv=True, build_playlist=True)
 # Function that returns the pandas DataFrame representing the 
@@ -113,7 +114,8 @@ api.get_medium_term_favorites_playlist(generate_csv=True, build_playlist=True)
  - get_short_term_favorites_playlist
 ~~~python
 # Parameters
-get_short_term_favorites_playlist(with_distance: bool, generate_csv: bool, generate_parquet: bool, build_playlist: bool)
+get_short_term_favorites_playlist(with_distance: bool, generate_csv: bool, 
+                        generate_parquet: bool, build_playlist: bool)
 # Method Use Example
 api.get_short_term_favorites_playlist(generate_csv=True, build_playlist=True)
 # Function that returns the pandas DataFrame representing the 
@@ -126,7 +128,8 @@ api.get_short_term_favorites_playlist(generate_csv=True, build_playlist=True)
  - get_recommendations_for_song
 ~~~python
 # Parameters
-get_recommendations_for_song(song: str, K: int, with_distance: bool, generate_csv: bool, generate_parquet: bool, build_playlist: bool, print_base_caracteristics: bool)
+get_recommendations_for_song(song: str, K: int, with_distance: bool, generate_csv: bool, 
+                        generate_parquet: bool, build_playlist: bool, print_base_caracteristics: bool)
 # Method Use Example
 api.get_recommendations_for_song(song='<SONG_NAME>', K=50)
 # Function that returns the pandas DataFrame representing the 
@@ -136,6 +139,8 @@ api.get_recommendations_for_song(song='<SONG_NAME>', K=50)
 # The "distance" is a mathematical value with no explicit units, that is 
 # used by te algorithm to find the closest songs
 # print_base_caracteristics will display the parameter song information
+# Note that it can be used to update a playlist if the given song already
+# has its playlist generated by this package
 # BUILD_PLAYLIST WILL CHANGE THE USER'S LIBRARY IF SET TO TRUE
 ~~~ 
  - get_most_listened
@@ -149,9 +154,20 @@ api.get_most_listened(time_range='short', K=53)
 # No parameters are mandatory but the default values should be noted 
 # BUILD_PLAYLIST WILL CHANGE THE USER'S LIBRARY IF SET TO TRUE
 ~~~ 
+ - update_all_generated_playlists
+### WILL CHANGE THE USER'S LIBRARY DRAMATICALLY
+~~~python
+# Parameters
+update_all_generated_playlists(K: int = 50)
+# Method Use Example
+api.update_all_generated_playlists()
+# Function updates all the playlists once generated by this package in batch 
+# Note that if only a few updates are preferred, the methods above are a better fit
+# No parameters are mandatory but the default values should be noted 
+~~~ 
 
-
-## OG Scripts
+# OG Scripts
+###DEPRECATED###
 ### Context
 This script, in jupyter notebook format for organization purposes, applies the technique called K Nearest Neighbors to find the 50 closest songs to either one chosen or one of the users top 5(short term), all within a specific Spotify playlist, in order to maintain the most consistency in terms of the specific chosen style, and creates a new playlist with those songs in the user's library, using their genres, artists and overall popularity as metrics to determine indexes of comparison between songs
 
@@ -180,3 +196,4 @@ pip install requests
  - Operator (operator)
  - Functools (functools)
  - Os (os)
+ - Re (re)
