@@ -21,7 +21,7 @@ setup(
     long_description=long_description,
     url="https://github.com/nikolas-virionis/spotify-api",
     packages=find_packages(),
-    install_requires=['pandas', 'requests'],
+    install_requires=['pandas', 'requests', 'seaborn'],
     classifiers=[
         "Programming Language :: Python :: 3",
         "Programming Language :: Python :: 3.8",
