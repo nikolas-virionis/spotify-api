@@ -58,7 +58,7 @@ Firstly, it's necessary to import the method start_api from the package spotify_
   --- Playlist URL: The playlist url is available when right clicking the playlist name / or going to the three dots that represent the playlist options <br>
   --- Playlist ID: The playlist id is available the hash string between the last '/' in and the '?' in the playlist url<br>
   <img src='./readme-pictures/Playlist Configs.png' width='25%'><br>
-  --- User ID: The use rid is available when clicking the account, and accessing its information, on spotify's website<br>
+  --- User ID: The user id is available when clicking the account, and accessing its information, on spotify's website<br>
   <img src='./readme-pictures/Account.png' width='25%'><br>
   
   - Calling the function:
@@ -78,9 +78,9 @@ Though, to be honest, it is easier and more convenient to use the playlist URL
   
   <img src='./readme-pictures/OAuth Scopes.png' width='40%'><br>
   
-  Then request it, after that hit crtl+A / command+A to select it all then crtl+C / command+C to copy it
-  Then, back to python, paste it in the field requiring it and press enter
-  Then if you already have a previously generated CSV file format playlist, type csv then enter, if you do not have the playlist as previously generated, press web, but know that it will take a good while as said [here](#patience),and if this is the case, go get a coffee, or tea if you are into that sort of thing.
+  Then request it, after that hit crtl+A / command+A to select it all then crtl+C / command+C to copy it.
+  Then, back to python, paste it in the field requiring it and press enter.
+  Then if you already have a previously generated CSV file format playlist, type csv then hit enter, if you do not have the playlist as previously generated, type web, but know that it will take a good while as said [here](#patience),and if this is the case, go get a cup of coffee, tea, or whatever you are into.
   
   
 ## Methods
@@ -165,6 +165,26 @@ api.update_all_generated_playlists()
 # Note that if only a few updates are preferred, the methods above are a better fit
 # No parameters are mandatory but the default values should be noted 
 ~~~ 
+ - get_playlist_trending_genres
+~~~python
+# Parameters
+get_playlist_trending_genres(time_range: str = 'all_time')
+# Method Use Example
+api.get_playlist_trending_genres()
+# Function that returns a dictionary with all genres within the playlist and both their 
+# overall appearance and the percentage of their appearance over the entire playlist
+# in the given time_range
+~~~ 
+ - get_playlist_trending_artists
+~~~python
+# Parameters
+get_playlist_trending_artists(time_range: str = 'all_time')
+# Method Use Example
+api.get_playlist_trending_artists()
+# Function that returns a dictionary with all artists within the playlist and both their
+# overall appearance and the percentage of their appearance over the entire playlist
+# in the given time_range
+~~~
 
 # OG Scripts
 ###DEPRECATED###
@@ -176,7 +196,7 @@ There are also 2 variations from that, which consist of medium term favorites re
 
 ### DISCLAIMER ###
 Not fit for direct use since some information such as client id, client secret, both of which are, now, in a hidden script on .gitignore so that it is not made public, have to be informed in order for the Spotify Web API to work properly.
-And also, these scripJsonts are deprecated, so they will not have any maintenance or overtime improvements
+And also, these scripts are deprecated, so they will not have any maintenance or overtime improvements / new features
 
 
 
@@ -191,6 +211,12 @@ pip install pandas
 ~~~ps1
 pip install requests
 ~~~
+ - Seaborn
+~~~ps1
+pip install seaborn
+~~~
+ - Datetime (datetime)
+ - Dateutil (dateutil)
  - Webbrowser (webbrowser)
  - Json (json)
  - Operator (operator)
