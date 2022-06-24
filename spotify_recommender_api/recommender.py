@@ -1,3 +1,4 @@
+from asyncio import constants
 from requests import get, post, delete
 import pandas as pd
 from spotify_recommender_api.sensitive import *
@@ -7,6 +8,10 @@ import json
 from functools import reduce
 import os
 import re
+import datetime
+from dateutil import tz
+import seaborn as sns
+sns.set()
 
 
 def playlist_url_to_id(url):
@@ -76,7 +81,7 @@ class SpotifyAPI:
         # Parameters
          - song: the song raw dictionary
         """
-        return song["track"]['id'], song["track"]['name'], song["track"]['popularity'], [artist["name"] for artist in song["track"]["artists"]]
+        return song["track"]['id'], song["track"]['name'], song["track"]['popularity'], [artist["name"] for artist in song["track"]["artists"]], song['added_at']
 
     def __get_playlist_items(self):
         """
@@ -91,10 +96,10 @@ class SpotifyAPI:
             all_genres_res = get(
                 f'https://api.spotify.com/v1/playlists/{self.__playlist_id}/tracks?limit=100&{offset=}', headers=self.__headers)
             for song in all_genres_res.json()["items"]:
-                (id, name, popularity, artist), song_genres = self.__song_data(
+                (id, name, popularity, artist, added_at), song_genres = self.__song_data(
                     song), self.__get_song_genres(song)
                 self.__songs.append({"id": id, "name": name, "artists": artist,
-                                     "popularity": popularity, "genres": song_genres})
+                                     "popularity": popularity, "genres": song_genres, "added_at": added_at})
                 self.__all_genres = self.__add_genres(
                     self.__all_genres, song_genres)
 
@@ -111,6 +116,10 @@ class SpotifyAPI:
             playlist["genres"][x]) == 'str' else playlist["genres"][x]) for x in range(len(playlist["genres"]))]
         playlist["artists_indexed"] = [self.__artists_indexed(eval(playlist["artists"][x]) if type(
             playlist["artists"][x]) == 'str' else playlist["artists"][x]) for x in range(len(playlist["artists"]))]
+        playlist['id'] = playlist["id"].astype(str)
+        playlist['name'] = playlist["name"].astype(str)
+        playlist['popularity'] = playlist["popularity"].astype(int)
+        playlist['added_at'] = pd.to_datetime(playlist["added_at"])
         self.__playlist = playlist
 
     def __get_playlist_from_csv(self):
@@ -192,7 +201,7 @@ class SpotifyAPI:
         df.to_parquet('./.spotify-recommender-util/util.parquet')
 
         playlist = self.__playlist[['id', 'name',
-                                    'artists', 'genres', 'popularity']]
+                                    'artists', 'genres', 'popularity', 'added_at']]
 
         playlist.to_csv('playlist.csv')
 
@@ -261,12 +270,12 @@ class SpotifyAPI:
         And also leave it in an easier to iterate over format
         """
         data = df[['id', 'name', 'genres', 'artists',
-                   'popularity', 'genres_indexed', 'artists_indexed']]
+                   'popularity', 'added_at', 'genres_indexed', 'artists_indexed']]
 
         array = []
-        for id, name, genres, artists, popularity, genres_indexed, artists_indexed in zip(data['id'], data['name'], data['genres'], data['artists'], data['popularity'], data['genres_indexed'], data['artists_indexed']):
+        for id, name, genres, artists, popularity, added_at, genres_indexed, artists_indexed in zip(data['id'], data['name'], data['genres'], data['artists'], data['popularity'], data['added_at'], data['genres_indexed'], data['artists_indexed']):
             array.append({'id': id, 'name': name, 'genres': genres, 'artists': artists,
-                          'popularity': popularity, 'genres_indexed': genres_indexed, 'artists_indexed': artists_indexed})
+                          'popularity': popularity, 'added_at': added_at, 'genres_indexed': genres_indexed, 'artists_indexed': artists_indexed})
 
         self.__song_dict = array
 
@@ -435,7 +444,7 @@ class SpotifyAPI:
 
     def __build_playlist(self, type, K, additional_info=None):
         """
-        Function that fills the new playlist with the recommendations for the given type 
+        Function that fills the new playlist with the recommendations for the given type
         type: the type of the playlist being created ('song', 'short', 'medium'):
          - 'song': a playlist related to a song
          - 'short': a playlist related to the short term favorites for that given user
@@ -445,7 +454,7 @@ class SpotifyAPI:
         This function will change the user's library by filling the previously created empty playlist
 
         # Parameters
-         - type: the type of the playlist being created 
+         - type: the type of the playlist being created
          - K: desired number K of neighbors to be returned
          - additional_info (optional): the song name when the type is 'song'
 
@@ -543,7 +552,7 @@ class SpotifyAPI:
         """
         dict = self.__song_dict[index]
         desired_fields = [dict['id'], dict['name'],
-                          dict['artists'], dict['genres'], dict['popularity']]
+                          dict['artists'], dict['genres'], dict['popularity'], dict['added_at']]
         return desired_fields
 
     def __song_list_to_df(self, neighbors):
@@ -557,7 +566,7 @@ class SpotifyAPI:
         data = list(
             map(lambda x: list(self.__get_desired_dict_fields(x[0]) + [x[1]]), neighbors))
 
-        return pd.DataFrame(data=data, columns=['id', 'name', 'artists', 'genres', 'popularity', 'distance'])
+        return pd.DataFrame(data=data, columns=['id', 'name', 'artists', 'genres', 'popularity', 'added_at', 'distance'])
 
     def __get_recommendations(self, type, info, K=51):
         """
@@ -685,7 +694,7 @@ class SpotifyAPI:
         """
         Function that returns the playlist as pandas DataFrame with the needed human readable columns
         """
-        return self.__playlist[['id', 'name', 'artists', 'genres', 'popularity']]
+        return self.__playlist[['id', 'name', 'artists', 'genres', 'popularity', 'added_at']]
 
     def get_short_term_favorites_playlist(self, with_distance: bool = False, generate_csv: bool = False, generate_parquet: bool = False, build_playlist: bool = False):
         """
@@ -818,11 +827,9 @@ class SpotifyAPI:
                 if re.match(r"\'(.*?)\' Related", name) or re.match(r'\"(.*?)\" Related', name):
                     song_name = name.replace(" Related", '')[1:-1]
                     self.__song_name = song_name
-                    self.__build_playlist(
-                        type='song', K=K, additional_info=song_name)
+                    self.__build_playlist(type='song', K=K, additional_info=song_name)
                 elif name in ['Long Term Most-listened Tracks', 'Medium Term Most-listened Tracks', 'Short Term Most-listened Tracks']:
-                    self.get_most_listened(time_range=name.split(
-                        " ")[0].lower(), K=K, build_playlist=True)
+                    self.get_most_listened(time_range=name.split(" ")[0].lower(), K=K, build_playlist=True)
                 elif name == 'Recent-ish Favorites':
                     self.__build_playlist(type='medium', K=K)
                 elif name == 'Latest Favorites':
@@ -831,11 +838,134 @@ class SpotifyAPI:
                 print(
                     f"Unfortunately we couldn't update a playlist because\n {e}")
 
+    def __get_datetime_by_time_range(self, time_range: str = 'all_time'):
+        """Calculates the datetime that corresponds to the given time range before the current date
+
+        Args:
+            time_range (str, optional): Time range that represents how much of the playlist will be considered for the trend. Can be one of the following: 'all_time', 'month', 'trimester', 'semester', 'year'. Defaults to 'all_time'.
+
+        Raises:
+            ValueError: If the time_range parameter is not valid the error is raised.
+
+        Returns:
+            datetime.datetime: Datetime of the specified time_range before the current date
+        """
+        if time_range not in ['all_time', 'month', 'trimester', 'semester', 'year']:
+            raise ValueError('time_range must be one of the following: "all_time", "month", "trimester", "semester", "year"')
+
+        now = datetime.datetime.now(tz=tz.gettz('UTC'))
+        date_options = {
+            'all_time': datetime.datetime(year=2000, month=1, day=1, hour=0, minute=0, second=0, microsecond=0, tzinfo=tz.gettz('UTC')),
+            'month': now - datetime.timedelta(days=30),
+            'trimester': now - datetime.timedelta(days=90),
+            'semester': now - datetime.timedelta(days=180),
+            'year': now - datetime.timedelta(days=365),
+        }
+
+        return date_options[time_range]
+
+    def __list_to_count_dict(self, dictionary: dict, item: str) -> dict:
+        """Tranforms a list of strings into a dictionary which has the strings as keys and the amount they appear as values
+
+        ## Note\n
+        ## This function is to be used in conjunction with a reduce function
+        ## Note
+
+        Args:
+            dictionary (dict): Dictionary to be created / updated
+            item (str): new item from the list
+        """
+        if item in dictionary.keys():
+            dictionary[item] += 1
+        else:
+            dictionary[item] = 1
+
+        return dictionary
+
+    def __value_dict_to_value_and_percentage_dict(self, dictionary: dict) -> 'dict[dict[str, int]]':
+        """Transforms a dictionary containing only values for a given key into a dictionary containing the values and the total percentage of that key
+
+        Args:
+            dictionary (dict): dictionary with only the values for each
+
+        Returns:
+            dict[dict[str, int]]: new dictionary with values and total percentages
+        """
+        dictionary = {key: {'value': value, 'percentage': round(value / dictionary['total'], 5)} for key, value in dictionary.items()}
+
+        return dictionary
+
+    def get_playlist_trending_genres(self, time_range: str = 'all_time') -> 'dict[str, int]':
+        """Calculates the amount of times each genre was spotted in the playlist
+
+        Args:
+            time_range (str, optional): Time range that represents how much of the playlist will be considered for the trend. Can be one of the following: 'all_time', 'month', 'trimester', 'semester', 'year'. Defaults to 'all_time'.
+
+        Raises:
+            ValueError: If the time_range parameter is not valid the error is raised.
+
+        Returns:
+            dict[str, int]: The dictionary that contains how many times each genre was spotted in the playlist in the given time range.
+        """
+        if time_range not in ['all_time', 'month', 'trimester', 'semester', 'year']:
+            raise ValueError('time_range must be one of the following: "all_time", "month", "trimester", "semester", "year"')
+
+        playlist = self.__playlist[self.__playlist['added_at'] > self.__get_datetime_by_time_range(time_range=time_range)]
+
+        if not len(playlist):
+            print(f"No songs added to the playlist in the time range {time_range} ")
+            return None
+
+        genres = list(reduce(lambda x, y: list(x) + list(y), playlist['genres'], []))
+
+        genres_dict = dict(reduce(lambda x, y: self.__list_to_count_dict(dictionary=x, item=y), genres, {}))
+
+        genres_dict['total'] = len(playlist['genres'])
+
+        genres_dict = dict(sorted(genres_dict.items(), key=lambda x: x[1], reverse=True))
+
+        genres_dict = self.__value_dict_to_value_and_percentage_dict(dictionary=genres_dict)
+
+        return genres_dict
+
+    def get_playlist_trending_artists(self, time_range: str = 'all_time') -> 'dict[str, int]':
+        """Calculates the amount of times each artist was spotted in the playlist
+
+        Args:
+            time_range (str, optional): Time range that represents how much of the playlist will be considered for the trend. Can be one of the following: 'all_time', 'month', 'trimester', 'semester', 'year'. Defaults to 'all_time'.
+
+        Raises:
+            ValueError: If the time_range parameter is not valid the error is raised.
+
+        Returns:
+            dict[str, int]: The dictionary that contains how many times each artist was spotted in the playlist in the given time range.
+        """
+        if time_range not in ['all_time', 'month', 'trimester', 'semester', 'year']:
+            raise ValueError('time_range must be one of the following: "all_time", "month", "trimester", "semester", "year"')
+
+        playlist = self.__playlist[self.__playlist['added_at'] > self.__get_datetime_by_time_range(time_range=time_range)]
+
+        if not len(playlist):
+            print(f"No songs added to the playlist in the time range {time_range} ")
+            return None
+
+        artists = list(reduce(lambda x, y: list(x) + list(y), playlist['artists'], []))
+
+        artists_dict = dict(reduce(lambda x, y: self.__list_to_count_dict(dictionary=x, item=y), artists, {}))
+
+        artists_dict['total'] = len(playlist['artists'])
+
+        artists_dict = dict(sorted(artists_dict.items(), key=lambda x: x[1], reverse=True))
+
+        artists_dict = self.__value_dict_to_value_and_percentage_dict(dictionary=artists_dict)
+
+        return artists_dict
+
 
 def start_api(user_id, *, playlist_url=None, playlist_id=None):
     """Function that prepares for and initializes the API
 
-    ## Note: 
+    ## Note:
     Internet Connection is required
 
     Args:
