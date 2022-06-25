@@ -23,14 +23,13 @@
 
 ### Requirements:
   - Python installed<br>
- The ideal version, to run the package is 3.8.x, the version in which the package was built over, however,
- older versions of python 3 shouldn't have any issues, as the package does not use any 
- fancy, new methods, not supported by older versions of Python 3.x
+ The ideal version, to run the package is 3.8.x, the version in which the package was built over,
+ older versions many have some issues, as the package uses a handful of other packages 
+ and their versions may conflict
   - Network Connection<br>
  So that a wide range of songs can be analised, it is imperative to have a network connection, at least for the first time executing a script using this package
   - <strong>A fitting playlist</strong><br>
- The perfect use case for this package is that of one big playlist (200+ songs), which you feel like listening to some of them, then others but never, or rarely, all of them
- Still, in the first versions of this package, this playlist will have to have at least two of your favorite songs.
+ The perfect use case for this package is that of one big playlist (200+ songs), which you feel like listening to some of them, then others but never, or rarely, all of them, since they belong to diferent genres/styles
   - ## <strong>Patience</strong>
     It may seem funny or a joke, but the first mapping process of the playlist to a local pandas DataFrame, it will take a good while, up to 2.5 to 3 second per song, at 20-40Mbps Internet connection, being in Latam. All these factors play a part in the time for it to load.
     Just to make it clear, cpu, ram, these will not help much, the issue is to have up to 5 different http requests per song, which make this take so long
