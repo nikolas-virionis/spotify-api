@@ -13,8 +13,8 @@
  - This is the first section of this readme, because, you will see, this package can help, but nothing is perfect, so it will, as long as you fit in this very, very, particular use case ;(
  - The perfect use case for this is that one playlist (or more) that you put a bunch of songs in different times and mood styles, and when you listen to it, you feel like only listening to a part of it, some days later, that part is useless, but some other part is awesome. The big issue here is that those "parts" are shuffled all across the playlist. Then how would one find those songs that they are craving for, today, tomorrow, and later? Speaking from experience, it is not worth it to map manually a 1000 song playlist and filter out 50, or 100.
  - This package comes to solve this issue, roughly, because it tries to find the K (number) nearest songs taking into consideration genres, artists and popularity, using the KNN supervised machine learning technique
- - One issue with this is that spotify api is not the best, E.g. A LOT of artists do not have any genre associated to them
- - Other issue is that spotify api does not provide, at the time of publish of version 2.4.0, neither song nor album genres, which compromise a good portion of the accuracy of the recommendations, still i recommend you give it a try
+ - One issue with this is that spotify api is not the best, E.g. A LOT of artists do not have any genre associated to them, which, as justified in the next topic, is the main source of genre information used in the algorithm
+ - Other issue is that spotify api does not provide, at the time of publish of version 2.5.0, neither song nor album genres, which compromise a portion of the accuracy of the recommendations, still i recommend you give it a try
 
 
 
@@ -167,22 +167,26 @@ api.update_all_generated_playlists()
  - get_playlist_trending_genres
 ~~~python
 # Parameters
-get_playlist_trending_genres(time_range: str = 'all_time')
+get_playlist_trending_genres(time_range: str = 'all_time', plot_top: int|bool = False)
 # Method Use Example
 api.get_playlist_trending_genres()
-# Function that returns a dictionary with all genres within the playlist and both their 
+# Function that returns a pandas DataFrame with all genres within the playlist and both their 
 # overall appearance and the percentage of their appearance over the entire playlist
 # in the given time_range
+# Setting the plot_top parameter to one of the following [5, 10, 15] will plot a barplot
+# with this number of the most listened genres in the playlist
 ~~~ 
  - get_playlist_trending_artists
 ~~~python
 # Parameters
-get_playlist_trending_artists(time_range: str = 'all_time')
+get_playlist_trending_artists(time_range: str = 'all_time', plot_top: int|bool = False)
 # Method Use Example
 api.get_playlist_trending_artists()
-# Function that returns a dictionary with all artists within the playlist and both their
+# Function that returns a pandas DataFrame with all artists within the playlist and both their
 # overall appearance and the percentage of their appearance over the entire playlist
 # in the given time_range
+# Setting the plot_top parameter to one of the following [5, 10, 15] will plot a barplot
+# with this number of the most listened artists in the playlist
 ~~~
 
 # OG Scripts
