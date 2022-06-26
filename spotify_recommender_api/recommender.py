@@ -901,7 +901,7 @@ class SpotifyAPI:
 
         return dictionary
 
-    def __plot_bar_chart(self, df: pd.DataFrame, chart_title: str = None, top: int = 10):
+    def __plot_bar_chart(self, df: pd.DataFrame, chart_title: str = None, top: int = 10, plot_max: bool = True):
         """Plot a bar Chart with the top values from the dictionary
 
         Args:
@@ -910,9 +910,13 @@ class SpotifyAPI:
             top (int, optional): numbers of values to be in the chart. Defaults to 10
         """
 
-        df = df[df['name'] != ''][1:top].copy()
+        if plot_max:
+            df = df[df['name'] != ''][0:top + 1]
+        else:
+            print(f'Total number of songs: {df["number of songs"][0]}')
+            df = df[df['name'] != ''][1:top + 1]
 
-        plt.figure(figsize=(10,10))
+        plt.figure(figsize=(15,10))
 
         sns.color_palette('bright')
 
@@ -973,7 +977,7 @@ class SpotifyAPI:
         df = pd.DataFrame(data=dictionary, columns=['name', 'number of songs', 'rate'])
 
         if plot_top:
-            self.__plot_bar_chart(df=df, top=plot_top)
+            self.__plot_bar_chart(df=df, top=plot_top, plot_max=reduce(lambda x, y: x + y, df['rate'][1:4], 0) >= 0.50)
 
         return df
 
@@ -1019,7 +1023,7 @@ class SpotifyAPI:
         df = pd.DataFrame(data=dictionary, columns=['name', 'number of songs', 'rate'])
 
         if plot_top:
-            self.__plot_bar_chart(df=df, top=plot_top)
+            self.__plot_bar_chart(df=df, top=plot_top, plot_max=reduce(lambda x, y: x + y, df['rate'][1:4], 0) >= 0.50)
 
         return df
 
@@ -1037,6 +1041,7 @@ def start_api(user_id, *, playlist_url=None, playlist_id=None):
 
     Raises:
         ValueError: at least one of the playlist related arguments have to be specified
+        ValueError: when asked to input the auth token, in case it is not valid, an error is raised
 
     Returns:
         SpotifyAPI: The instance of the SpotifyAPI class
