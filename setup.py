@@ -7,7 +7,7 @@ here = os.path.abspath(os.path.dirname(__file__))
 with codecs.open(os.path.join(here, "README.md"), encoding="utf-8") as fh:
     long_description = "\n" + fh.read()
 
-VERSION = '2.4.2'
+VERSION = '2.5.0'
 DESCRIPTION = 'Python package which takes the songs of a greater playlist as starting point to make recommendations of songs based on up to 5 specific songs within that playlist, using K-Nearest-Neighbors Technique'
 
 # Setting up
@@ -21,7 +21,7 @@ setup(
     long_description=long_description,
     url="https://github.com/nikolas-virionis/spotify-api",
     packages=find_packages(),
-    install_requires=['pandas', 'requests', 'seaborn'],
+    install_requires=['pandas', 'requests', 'seaborn', 'matplotlib'],
     classifiers=[
         "Programming Language :: Python :: 3",
         "Programming Language :: Python :: 3.8",

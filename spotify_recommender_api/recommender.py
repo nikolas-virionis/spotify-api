@@ -9,6 +9,7 @@ import os
 import re
 import datetime
 from dateutil import tz
+import matplotlib.pyplot as plt
 import seaborn as sns
 sns.set()
 
@@ -21,7 +22,7 @@ def playlist_url_to_id(url):
 
 class SpotifyAPI:
     """
-    # Spotify API is the Class that provides access to the playlists recommendations
+    ### Spotify API is the Class that provides access to the playlists recommendations
     """
 
     def __get_total_song_count(self):
@@ -37,8 +38,8 @@ class SpotifyAPI:
         Function represents a way to have only unique values for a given list while constantly appending new genre values
 
         # Parameters
-         - list: the overall, big, complete, list of genres
-         - the possibly new genre values
+        - list: the overall, big, complete, list of genres
+        - the possibly new genre values
         """
         for genre in genres:
             if genre not in list:
@@ -51,7 +52,7 @@ class SpotifyAPI:
         Function that gets all the genres for a given song
 
         # Parameters
-         - song: the song dictionary
+        - song: the song dictionary
         """
         genres = []
         song_artists = song["track"]["artists"] if 'track' in list(
@@ -78,7 +79,7 @@ class SpotifyAPI:
         like its name, artists, id, popularity
 
         # Parameters
-         - song: the song raw dictionary
+        - song: the song raw dictionary
         """
         return song["track"]['id'], song["track"]['name'], song["track"]['popularity'], [artist["name"] for artist in song["track"]["artists"]], song['added_at']
 
@@ -91,23 +92,29 @@ class SpotifyAPI:
 
         """
         self.__all_genres = []
-        for offset in range(0, self.__get_total_song_count(), 100):
-            all_genres_res = get(
-                f'https://api.spotify.com/v1/playlists/{self.__playlist_id}/tracks?limit=100&{offset=}', headers=self.__headers)
-            for song in all_genres_res.json()["items"]:
-                (id, name, popularity, artist, added_at), song_genres = self.__song_data(
-                    song), self.__get_song_genres(song)
-                self.__songs.append({"id": id, "name": name, "artists": artist,
-                                     "popularity": popularity, "genres": song_genres, "added_at": added_at})
-                self.__all_genres = self.__add_genres(
-                    self.__all_genres, song_genres)
+        try:
+            for offset in range(0, self.__get_total_song_count(), 100):
+                all_genres_res = get(
+                    f'https://api.spotify.com/v1/playlists/{self.__playlist_id}/tracks?limit=100&{offset=}', headers=self.__headers)
+                for song in all_genres_res.json()["items"]:
+                    (id, name, popularity, artist, added_at), song_genres = self.__song_data(
+                        song), self.__get_song_genres(song)
+                    self.__songs.append({"id": id, "name": name, "artists": artist,
+                                        "popularity": popularity, "genres": song_genres, "added_at": added_at})
+                    self.__all_genres = self.__add_genres(
+                        self.__all_genres, song_genres)
+        except KeyError:
+            raise ValueError('Invalid Auth Token, try again with a valid one')
 
     def __playlist_adjustments(self):
         """
         Function that does a bunch of adjustments to the overall formatting of the playlist, before making it visible
 
         """
-        songs = self.__songs[-self.__get_total_song_count():]
+        try:
+            songs = self.__songs[-self.__get_total_song_count():]
+        except KeyError:
+            raise ValueError('Invalid Auth Token, try again with a valid one')
         self.__all_artists = list(self.__artists.keys())
         playlist = pd.DataFrame(data=list(songs))
         # , columns=['id', 'name', 'artists', 'popularity', 'genres']
@@ -154,10 +161,10 @@ class SpotifyAPI:
         # Spotify API is the Class that provides access to the playlists recommendations
 
         # Parameters
-         - auth_token: The authentication token for the Spotify API, base64 encoded string that allows the use of the API's functionalities
-         - playlist_id: The playlist ID hash in Spotify
-         - playlist_url: The url used while sharing the playlist
-         - user_id: The user ID, visible in the Spotify profile account settings
+        - auth_token: The authentication token for the Spotify API, base64 encoded string that allows the use of the API's functionalities
+        - playlist_id: The playlist ID hash in Spotify
+        - playlist_url: The url used while sharing the playlist
+        - user_id: The user ID, visible in the Spotify profile account settings
 
         # It will trigger most of the API functions and can take a good while to complete
         """
@@ -166,7 +173,7 @@ class SpotifyAPI:
         self.__user_id = user_id
         self.__auth_token = auth_token
         self.__headers = {"Accept": "application/json",
-                          "Content-Type": "application/json", "Authorization": self.__auth_token}
+                        "Content-Type": "application/json", "Authorization": self.__auth_token}
         self.__artists = {}
         self.__songs = []
         self.__deny_favorites = False
@@ -195,7 +202,7 @@ class SpotifyAPI:
         if not os.path.exists('./.spotify-recommender-util'):
             os.mkdir('./.spotify-recommender-util')
         df = pd.DataFrame(data=[{'artists': self.__artists, 'songs': self.__songs,
-                          'all_genres': self.__all_genres}], columns=['artists', 'songs', 'all_genres'])
+                        'all_genres': self.__all_genres}], columns=['artists', 'songs', 'all_genres'])
 
         df.to_parquet('./.spotify-recommender-util/util.parquet')
 
@@ -210,7 +217,7 @@ class SpotifyAPI:
         # Useful for the overall execution of the algorithm which determines the distance between each song
 
         # Parameters
-         - genres: list of genres for a given song
+        - genres: list of genres for a given song
         """
         indexed = []
         for all_genres_x in self.__all_genres:
@@ -236,7 +243,7 @@ class SpotifyAPI:
         # Useful for the overall execution of the algorithm which determines the distance between each song
 
         # Parameters
-         - artists: list of artists for a given song
+        - artists: list of artists for a given song
         """
         indexed = []
         for all_artists_x in self.__all_artists:
@@ -261,7 +268,7 @@ class SpotifyAPI:
         Function to prepare the data for the algorithm which calculates the distances between the songs
 
         # Parameters
-         - df: the playlist DataFrame
+        - df: the playlist DataFrame
 
 
         # Note
@@ -269,12 +276,12 @@ class SpotifyAPI:
         And also leave it in an easier to iterate over format
         """
         data = df[['id', 'name', 'genres', 'artists',
-                   'popularity', 'added_at', 'genres_indexed', 'artists_indexed']]
+                    'popularity', 'added_at', 'genres_indexed', 'artists_indexed']]
 
         array = []
         for id, name, genres, artists, popularity, added_at, genres_indexed, artists_indexed in zip(data['id'], data['name'], data['genres'], data['artists'], data['popularity'], data['added_at'], data['genres_indexed'], data['artists_indexed']):
             array.append({'id': id, 'name': name, 'genres': genres, 'artists': artists,
-                          'popularity': popularity, 'added_at': added_at, 'genres_indexed': genres_indexed, 'artists_indexed': artists_indexed})
+                            'popularity': popularity, 'added_at': added_at, 'genres_indexed': genres_indexed, 'artists_indexed': artists_indexed})
 
         self.__song_dict = array
 
@@ -881,33 +888,64 @@ class SpotifyAPI:
 
         return dictionary
 
-    def __value_dict_to_value_and_percentage_dict(self, dictionary: dict) -> 'dict[dict[str, int]]':
+    def __value_dict_to_value_and_percentage_dict(self, dictionary: 'dict[str, int]') -> 'dict[dict[str, float]]':
         """Transforms a dictionary containing only values for a given key into a dictionary containing the values and the total percentage of that key
 
         Args:
             dictionary (dict): dictionary with only the values for each
 
         Returns:
-            dict[dict[str, int]]: new dictionary with values and total percentages
+            dict[dict[str, float]]: new dictionary with values and total percentages
         """
         dictionary = {key: {'value': value, 'percentage': round(value / dictionary['total'], 5)} for key, value in dictionary.items()}
 
         return dictionary
 
-    def get_playlist_trending_genres(self, time_range: str = 'all_time') -> 'dict[str, int]':
-        """Calculates the amount of times each genre was spotted in the playlist
+    def __plot_bar_chart(self, df: pd.DataFrame, chart_title: str = None, top: int = 10):
+        """Plot a bar Chart with the top values from the dictionary
+
+        Args:
+            df (pd.DataFrame): DataFrame to plotthat contains the data
+            chart_title (str, optional): label of the chart. Defaults to None
+            top (int, optional): numbers of values to be in the chart. Defaults to 10
+        """
+
+        df = df[df['name'] != ''][1:top].copy()
+
+        plt.figure(figsize=(10,10))
+
+        sns.color_palette('bright')
+
+        sns.barplot(x='name', y='number of songs', data=df, label=chart_title)
+
+        plt.xticks(
+            rotation=45,
+            horizontalalignment='right',
+            fontweight='light',
+            fontsize='x-large'
+        )
+
+        plt.show()
+
+    def get_playlist_trending_genres(self, time_range: str = 'all_time', plot_top: 'int|bool' = False) -> pd.DataFrame:
+        """Calculates the amount of times each genre was spotted in the playlist, and can plot a bar chart to represent this information
 
         Args:
             time_range (str, optional): Time range that represents how much of the playlist will be considered for the trend. Can be one of the following: 'all_time', 'month', 'trimester', 'semester', 'year'. Defaults to 'all_time'.
+            plot_top(int|bool , optional): the number of top genres to be plotted. Must be 5, 10, 15 or False. No chart will be plotted if set to False. Defaults to False.
 
         Raises:
             ValueError: If the time_range parameter is not valid the error is raised.
+            ValueError: If plot_top parameter is not valid the error is raised.
 
         Returns:
-            dict[str, int]: The dictionary that contains how many times each genre was spotted in the playlist in the given time range.
+            pd.DataFrame: The dictionary that contains how many times each genre was spotted in the playlist in the given time range.
         """
         if time_range not in ['all_time', 'month', 'trimester', 'semester', 'year']:
             raise ValueError('time_range must be one of the following: "all_time", "month", "trimester", "semester", "year"')
+
+        if plot_top not in [5, 10, 15, False]:
+            raise ValueError('plot_top must be one of the following: 5, 10, 15 or False')
 
         playlist = self.__playlist[self.__playlist['added_at'] > self.__get_datetime_by_time_range(time_range=time_range)]
 
@@ -925,19 +963,32 @@ class SpotifyAPI:
 
         genres_dict = self.__value_dict_to_value_and_percentage_dict(dictionary=genres_dict)
 
-        return genres_dict
+        dictionary = {'name': [], 'number of songs': [], 'rate': []}
 
-    def get_playlist_trending_artists(self, time_range: str = 'all_time') -> 'dict[str, int]':
-        """Calculates the amount of times each artist was spotted in the playlist
+        for key, value in genres_dict.items():
+            dictionary['name'].append(key)
+            dictionary['number of songs'].append(value['value'])
+            dictionary['rate'].append(value['percentage'])
+
+        df = pd.DataFrame(data=dictionary, columns=['name', 'number of songs', 'rate'])
+
+        if plot_top:
+            self.__plot_bar_chart(df=df, top=plot_top)
+
+        return df
+
+    def get_playlist_trending_artists(self, time_range: str = 'all_time', plot_top: 'int|bool' = False) -> pd.DataFrame:
+        """Calculates the amount of times each artist was spotted in the playlist, and can plot a bar chart to represent this information
 
         Args:
             time_range (str, optional): Time range that represents how much of the playlist will be considered for the trend. Can be one of the following: 'all_time', 'month', 'trimester', 'semester', 'year'. Defaults to 'all_time'.
+            plot_top(int|bool , optional): the number of top genres to be plotted. No chart will be plotted if set to False. Defaults to False.
 
         Raises:
             ValueError: If the time_range parameter is not valid the error is raised.
 
         Returns:
-            dict[str, int]: The dictionary that contains how many times each artist was spotted in the playlist in the given time range.
+            pd.DataFrame: The dictionary that contains how many times each artist was spotted in the playlist in the given time range.
         """
         if time_range not in ['all_time', 'month', 'trimester', 'semester', 'year']:
             raise ValueError('time_range must be one of the following: "all_time", "month", "trimester", "semester", "year"')
@@ -958,7 +1009,19 @@ class SpotifyAPI:
 
         artists_dict = self.__value_dict_to_value_and_percentage_dict(dictionary=artists_dict)
 
-        return artists_dict
+        dictionary = {'name': [], 'number of songs': [], 'rate': []}
+
+        for key, value in artists_dict.items():
+            dictionary['name'].append(key)
+            dictionary['number of songs'].append(value['value'])
+            dictionary['rate'].append(value['percentage'])
+
+        df = pd.DataFrame(data=dictionary, columns=['name', 'number of songs', 'rate'])
+
+        if plot_top:
+            self.__plot_bar_chart(df=df, top=plot_top)
+
+        return df
 
 
 def start_api(user_id, *, playlist_url=None, playlist_id=None):
