@@ -155,7 +155,7 @@ api.get_most_listened(time_range='short', K=53)
 # BUILD_PLAYLIST WILL CHANGE THE USER'S LIBRARY IF SET TO TRUE
 ~~~ 
  - update_all_generated_playlists
-### WILL CHANGE THE USER'S LIBRARY DRAMATICALLY
+### WILL CHANGE THE USER'S LIBRARY DRASTICALLY
 ~~~python
 # Parameters
 update_all_generated_playlists(K: int = 50)
