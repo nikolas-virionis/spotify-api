@@ -1,132 +1,22 @@
-from requests import get, post, delete
-import pandas as pd
-from spotify_recommender_api.sensitive import *
-from spotify_recommender_api.authentication import get_auth
-import operator
-import json
-from functools import reduce
 import os
 import re
+import json
+import operator
 import datetime
-from dateutil import tz
-import matplotlib.pyplot as plt
+import pandas as pd
 import seaborn as sns
+from dateutil import tz
+from functools import reduce
+import matplotlib.pyplot as plt
+import spotify_recommender_api.util as util
+from spotify_recommender_api.sensitive import *
+from spotify_recommender_api.authentication import get_auth
 sns.set()
-
-
-def playlist_url_to_id(url):
-    uri = url.split('?')[0]
-    id = uri.split('open.spotify.com/playlist/')[1]
-    return id
-
 
 class SpotifyAPI:
     """
     ### Spotify API is the Class that provides access to the playlists recommendations
     """
-
-    def __get_total_song_count(self):
-        """
-        Function returns the total number of songs in the playlist
-        """
-        playlist_res = get(
-            f'https://api.spotify.com/v1/playlists/{self.__playlist_id}', headers=self.__headers)
-        return playlist_res.json()["tracks"]["total"]
-
-    def __add_genres(self, list, genres):
-        """
-        Function represents a way to have only unique values for a given list while constantly appending new genre values
-
-        # Parameters
-        - list: the overall, big, complete, list of genres
-        - the possibly new genre values
-        """
-        for genre in genres:
-            if genre not in list:
-                list.append(genre)
-
-        return list
-
-    def __get_song_genres(self, song):
-        """
-        Function that gets all the genres for a given song
-
-        # Parameters
-        - song: the song dictionary
-        """
-        genres = []
-        song_artists = song["track"]["artists"] if 'track' in list(
-            song.keys()) else song["artists"]
-        for artist in song_artists:
-            id = artist["id"]
-            if id not in self.__artists:
-                artist_genres_res = get(
-                    f'https://api.spotify.com/v1/artists/{id}', headers=self.__headers)
-                try:
-                    artist_genres = artist_genres_res.json()["genres"]
-                except Exception:
-                    print(artist_genres_res.json())
-                genres = self.__add_genres(genres, artist_genres)
-                self.__artists[artist["name"]] = artist_genres
-            else:
-                genres = self.__add_genres(genres, self.__artists[id])
-
-        return genres
-
-    def __song_data(self, song):
-        """
-        Function that gets additional information about the song
-        like its name, artists, id, popularity
-
-        # Parameters
-        - song: the song raw dictionary
-        """
-        return song["track"]['id'], song["track"]['name'], song["track"]['popularity'], [artist["name"] for artist in song["track"]["artists"]], song['added_at']
-
-    def __get_playlist_items(self):
-        """
-        Function that gets the items (songs) inside the playlist
-
-        # Note
-        Ran automatically but can last as long as 2.5 seconds for each song (can be worse depending on the network connection) inside of te playlist, not because it is compute demanding but because it needs to do a up to a bunch of http requests per song, which can take a while
-
-        """
-        self.__all_genres = []
-        try:
-            for offset in range(0, self.__get_total_song_count(), 100):
-                all_genres_res = get(
-                    f'https://api.spotify.com/v1/playlists/{self.__playlist_id}/tracks?limit=100&{offset=}', headers=self.__headers)
-                for song in all_genres_res.json()["items"]:
-                    (id, name, popularity, artist, added_at), song_genres = self.__song_data(
-                        song), self.__get_song_genres(song)
-                    self.__songs.append({"id": id, "name": name, "artists": artist,
-                                        "popularity": popularity, "genres": song_genres, "added_at": added_at})
-                    self.__all_genres = self.__add_genres(
-                        self.__all_genres, song_genres)
-        except KeyError:
-            raise ValueError('Invalid Auth Token, try again with a valid one')
-
-    def __playlist_adjustments(self):
-        """
-        Function that does a bunch of adjustments to the overall formatting of the playlist, before making it visible
-
-        """
-        try:
-            songs = self.__songs[-self.__get_total_song_count():]
-        except KeyError:
-            raise ValueError('Invalid Auth Token, try again with a valid one')
-        self.__all_artists = list(self.__artists.keys())
-        playlist = pd.DataFrame(data=list(songs))
-        # , columns=['id', 'name', 'artists', 'popularity', 'genres']
-        playlist["genres_indexed"] = [self.__genres_indexed(eval(playlist["genres"][x]) if type(
-            playlist["genres"][x]) == 'str' else playlist["genres"][x]) for x in range(len(playlist["genres"]))]
-        playlist["artists_indexed"] = [self.__artists_indexed(eval(playlist["artists"][x]) if type(
-            playlist["artists"][x]) == 'str' else playlist["artists"][x]) for x in range(len(playlist["artists"]))]
-        playlist['id'] = playlist["id"].astype(str)
-        playlist['name'] = playlist["name"].astype(str)
-        playlist['popularity'] = playlist["popularity"].astype(int)
-        playlist['added_at'] = pd.to_datetime(playlist["added_at"])
-        self.__playlist = playlist
 
     def __get_playlist_from_csv(self):
         """
@@ -134,8 +24,7 @@ class SpotifyAPI:
 
         """
         df = pd.read_parquet('./.spotify-recommender-util/util.parquet')
-        # print(list(map(lambda arr: arr if type(
-        #     arr) != 'str' else eval(arr), [df['artists'][0], df['songs'][0], df['all_genres'][0]])))
+
         self.__artists, self.__songs, self.__all_genres = list(map(lambda arr: arr if type(
             arr) != 'str' else eval(arr), [df['artists'][0], df['songs'][0], df['all_genres'][0]]))
 
@@ -156,6 +45,76 @@ class SpotifyAPI:
 
         return True
 
+    def __get_song_genres(self, song):
+        """
+        Function that gets all the genres for a given song
+
+        # Parameters
+        - song: the song dictionary
+        """
+        genres = []
+        song_artists = song["track"]["artists"] if 'track' in list(song.keys()) else song["artists"]
+        for artist in song_artists:
+            id = artist["id"]
+            if id not in self.__artists:
+                artist_genres_res = util.get_request(url=f'https://api.spotify.com/v1/artists/{id}', headers=self.__headers)
+                try:
+                    artist_genres = artist_genres_res.json()["genres"]
+                except Exception as e:
+                    print(f'{e = }')
+                    print(artist_genres_res.json())
+                genres = util.add_items_to_list(items=genres, item_list=artist_genres)
+                self.__artists[artist["name"]] = artist_genres
+            else:
+                genres = util.add_items_to_list(items=genres, item_list=self.__artists[id])
+
+        return genres
+
+    def __get_playlist_items(self):
+        """
+        Function that gets the items (songs) inside the playlist
+
+        # Note
+        Ran automatically but can last as long as 2.5 seconds for each song (can be worse depending on the network connection) inside of te playlist, not because it is compute demanding but because it needs to do a up to a bunch of http requests per song, which can take a while
+
+        """
+        self.__all_genres = []
+        try:
+            for offset in range(0, util.get_total_song_count(playlist_id=self.__playlist_id, headers=self.__headers), 100):
+                all_genres_res = util.get_request(
+                    headers=self.__headers,
+                    url=f'https://api.spotify.com/v1/playlists/{self.__playlist_id}/tracks?limit=100&{offset=}'
+                )
+                for song in all_genres_res.json()["items"]:
+                    (id, name, popularity, artist, added_at), song_genres = util.song_data(song=song), self.__get_song_genres(song)
+                    self.__songs.append({"id": id, "name": name, "artists": artist,
+                                        "popularity": popularity, "genres": song_genres, "added_at": added_at})
+                    self.__all_genres = util.add_items_to_list(items=song_genres, item_list=self.__all_genres)
+        except KeyError:
+            raise ValueError('Invalid Auth Token, try again with a valid one')
+
+    def __playlist_adjustments(self):
+        """
+        Function that does a bunch of adjustments to the overall formatting of the playlist, before making it visible
+
+        """
+        try:
+            songs = self.__songs[-util.get_total_song_count(playlist_id=self.__playlist_id, headers=self.__headers):]
+        except KeyError:
+            raise ValueError('Invalid Auth Token, try again with a valid one')
+        self.__all_artists = list(self.__artists.keys())
+        playlist = pd.DataFrame(data=list(songs))
+
+        playlist["genres_indexed"] = [util.item_list_indexed(items=eval(playlist["genres"][x]) if type(
+            playlist["genres"][x]) == 'str' else playlist["genres"][x], all_items=self.__all_genres) for x in range(len(playlist["genres"]))]
+        playlist["artists_indexed"] = [util.item_list_indexed(items=eval(playlist["artists"][x]) if type(
+            playlist["artists"][x]) == 'str' else playlist["artists"][x], all_items=self.__all_artists) for x in range(len(playlist["artists"]))]
+        playlist['id'] = playlist["id"].astype(str)
+        playlist['name'] = playlist["name"].astype(str)
+        playlist['popularity'] = playlist["popularity"].astype(int)
+        playlist['added_at'] = pd.to_datetime(playlist["added_at"])
+        self.__playlist = playlist
+
     def __init__(self, auth_token, user_id, playlist_id=None, playlist_url=None):
         """
         # Spotify API is the Class that provides access to the playlists recommendations
@@ -172,8 +131,11 @@ class SpotifyAPI:
             raise ValueError('auth_token is required')
         self.__user_id = user_id
         self.__auth_token = auth_token
-        self.__headers = {"Accept": "application/json",
-                        "Content-Type": "application/json", "Authorization": self.__auth_token}
+        self.__headers = {
+                        "Accept": "application/json",
+                        "Content-Type": "application/json",
+                        "Authorization": self.__auth_token
+                    }
         self.__artists = {}
         self.__songs = []
         self.__deny_favorites = False
@@ -184,7 +146,7 @@ class SpotifyAPI:
             if not playlist_url:
                 raise ValueError(
                     'Either the playlist url or its id must be specified')
-            self.__playlist_id = playlist_url_to_id(playlist_url)
+            self.__playlist_id = util.playlist_url_to_id(url=playlist_url)
             self.__playlist_url = playlist_url
 
         if self.__get_playlist():
@@ -206,62 +168,9 @@ class SpotifyAPI:
 
         df.to_parquet('./.spotify-recommender-util/util.parquet')
 
-        playlist = self.__playlist[['id', 'name',
-                                    'artists', 'genres', 'popularity', 'added_at']]
+        playlist = self.__playlist[['id', 'name', 'artists', 'genres', 'popularity', 'added_at']]
 
         playlist.to_csv('playlist.csv')
-
-    def __genres_indexed(self, genres):
-        """
-        # Function that returns the list of genres, mapped to the overall list of genres, in a binary format
-        # Useful for the overall execution of the algorithm which determines the distance between each song
-
-        # Parameters
-        - genres: list of genres for a given song
-        """
-        indexed = []
-        for all_genres_x in self.__all_genres:
-
-            continue_outer = False
-            for genre in genres:
-                index = all_genres_x == genre
-                if index:
-                    continue_outer = True
-                    indexed.append(int(True))
-                    break
-
-            if continue_outer:
-                continue
-
-            indexed.append(int(False))
-
-        return indexed
-
-    def __artists_indexed(self, artists):
-        """
-        # Function that returns the list of artists, mapped to the overall list of artists, in a binary format
-        # Useful for the overall execution of the algorithm which determines the distance between each song
-
-        # Parameters
-        - artists: list of artists for a given song
-        """
-        indexed = []
-        for all_artists_x in self.__all_artists:
-
-            continue_outer = False
-            for genre in artists:
-                index = all_artists_x == genre
-                if index:
-                    continue_outer = True
-                    indexed.append(int(True))
-                    break
-
-            if continue_outer:
-                continue
-
-            indexed.append(int(False))
-
-        return indexed
 
     def __knn_prepared_data(self, df):
         """
@@ -285,58 +194,6 @@ class SpotifyAPI:
 
         self.__song_dict = array
 
-    def __list_distance(self, a, b):
-        """
-        The weighted algorithm that calculates the distance between two songs according to either the distance between each song list of genres or the distance between each song list of artists
-
-
-        # Note
-        The "distance" is a mathematical value that represents how different two songs are considering some parameter such as their genres or artists
-
-
-        # Parameters
-         - a: one song's list of genres or artists
-         - b: counterpart song's list of genres or artists
-
-        # Note
-        For obvious reasons although both the parameters have two value options (genres, artists), when one of the parameters is specified as one of those, the other follows
-        """
-        distance = 0
-        for item_a, item_b in list(zip(a, b)):
-            if item_a != item_b:
-                if int(item_a) == 1:
-                    distance += 0.4
-                else:
-                    distance += 0.2
-            else:
-                if int(item_a) == 1:
-                    distance -= 0.4
-
-        return distance
-
-    def __compute_distance(self, a, b):
-        """
-        The portion of the algorithm that calculates the overall distance between two songs regarding the following:
-         - genres: the difference between the two song's genres, using the __list_distance function above
-         - artists: the difference between the two song's artists, using the __list_distance function above
-         - popularity: the difference between the two song's popularity, considering it a basic absolute value from the actual difference between the values
-
-        At the end there is a weighted multiplication of all the factors that implies two things:
-         - They are in really different scales.drop_duplicates(subset='id', keep='first')
-         - They have different importance levels to the final result of the calculation
-
-
-        # Parameters
-         - a: the song a, having all it's caracteristics
-         - b: the song b, having all it's caracteristics
-        """
-        genres_distance = self.__list_distance(
-            a['genres_indexed'], b['genres_indexed'])
-        artists_distance = self.__list_distance(
-            a['artists_indexed'], b['artists_indexed'])
-        popularity_distance = abs(a['popularity'] - b['popularity'])
-        return genres_distance + artists_distance * 0.38 + popularity_distance * 0.03
-
     def __get_neighbors(self, song, K, song_dict):
         """
         Function thats using the distance calculated above, returns the K nearest neighbors for a given song
@@ -350,7 +207,7 @@ class SpotifyAPI:
         distances = []
         for song_index, song_value in enumerate(song_dict):
             if (song_index != song):
-                dist = self.__compute_distance(song_dict[song], song_value)
+                dist = util.compute_distance(a=song_dict[song], b=song_value)
                 distances.append((song_index, dist))
         distances.sort(key=operator.itemgetter(1))
         neighbors = []
@@ -373,80 +230,6 @@ class SpotifyAPI:
         index = item.index[0]
         return index
 
-    def __playlist_exists(self, name):
-        """
-        Function used to check if a playlist exists inside the user's library
-
-        Used before the creation of a new playlist, related to a song or some term favorites
-
-        # Parameters
-         - name: name of the playlist being created, which could easily be bypassed, if the playlist names were not made automatically
-        """
-        total_playlist_count = get(
-            f'https://api.spotify.com/v1/me/playlists?limit=1', headers=self.__headers).json()['total']
-        playlists = []
-        for offset in range(0, total_playlist_count, 50):
-            request = get(
-                f'https://api.spotify.com/v1/me/playlists?limit=50&{offset=}',  headers=self.__headers).json()
-
-            playlists += list(map(lambda playlist: (
-                playlist['id'], playlist['name']), request['items']))
-
-        for playlist in playlists:
-
-            if playlist[1] == name:
-                return playlist[0]
-
-        return False
-
-    def __create_playlist(self, type: str):
-        """
-        Function that will return the empty playlist id, to be filled in later by the recommender songs
-
-        This playlist may be a new one just created or a playlist that was previously created and now had all its songs removed
-
-        # Note:
-        This function will change the user's library either making a new playlist or making a playlist empty
-
-        # Parameters
-         - type: the type of the playlist being created ('song', 'short', 'medium'), meaning:
-            --- 'song': a playlist related to a song
-            --- 'short': a playlist related to the short term favorites for that given user
-            --- 'medium': a playlist related to the medium term favorites for that given user
-        """
-        playlist_name = ''
-        description = ''
-        if type == 'song':
-            playlist_name = f"{self.__song_name!r} Related"
-            description = f"Songs related to {self.__song_name!r}"
-        elif type in ['short', 'medium']:
-            playlist_name = "Recent-ish Favorites" if type == 'medium' else "Latest Favorites"
-            description = f"Songs related to your {type} term top 5"
-
-        elif 'most-listened' in type:
-            playlist_name = f"{type.replace('most-listened-', '').capitalize()} Term Most-listened Tracks"
-            description = f"The most listened tracks in a {type.replace('most-listened', '')} period of time"
-        else:
-            raise ValueError('type not valid')
-        new_id = ""
-        playlist_id_found = self.__playlist_exists(playlist_name)
-        if playlist_id_found:
-            new_id = playlist_id_found
-
-            playlist_tracks = list(map(lambda track: {'uri': track['track']['uri']}, get(
-                f'https://api.spotify.com/v1/playlists/{new_id}/tracks', headers=self.__headers).json()['items']))
-
-            delete_json = delete(f'https://api.spotify.com/v1/playlists/{new_id}/tracks',
-                                 headers=self.__headers, data=json.dumps({"tracks": playlist_tracks})).json()
-
-        else:
-            data = {"name": playlist_name,
-                    "description": description, "public": False}
-            playlist_creation = post(
-                f'https://api.spotify.com/v1/users/{self.__user_id}/playlists', headers=self.__headers, data=json.dumps(data))
-            new_id = playlist_creation.json()['id']
-
-        return new_id
 
     def __build_playlist(self, type, K, additional_info=None):
         """
@@ -477,6 +260,7 @@ class SpotifyAPI:
             uris = f'spotify:track:{self.__song_dict[index]["id"]}'
             for neighbor in self.__get_recommendations('song', additional_info, K)['id']:
                 uris += f',spotify:track:{neighbor}'
+
         elif type in ['medium', 'short']:
             ids = self.__medium_fav['id'] if type == 'medium' else self.__short_fav['id']
             for neighbor in ids:
@@ -493,17 +277,28 @@ class SpotifyAPI:
         else:
             raise ValueError('Invalid type')
 
-        add_songs_req = post(
-            f'https://api.spotify.com/v1/playlists/{self.__create_playlist(type)}/tracks?{uris=!s}', headers=self.__headers, data=json.dumps({}))
+
+        print(f'{uris = }')
+
+        add_songs_req = util.post_request(url=f'https://api.spotify.com/v1/playlists/{util.create_playlist(type=type, headers=self.__headers, user_id=self.__user_id, song_name=self.__song_name if type == "song" else None)}/tracks?{uris=!s}', headers=self.__headers, data=json.dumps({}))
         add_songs_req.json()
 
-    def get_recommendations_for_song(self, song, K, with_distance: bool = False, generate_csv: bool = False, generate_parquet: bool = False, build_playlist: bool = False, print_base_caracteristics: bool = False):
+    def get_recommendations_for_song(
+            self,
+            K: int,
+            song: str,
+            generate_csv: bool = False,
+            with_distance: bool = False,
+            build_playlist: bool = False,
+            generate_parquet: bool = False,
+            print_base_caracteristics: bool = False
+        ) -> pd.DataFrame:
         """
         Playlist which centralises the actions for a recommendation made for a given song
 
         # Parameters
-         - song: The desired song name
-         - K: desired number K of neighbors to be returned
+         - song(str): The desired song name
+         - K(int): desired number K of neighbors to be returned
          - with_distance (bool): Whether to allow the distance column to the DataFrame returned, which will have no actual value for most use cases, since  it does not obey any actual unit, it is just a mathematical value to determine the coset songs
          - generate_csv (bool): Whether to generate a CSV file containing the recommended playlist
          - generate_parquet (bool): Whether to generate a parquet file containing the recommended playlist
@@ -652,8 +447,7 @@ class SpotifyAPI:
         if time_range not in ['medium', 'short']:
             raise ValueError(
                 'time_range must be either medium_term or short_term')
-        top_5 = get(
-            f'https://api.spotify.com/v1/me/top/tracks?{time_range=!s}_term&limit=5', headers=self.__headers).json()
+        top_5 = util.get_request(url=f'https://api.spotify.com/v1/me/top/tracks?{time_range=!s}_term&limit=5', headers=self.__headers).json()
         top_5_songs = list(filter(lambda song: song['name'] in list(self.__playlist['name']), list(map(lambda song: {'name': song['name'], 'genres': self.__get_song_genres(
             song), 'artists': list(map(lambda artist: artist['name'], song['artists'])), 'popularity': song['popularity']}, top_5['items']))))
 
@@ -676,10 +470,10 @@ class SpotifyAPI:
                       'medium' else "Latest Favorites", 'genres': temp_genres, 'artists': temp_artists}
 
         latest_fav['genres_indexed'] = self.__get_genres(
-            list(map(lambda song: self.__genres_indexed(song['genres']), top_5_songs)))
+            list(map(lambda song: util.item_list_indexed(song['genres'], all_items=self.__all_genres), top_5_songs)))
 
         latest_fav['artists_indexed'] = self.__get_artists(
-            list(map(lambda song: self.__artists_indexed(song['artists']), top_5_songs)))
+            list(map(lambda song: util.item_list_indexed(song['artists'], all_items=self.__all_artists), top_5_songs)))
 
         latest_fav['popularity'] = int(reduce(
             lambda acc, song: acc + int(song['popularity']), top_5_songs, 0) / len(top_5_songs))
@@ -800,8 +594,7 @@ class SpotifyAPI:
         if K > 100 or K < 1:
             raise ValueError('K must be between 1 and 100')
 
-        top = get(
-            f'https://api.spotify.com/v1/me/top/tracks?{time_range=!s}_term&limit={K}', headers=self.__headers).json()
+        top = util.get_request(url=f'https://api.spotify.com/v1/me/top/tracks?{time_range=!s}_term&limit={K}', headers=self.__headers).json()
 
         top_songs = list(map(lambda song: {'id': song['id'], 'name': song['name'], 'genres': self.__get_song_genres(song), 'artists': list(map(
             lambda artist: artist['name'], song['artists'])), 'popularity': song['popularity']}, top['items']))
@@ -818,12 +611,10 @@ class SpotifyAPI:
         Args:
             K (int, optional): Number of songs in the new playlists. Defaults to 50.
         """
-        total_playlist_count = get(
-            f'https://api.spotify.com/v1/me/playlists?limit=1', headers=self.__headers).json()['total']
+        total_playlist_count = util.get_request(url=f'https://api.spotify.com/v1/me/playlists?limit=1', headers=self.__headers).json()['total']
         playlists = []
         for offset in range(0, total_playlist_count, 50):
-            request = get(
-                f'https://api.spotify.com/v1/me/playlists?limit=50&{offset=}',  headers=self.__headers).json()
+            request = util.get_request(url=f'https://api.spotify.com/v1/me/playlists?limit=50&{offset=}',  headers=self.__headers).json()
 
             playlists += list(map(lambda playlist: (
                 playlist['id'], playlist['name']), request['items']))
