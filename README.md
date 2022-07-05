@@ -219,8 +219,8 @@ pip install requests
 ~~~ps1
 pip install seaborn
 ~~~
- - Os (os)
  - Re (re)
+ - Os (os)
  - Json (json)
  - Time (time)
  - Datetime (datetime)
