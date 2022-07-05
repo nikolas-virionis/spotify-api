@@ -14,7 +14,7 @@
  - The perfect use case for this is that one playlist (or more) that you put a bunch of songs in different times and mood styles, and when you listen to it, you feel like only listening to a part of it, some days later, that part is useless, but some other part is awesome. The big issue here is that those "parts" are shuffled all across the playlist. Then how would one find those songs that they are craving for, today, tomorrow, and later? Speaking from experience, it is not worth it to map manually a 1000 song playlist and filter out 50, or 100.
  - This package comes to solve this issue, roughly, because it tries to find the K (number) nearest songs taking into consideration genres, artists and popularity, using the KNN supervised machine learning technique
  - One issue with this is that spotify api is not the best, E.g. A LOT of artists do not have any genre associated to them, which, as justified in the next topic, is the main source of genre information used in the algorithm
- - Other issue is that spotify api does not provide, at the time of publish of version 2.5.0, neither song nor album genres, which compromise a portion of the accuracy of the recommendations, still i recommend you give it a try
+ - Other issue is that spotify api does not provide, at the time of publish of version 3.0.0, neither song nor album genres, which compromise a portion of the accuracy of the recommendations, still i recommend you give it a try
 
 
 
@@ -33,6 +33,7 @@
   - ## <strong>Patience</strong>
     It may seem funny or a joke, but the first mapping process of the playlist to a local pandas DataFrame, it will take a good while, up to 2.5 to 3 second per song, at 20-40Mbps Internet connection, being in Latam. All these factors play a part in the time for it to load.
     Just to make it clear, cpu, ram, these will not help much, the issue is to have up to 5 different http requests per song, which make this take so long
+    Besides, as of july/2022, Spotify implemented a possible API Response 429: Too Many Requests which forced this package to implement exponential backoff in order to complete it's requests, therefore what already took a while, now takes a little bit more, nothing much but still worth noting
   - Jupyter Notebook<br>
  Not exactly a requirement but it is advised that a jupyter notebook is used ( even more advised to use the vscode extension for jupyter notebooks ), because it is important, or at least more confortable, to have the variable still in memory and then decide how to use it, without having to run the script multiple times
   - Spotify access<br>
@@ -218,11 +219,12 @@ pip install requests
 ~~~ps1
 pip install seaborn
 ~~~
- - Datetime (datetime)
- - Dateutil (dateutil)
- - Webbrowser (webbrowser)
- - Json (json)
- - Operator (operator)
- - Functools (functools)
  - Os (os)
  - Re (re)
+ - Json (json)
+ - Time (time)
+ - Datetime (datetime)
+ - Dateutil (dateutil)
+ - Operator (operator)
+ - Functools (functools)
+ - Webbrowser (webbrowser)
