@@ -93,7 +93,7 @@ def delete_request(url: str, headers: dict = None, data: dict = None, retries: i
     Returns:
         dict: Request response
     """
-    return exponential_backoff(func=lambda: delete(url=url, headers=headers, data=data), retries=retries)
+    return exponential_backoff(func=lambda: delete(url=url, headers=headers, data=json.dumps(data)), retries=retries)
 
 def playlist_url_to_id(url: str) -> str:
     """Extracts the playlist id from it's URL
@@ -270,7 +270,7 @@ def playlist_exists(name: str, headers: dict) -> 'str|bool':
     return False
 
 
-def create_playlist(type: str, headers: dict, user_id: str, song_name: str = None) -> str:
+def create_playlist(type: str, headers: dict, user_id: str, additional_info: str = None) -> str:
     """Function that will return the empty playlist id, to be filled in later by the recommender songs
     This playlist may be a new one just created or a playlist that was previously created and now had all its songs removed
 
@@ -285,10 +285,11 @@ def create_playlist(type: str, headers: dict, user_id: str, song_name: str = Non
         --- 'most-listened-short': a playlist related to the short term most listened songs\n
         --- 'most-listened-medium': a playlist related to the medium term most listened songs\n
         --- 'most-listened-long': a playlist related to the long term most listened songs\n
+        --- 'artist-related': a playlist related to a specific artist songs\n
 
         headers (dict): Request headers
         user_id (str): Spotify User id
-        song_name (str, optional): name of the song. Defaults to None
+        additional_info (str, optional): name of the song, artist, or whatever additional information is needed. Defaults to None
 
     Raises:
         ValueError: The type argument musts be one of the valid options
@@ -299,8 +300,8 @@ def create_playlist(type: str, headers: dict, user_id: str, song_name: str = Non
     playlist_name = ''
     description = ''
     if type == 'song':
-        playlist_name = f"{song_name!r} Related"
-        description = f"Songs related to {song_name!r}"
+        playlist_name = f"{additional_info!r} Related"
+        description = f"Songs related to {additional_info!r}"
     elif type in ['short', 'medium']:
         playlist_name = "Recent-ish Favorites" if type == 'medium' else "Latest Favorites"
         description = f"Songs related to your {type} term top 5"
@@ -308,17 +309,21 @@ def create_playlist(type: str, headers: dict, user_id: str, song_name: str = Non
     elif 'most-listened' in type:
         playlist_name = f"{type.replace('most-listened-', '').capitalize()} Term Most-listened Tracks"
         description = f"The most listened tracks in a {type.replace('most-listened', '')} period of time"
+
+    elif type == 'artist-related':
+        playlist_name = f"{additional_info!r} Mix"
+        description = f"Songs related to {additional_info!r}"
     else:
         raise ValueError('type not valid')
     new_id = ""
     playlist_id_found = playlist_exists(name=playlist_name, headers=headers)
+
     if playlist_id_found:
         new_id = playlist_id_found
 
         playlist_tracks = list(map(lambda track: {'uri': track['track']['uri']}, get_request(url=f'https://api.spotify.com/v1/playlists/{new_id}/tracks', headers=headers).json()['items']))
 
-        delete_json = delete_request(url=f'https://api.spotify.com/v1/playlists/{new_id}/tracks',
-                                headers=headers, data=json.dumps({"tracks": playlist_tracks})).json()
+        delete_json = delete_request(url=f'https://api.spotify.com/v1/playlists/{new_id}/tracks', headers=headers, data={"tracks": playlist_tracks}).json()
 
     else:
         data = {
@@ -326,7 +331,7 @@ def create_playlist(type: str, headers: dict, user_id: str, song_name: str = Non
             "description": description,
             "public": False
         }
-        playlist_creation = post_request(url=f'https://api.spotify.com/v1/users/{user_id}/playlists', headers=headers, data=json.dumps(data))
+        playlist_creation = post_request(url=f'https://api.spotify.com/v1/users/{user_id}/playlists', headers=headers, data=data)
         new_id = playlist_creation.json()['id']
 
     return new_id

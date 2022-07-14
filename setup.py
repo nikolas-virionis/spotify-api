@@ -7,8 +7,8 @@ here = os.path.abspath(os.path.dirname(__file__))
 with codecs.open(os.path.join(here, "README.md"), encoding="utf-8") as fh:
     long_description = "\n" + fh.read()
 
-VERSION = '3.0.0'
-DESCRIPTION = 'Python package which takes the songs of a greater playlist as starting point to make recommendations of songs based on up to 5 specific songs within that playlist, using K-Nearest-Neighbors Technique'
+VERSION = '3.1.0'
+DESCRIPTION = 'Python package which takes the songs of a greater playlist as starting point to make recommendations of groups of songs that might bond well within that same playlist, using K-Nearest-Neighbors Technique'
 
 # Setting up
 setup(
