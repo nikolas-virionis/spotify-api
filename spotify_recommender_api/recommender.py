@@ -878,9 +878,10 @@ class SpotifyAPI:
         if not len(artist_songs):
             raise ValueError(f'{artist_name = } does not exist in the playlist')
 
+        self.__artist_name = artist_name
+
         if len(artist_songs) < K:
             if complete_with_similar:
-                self.__artist_name = artist_name
                 artist_songs_record_song_dict = list(map(lambda x: {'name': x['name'], 'artists': x['artists'], 'genres': x['genres'], 'artists_indexed': x['artists_indexed'], 'genres_indexed': x['genres_indexed'], 'popularity': x['popularity'], 'added_at': x['added_at']}, list(filter(lambda x: artist_name in x['artists'], self.__song_dict))))
                 artist_songs_record = self.__find_recommendations_to_songs(base_songs=artist_songs_record_song_dict, subset_name=f"{artist_name} Mix")
                 song_dict = list(map(lambda x: {'name': x['name'], 'artists': x['artists'], 'genres': x['genres'], 'artists_indexed': x['artists_indexed'], 'genres_indexed': x['genres_indexed'], 'popularity': x['popularity'], 'added_at': x['added_at']}, list(filter(lambda x: artist_name not in x['artists'], self.__song_dict))))
@@ -899,7 +900,7 @@ class SpotifyAPI:
 
 
             else:
-                print(f'Creating playlist with {len(artist_songs)} songs')
+                print(f'Playlist has only {len(artist_songs)} songs')
                 print(f'To fill the {K = } number of songs, consider using the flag complete_with_similar')
                 ids = artist_songs['id']
                 df = artist_songs[['id', 'name', 'artists', 'genres', 'popularity', 'added_at']]
