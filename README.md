@@ -189,6 +189,18 @@ api.get_playlist_trending_artists()
 # Setting the plot_top parameter to one of the following [5, 10, 15] will plot a barplot
 # with this number of the most listened artists in the playlist
 ~~~
+ - artist_specific_playlist
+~~~python
+# Parameters
+artist_specific_playlist(artist_name: str, K: int = 50, complete_with_similar: bool = False, build_playlist: bool = False, print_base_caracteristics: bool = False)
+# Method Use Example
+api.artist_specific_playlist(artist_name='Joyner Lucas', K=50, complete_with_similar=True, print_base_caracteristics=True, build_playlist=True)
+# Function that returns a pandas DataFrame with all songs from a specific artist within the playlist 
+# and can complete that new playlist with the closest songs to that artist, and create it in the users account
+# complete_with_similar is a Flag that indicates if the playlist will be completed with the closet songs related to the artist or only their songs
+# print_base_caracteristics will display the parameter song information
+# BUILD_PLAYLIST WILL CHANGE THE USER'S LIBRARY IF SET TO TRUE
+~~~
 
 # OG Scripts
 ###DEPRECATED###
