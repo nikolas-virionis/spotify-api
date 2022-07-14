@@ -1,6 +1,5 @@
 import os
 import re
-import json
 import operator
 import datetime
 import pandas as pd
@@ -11,6 +10,7 @@ import matplotlib.pyplot as plt
 import spotify_recommender_api.util as util
 from spotify_recommender_api.sensitive import *
 from spotify_recommender_api.authentication import get_auth
+pd.options.mode.chained_assignment = None
 sns.set()
 
 class SpotifyAPI:
@@ -194,7 +194,7 @@ class SpotifyAPI:
 
         self.__song_dict = array
 
-    def __get_neighbors(self, song, K, song_dict):
+    def __get_neighbors(self, song: str, K: int, song_dict: list, type: str = None):
         """
         Function thats using the distance calculated above, returns the K nearest neighbors for a given song
 
@@ -205,14 +205,17 @@ class SpotifyAPI:
          - song_dict: the list of songs
         """
         distances = []
+
         for song_index, song_value in enumerate(song_dict):
-            if (song_index != song):
-                dist = util.compute_distance(a=song_dict[song], b=song_value)
+            if song_index != song:
+                dist = util.compute_distance(a=song_dict[song], b=song_value, artist_recommendation='artist' in type)
                 distances.append((song_index, dist))
+
         distances.sort(key=operator.itemgetter(1))
         neighbors = []
         for x in range(K):
             neighbors.append([*distances[x]])
+
         return neighbors
 
     def __get_index_for_song(self, song):
@@ -241,7 +244,7 @@ class SpotifyAPI:
             type (str): the type of the playlist being created
             uris (str): string containing all song uris in the format the Spotify API expects
         """
-        add_songs_req = util.post_request(url=f'https://api.spotify.com/v1/playlists/{util.create_playlist(type=type, headers=self.__headers, user_id=self.__user_id, additional_info=self.__song_name if type == "song" else self.__artist_name if type == "artist-related" else None)}/tracks?{uris=!s}', headers=self.__headers, data={})
+        add_songs_req = util.post_request(url=f'https://api.spotify.com/v1/playlists/{util.create_playlist(type=type, headers=self.__headers, user_id=self.__user_id, additional_info=self.__song_name if type == "song" else self.__artist_name if "artist" in type else None)}/tracks?{uris=!s}', headers=self.__headers, data={})
         add_songs_req.json()
 
     def __write_playlist(self, type, K, additional_info=None):
@@ -262,7 +265,7 @@ class SpotifyAPI:
 
 
         """
-        if K > 99 and 'most-listened' not in type:
+        if K > 99 and all([x not in type for x in ['most-listened', 'artist']]):
             print('K limit exceded. Maximum value for K is 99')
             K = 99
         elif K < 1:
@@ -281,7 +284,7 @@ class SpotifyAPI:
 
             uris = uris[1:]
 
-        elif 'most-listened' in type or type == 'artist-related':
+        elif any([x in type for x in ['most-listened', 'artist']]):
             ids = additional_info
             for song in ids:
                 uris += f',spotify:track:{song}'
@@ -309,7 +312,7 @@ class SpotifyAPI:
         # Parameters
          - song(str): The desired song name
          - K(int): desired number K of neighbors to be returned
-         - with_distance (bool): Whether to allow the distance column to the DataFrame returned, which will have no actual value for most use cases, since  it does not obey any actual unit, it is just a mathematical value to determine the coset songs
+         - with_distance (bool): Whether to allow the distance column to the DataFrame returned, which will have no actual value for most use cases, since  it does not obey any actual unit, it is just a mathematical value to determine the closet songs
          - generate_csv (bool): Whether to generate a CSV file containing the recommended playlist
          - generate_parquet (bool): Whether to generate a parquet file containing the recommended playlist
          - build_playlist (bool): Whether to build the playlist to the user's library
@@ -333,9 +336,11 @@ class SpotifyAPI:
             if print_base_caracteristics:
                 index = self.__get_index_for_song(song)
                 caracteristics = self.__song_dict[index]
-                name, genres, artists, popularity = list(
-                    caracteristics.values())[1:5]
-                print(f'{name = }\n{artists = }\n{genres = }\n{popularity = }')
+                name, genres, artists, popularity = list(caracteristics.values())[1:5]
+                print(f'{name = }')
+                print(f'{artists = }')
+                print(f'{genres = }')
+                print(f'{popularity = }')
 
             if generate_csv:
                 df.to_csv(f'{playlist_name}.csv')
@@ -353,7 +358,7 @@ class SpotifyAPI:
         except ValueError as e:
             print(e)
 
-    def __get_desired_dict_fields(self, index):
+    def __get_desired_dict_fields(self, index, song_dict: list = None):
         """
         Function that returns the usual fields for a given song
 
@@ -361,12 +366,14 @@ class SpotifyAPI:
          - index: The index of the song inside the song list
 
         """
-        dict = self.__song_dict[index]
+        if song_dict is None:
+            song_dict = self.__song_dict
+        dict = song_dict[index]
         desired_fields = [dict['id'], dict['name'],
                           dict['artists'], dict['genres'], dict['popularity'], dict['added_at']]
         return desired_fields
 
-    def __song_list_to_df(self, neighbors):
+    def __song_list_to_df(self, neighbors: list, song_dict: list = None):
         """
         Function that returns DataFrame representation of the list of neighbor songs
 
@@ -375,7 +382,7 @@ class SpotifyAPI:
 
         """
         data = list(
-            map(lambda x: list(self.__get_desired_dict_fields(x[0]) + [x[1]]), neighbors))
+            map(lambda x: list(self.__get_desired_dict_fields(x[0], song_dict=song_dict) + [x[1]]), neighbors))
 
         return pd.DataFrame(data=data, columns=['id', 'name', 'artists', 'genres', 'popularity', 'added_at', 'distance'])
 
@@ -394,19 +401,20 @@ class SpotifyAPI:
 
             --- 'medium': a playlist related to the medium term favorites for that given user
 
-            --- 'artist': a playlist related to a specific artist
+            --- 'artist-related': a playlist related to a specific artist
+
 
         """
         index = 0
         if type == 'song':
             index = self.__get_index_for_song(info)
-        elif type in ['medium', 'short', 'artist']:
+        elif type in ['medium', 'short', 'artist-related']:
             index = len(info) - 1
         else:
             raise ValueError('Type does not correspond to a valid option')
         song_dict = self.__song_dict if type == 'song' else info
-        neighbors = self.__get_neighbors(index, K, song_dict)
-        return self.__song_list_to_df(neighbors)
+        neighbors = self.__get_neighbors(song=index, K=K, song_dict=song_dict, type=type)
+        return self.__song_list_to_df(neighbors, song_dict=song_dict)
 
     def __get_genres(self, genres):
         """
@@ -528,7 +536,7 @@ class SpotifyAPI:
         Playlist which centralises the actions for a recommendation made for top 5 songs short term
 
         # Parameters
-         - with_distance (bool): Whether to allow the distance column to the DataFrame returned, which will have no actual value for most use cases, since  it does not obey any actual unit, it is just a mathematical value to determine the coset songs
+         - with_distance (bool): Whether to allow the distance column to the DataFrame returned, which will have no actual value for most use cases, since  it does not obey any actual unit, it is just a mathematical value to determine the closet songs
          - generate_csv (bool): Whether to generate a CSV file containing the recommended playlist
          - generate_parquet (bool): Whether to generate a parquet file containing the recommended playlist
          - build_playlist (bool): Whether to build the playlist to the user's library
@@ -560,7 +568,7 @@ class SpotifyAPI:
         Playlist which centralises the actions for a recommendation made for top 5 songs medium term
 
         # Parameters
-         - with_distance (bool): Whether to allow the distance column to the DataFrame returned, which will have no actual value for most use cases, since  it does not obey any actual unit, it is just a mathematical value to determine the coset songs
+         - with_distance (bool): Whether to allow the distance column to the DataFrame returned, which will have no actual value for most use cases, since  it does not obey any actual unit, it is just a mathematical value to determine the closet songs
          - generate_csv (bool): Whether to generate a CSV file containing the recommended playlist
          - generate_parquet (bool): Whether to generate a parquet file containing the recommended playlist
          - build_playlist (bool): Whether to build the playlist to the user's library
@@ -632,40 +640,57 @@ class SpotifyAPI:
 
         return pd.DataFrame(data=list(map(lambda x: {'name': x['name'], 'genres': x['genres'], 'artists': x['artists'], 'popularity': x['popularity']}, top_songs)), columns=['name', 'artists', 'genres', 'popularity'])
 
-    def update_all_generated_playlists(self, K: int = 50):
+    def update_all_generated_playlists(self, K: int = None):
         """Update all package generated playlists in batch
 
         Args:
-            K (int, optional): Number of songs in the new playlists. Defaults to 50.
+            K (int, optional): Number of songs in the new playlists, if not set, defaults to the number of songs already in the playlist. Defaults to None.
         """
         total_playlist_count = util.get_request(url=f'https://api.spotify.com/v1/me/playlists?limit=1', headers=self.__headers).json()['total']
         playlists = []
         for offset in range(0, total_playlist_count, 50):
-            request = util.get_request(url=f'https://api.spotify.com/v1/me/playlists?limit=50&{offset=}',  headers=self.__headers).json()
+            request = util.get_request(url=f'https://api.spotify.com/v1/me/playlists?limit=50&{offset=!s}',  headers=self.__headers).json()
 
-            playlists += list(map(lambda playlist: (
-                playlist['id'], playlist['name']), request['items']))
+            playlists += list(map(lambda playlist: (playlist['id'], playlist['name'], playlist['tracks']['total']), request['items']))
 
-        for id, name in playlists:
+        for id, name, total_tracks in playlists:
             try:
+                if K is not None:
+                    total_tracks = K
                 if re.match(r"\'(.*?)\' Related", name) or re.match(r'\"(.*?)\" Related', name):
                     song_name = name.replace(" Related", '')[1:-1]
                     self.__song_name = song_name
-                    self.__write_playlist(type='song', K=K, additional_info=song_name)
+                    self.__write_playlist(type='song', K=total_tracks - 1, additional_info=song_name)
+
                 elif re.match(r"\'(.*?)\' Mix", name) or re.match(r'\"(.*?)\" Mix', name):
                     artist_name = name.replace(" Mix", '')[1:-1]
                     self.__artist_name = artist_name
                     self.artist_specific_playlist(
-                        K=K,
+                        K=total_tracks,
                         build_playlist=True,
                         artist_name=artist_name,
+                        complete_with_similar=True,
                     )
+
+                elif re.match(r"This once was \'(.*?)\'", name) or re.match(r'This once was \"(.*?)\"', name):
+                    artist_name = name.replace("This once was ", '')[1:-1]
+                    self.__artist_name = artist_name
+                    self.artist_specific_playlist(
+                        K=total_tracks,
+                        build_playlist=True,
+                        artist_name=artist_name,
+                        complete_with_similar=False,
+                    )
+
                 elif name in ['Long Term Most-listened Tracks', 'Medium Term Most-listened Tracks', 'Short Term Most-listened Tracks']:
-                    self.get_most_listened(time_range=name.split(" ")[0].lower(), K=K, build_playlist=True)
+                    self.get_most_listened(time_range=name.split(" ")[0].lower(), K=total_tracks, build_playlist=True)
+
                 elif name == 'Recent-ish Favorites':
-                    self.__write_playlist(type='medium', K=K)
+                    self.__write_playlist(type='medium', K=total_tracks)
+
                 elif name == 'Latest Favorites':
-                    self.__write_playlist(type='short', K=K)
+                    self.__write_playlist(type='short', K=total_tracks)
+
             except ValueError as e:
                 print(
                     f"Unfortunately we couldn't update a playlist because\n {e}")
@@ -853,7 +878,7 @@ class SpotifyAPI:
 
         return df
 
-    def artist_specific_playlist(self, artist_name: str, K: int = 50, complete_with_similar: bool = False, build_playlist: bool = False, print_base_caracteristics: bool = False) -> pd.DataFrame:
+    def artist_specific_playlist(self, artist_name: str, K: int = 50, complete_with_similar: bool = False, build_playlist: bool = False, print_base_caracteristics: bool = False, with_distance: bool = False, __auto: bool = False) -> pd.DataFrame:
         """Function that generates DataFrame containing only a specific artist songs, with the possibility of completing it with the closest songs to that artist
 
         Args:
@@ -862,6 +887,7 @@ class SpotifyAPI:
             complete_with_similar (bool, optional): Flag to complete the list of songs with songs that are similar to that artist, until the K number is reached. Defaults to False.
             build_playlist (bool, optional): Whether to build the playlist to the user's library. Defaults to False.
             print_base_caracteristics (bool, optional): Whether to print the base / informed song information, in order to check why such predictions were made by the algorithm. ONLY TAKES EFFECT IF complete_with_similar == True AND K > NUMBER OF SONGS WITH THAT ARTIST. Defaults to False.
+            with_distance (bool, optional): Whether to allow the distance column to the DataFrame returned, which will have no actual value for most use cases, since it does not obey any actual unit, it is just a mathematical value to determine the closet songs. ONLY TAKES EFFECT IF complete_with_similar == True AND K > NUMBER OF SONGS WITH THAT ARTIST. Defaults to False.
 
         Raises:
             ValueError: Value for K must be between 1 and 100
@@ -880,43 +906,62 @@ class SpotifyAPI:
 
         self.__artist_name = artist_name
 
+        columns = ['id', 'name', 'artists', 'genres', 'popularity', 'added_at']
+
         if len(artist_songs) < K:
             if complete_with_similar:
-                artist_songs_record_song_dict = list(map(lambda x: {'name': x['name'], 'artists': x['artists'], 'genres': x['genres'], 'artists_indexed': x['artists_indexed'], 'genres_indexed': x['genres_indexed'], 'popularity': x['popularity'], 'added_at': x['added_at']}, list(filter(lambda x: artist_name in x['artists'], self.__song_dict))))
+                artist_songs_record_song_dict = list(map(lambda x: {'id': '', 'name': x['name'], 'artists': x['artists'], 'genres': x['genres'], 'artists_indexed': x['artists_indexed'], 'genres_indexed': x['genres_indexed'], 'popularity': x['popularity'], 'added_at': x['added_at']}, list(filter(lambda x: artist_name in x['artists'], self.__song_dict))))
                 artist_songs_record = self.__find_recommendations_to_songs(base_songs=artist_songs_record_song_dict, subset_name=f"{artist_name} Mix")
-                song_dict = list(map(lambda x: {'name': x['name'], 'artists': x['artists'], 'genres': x['genres'], 'artists_indexed': x['artists_indexed'], 'genres_indexed': x['genres_indexed'], 'popularity': x['popularity'], 'added_at': x['added_at']}, list(filter(lambda x: artist_name not in x['artists'], self.__song_dict))))
+
+                song_dict = list(map(lambda x: {'id': x['id'], 'name': x['name'], 'artists': x['artists'], 'genres': x['genres'], 'artists_indexed': x['artists_indexed'], 'genres_indexed': x['genres_indexed'], 'popularity': x['popularity'], 'added_at': x['added_at']}, list(filter(lambda x: artist_name not in x['artists'], self.__song_dict))))
                 song_dict.append(artist_songs_record)
-                mix_songs = self.__get_recommendations('artist',  song_dict, K=K-len(artist_songs))
-                df = artist_songs[['id', 'name', 'artists', 'genres', 'popularity', 'added_at']].append(mix_songs[['id', 'name', 'artists', 'genres', 'popularity', 'added_at']])
+
+                mix_songs = self.__get_recommendations('artist-related', song_dict, K=K-len(artist_songs))
+
                 ids = artist_songs['id'].append(mix_songs['id'])
 
+                if with_distance:
+                    df = artist_songs[columns]
+
+                    columns.append('distance')
+
+                    df['distance'] = pd.to_numeric(0)
+
+                    df = df[columns].append(mix_songs[columns])
+
+                else:
+                    df = artist_songs[columns].append(mix_songs[columns])
+
                 if print_base_caracteristics:
-                    caracteristics = artist_songs_record
                     name = artist_songs_record['name']
                     genres = artist_songs_record['genres']
                     artists = artist_songs_record['artists']
                     popularity = artist_songs_record['popularity']
-                    print(f'{name = }\n{artists = }\n{genres = }\n{popularity = }')
+                    print(f'{name = }')
+                    print(f'{artists = }')
+                    print(f'{genres = }')
+                    print(f'{popularity = }')
 
 
             else:
-                print(f'Playlist has only {len(artist_songs)} songs')
-                print(f'To fill the {K = } number of songs, consider using the flag complete_with_similar')
+                if __auto:
+                    print(f'Playlist has only {len(artist_songs)} songs')
+                    print(f'To fill the {K = } number of songs, consider using the flag complete_with_similar')
                 ids = artist_songs['id']
-                df = artist_songs[['id', 'name', 'artists', 'genres', 'popularity', 'added_at']]
+                df = artist_songs[columns]
 
         else:
             ids = artist_songs['id']
-            df = artist_songs[['id', 'name', 'artists', 'genres', 'popularity', 'added_at']]
+            df = artist_songs[columns]
 
         if build_playlist:
             self.__write_playlist(
                 K=K,
-                type='artist-related',
+                type=f'artist{"-related" if len(artist_songs) < K and complete_with_similar else ""}',
                 additional_info=ids
             )
 
-        return df.reset_index()
+        return df.reset_index(drop=True)
 
 
 

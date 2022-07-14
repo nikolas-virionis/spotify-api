@@ -26,6 +26,8 @@ def exponential_backoff(func, retries: int = 5):
                 raise Exception(f"{response.json()['error']['status']}: {response.json()['error']['message']}")
             return response
         except Exception as e:
+            if any([errorCode in str(e) for errorCode in ['404', '50']]):
+                continue
             if '429' not in str(e):
                 raise Exception(e)
             if x == 0:
@@ -220,7 +222,7 @@ def list_distance(a: 'list[int]', b: 'list[int]') -> int:
     return distance
 
 
-def compute_distance(a: 'list[int]', b: 'list[int]') -> float:
+def compute_distance(a: 'list[int]', b: 'list[int]', artist_recommendation: bool = False) -> float:
     """The portion of the algorithm that calculates the overall distance between two songs regarding the following:
     - genres: the difference between the two song's genres, using the list_distance function above
     - artists: the difference between the two song's artists, using the list_distance function above
@@ -241,7 +243,7 @@ def compute_distance(a: 'list[int]', b: 'list[int]') -> float:
     artists_distance = list_distance(a['artists_indexed'], b['artists_indexed'])
     popularity_distance = abs(a['popularity'] - b['popularity'])
 
-    return genres_distance + artists_distance * 0.38 + popularity_distance * 0.03
+    return genres_distance + artists_distance * 0.38 + popularity_distance * (0.03 if not artist_recommendation else 0.005)
 
 
 def playlist_exists(name: str, headers: dict) -> 'str|bool':
@@ -286,6 +288,7 @@ def create_playlist(type: str, headers: dict, user_id: str, additional_info: str
         --- 'most-listened-medium': a playlist related to the medium term most listened songs\n
         --- 'most-listened-long': a playlist related to the long term most listened songs\n
         --- 'artist-related': a playlist related to a specific artist songs\n
+        --- 'artist': a playlist containing only a specific artist songs\n
 
         headers (dict): Request headers
         user_id (str): Spotify User id
@@ -313,6 +316,10 @@ def create_playlist(type: str, headers: dict, user_id: str, additional_info: str
     elif type == 'artist-related':
         playlist_name = f"{additional_info!r} Mix"
         description = f"Songs related to {additional_info!r}"
+
+    elif type == 'artist':
+        playlist_name = f"This once was {additional_info!r}"
+        description = f'''{additional_info}'{"" if additional_info[-1] == "s" else "s"} songs'''
     else:
         raise ValueError('type not valid')
     new_id = ""
