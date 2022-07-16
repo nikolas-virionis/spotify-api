@@ -1,5 +1,10 @@
 # spotify-recommender
+![PyPI - Python Version](https://img.shields.io/pypi/pyversions/spotify-recommender-api?style=plastic)
+![PyPI](https://img.shields.io/pypi/v/spotify-recommender-api?style=plastic)
+![GitHub repo size](https://img.shields.io/github/repo-size/nikolas-virionis/spotify-api)
+![GitHub last commit](https://img.shields.io/github/last-commit/nikolas-virionis/spotify-api?style=plastic)
 ![PyPI - Downloads](https://img.shields.io/pypi/dm/spotify-recommender-api?style=plastic)<br>
+
 <img src='./readme-pictures/Spotify Logo.png' width='60%'>
 
 - [Use Case](#use-case)
