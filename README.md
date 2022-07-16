@@ -1,5 +1,5 @@
 # spotify-recommender
-
+![PyPI - Downloads](https://img.shields.io/pypi/dm/spotify-recommender-api?style=plastic)<br>
 <img src='./readme-pictures/Spotify Logo.png' width='60%'>
 
 - [Use Case](#use-case)
