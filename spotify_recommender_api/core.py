@@ -81,7 +81,7 @@ def compute_distance(a: 'list[int]', b: 'list[int]', artist_recommendation: bool
     )
 
 
-def create_playlist(type: str, headers: dict, user_id: str, additional_info: str = None) -> str:
+def create_playlist(type: str, headers: dict, user_id: str, base_playlist_name: str, additional_info: str = None, _update_created_playlists: bool = False) -> str:
     """Function that will return the empty playlist id, to be filled in later by the recommender songs
     This playlist may be a new one just created or a playlist that was previously created and now had all its songs removed
 
@@ -101,6 +101,7 @@ def create_playlist(type: str, headers: dict, user_id: str, additional_info: str
 
         headers (dict): Request headers
         user_id (str): Spotify User id
+        base_playlist_name (str): name of the base playlist
         additional_info (str, optional): name of the song, artist, or whatever additional information is needed. Defaults to None
 
     Raises:
@@ -109,14 +110,13 @@ def create_playlist(type: str, headers: dict, user_id: str, additional_info: str
     Returns:
         str: The playlist id
     """
-    playlist_name = ''
-    description = ''
+
     if type == 'song':
         playlist_name = f"{additional_info!r} Related"
-        description = f"Songs related to {additional_info!r}"
+        description = f"Songs related to {additional_info!r}, within the playlist {base_playlist_name}"
     elif type in ['short', 'medium']:
         playlist_name = "Recent-ish Favorites" if type == 'medium' else "Latest Favorites"
-        description = f"Songs related to your {type} term top 5"
+        description = f"Songs related to your {type} term top 5, within the playlist {base_playlist_name}"
 
     elif 'most-listened' in type:
         playlist_name = f"{type.replace('most-listened-', '').capitalize()} Term Most-listened Tracks"
@@ -124,16 +124,16 @@ def create_playlist(type: str, headers: dict, user_id: str, additional_info: str
 
     elif type == 'artist-related':
         playlist_name = f"{additional_info!r} Mix"
-        description = f"Songs related to {additional_info!r}"
+        description = f"Songs related to {additional_info!r}, within the playlist {base_playlist_name}"
 
     elif type == 'artist':
         playlist_name = f"This once was {additional_info!r}"
-        description = f'''{additional_info}'{"" if additional_info[-1] == "s" else "s"} songs'''
+        description = f'''{additional_info}'{"" if additional_info[-1] == "s" else "s"} songs, within the playlist {base_playlist_name}'''
     else:
         raise ValueError('type not valid')
 
     new_id = ""
-    playlist_id_found = util.playlist_exists(name=playlist_name, headers=headers)
+    playlist_id_found = util.playlist_exists(name=playlist_name, base_playlist_name=base_playlist_name, headers=headers, _update_created_playlists=_update_created_playlists)
 
     if playlist_id_found:
         new_id = playlist_id_found
@@ -141,6 +141,17 @@ def create_playlist(type: str, headers: dict, user_id: str, additional_info: str
         playlist_tracks = list(map(lambda track: {'uri': track['track']['uri']}, requests.get_request(url=f'https://api.spotify.com/v1/playlists/{new_id}/tracks', headers=headers).json()['items']))
 
         delete_json = requests.delete_request(url=f'https://api.spotify.com/v1/playlists/{new_id}/tracks', headers=headers, data={"tracks": playlist_tracks}).json()
+
+        if _update_created_playlists:
+            data = {
+                "name": playlist_name,
+                "description": description,
+                "public": False
+            }
+
+            update_playlist_details = requests.put_request(url=f'https://api.spotify.com/v1/playlists/{new_id}', headers=headers, data=data)
+
+
 
     else:
         data = {

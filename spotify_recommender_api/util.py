@@ -101,12 +101,13 @@ def item_list_indexed(items: 'list[str]', all_items: 'list[str]') -> 'list[int]'
     return indexed
 
 
-def playlist_exists(name: str, headers: dict) -> 'str|bool':
+def playlist_exists(name: str, base_playlist_name: str, headers: dict, _update_created_playlists: bool = False) -> 'str|bool':
     """Function used to check if a playlist exists inside the user's library
     Used before the creation of a new playlist
 
     Args:
         name (str): name of the playlist being created, which could easily be bypassed, if the playlist names were not made automatically
+        base_playlist_name (str): name of the base playlist
         headers (dict): Request headers
 
     Returns:
@@ -120,11 +121,11 @@ def playlist_exists(name: str, headers: dict) -> 'str|bool':
             url=f'https://api.spotify.com/v1/me/playlists?limit=50&{offset=!s}',  headers=headers).json()
 
         playlists += list(map(lambda playlist: (
-            playlist['id'], playlist['name']), request['items']))
+            playlist['id'], playlist['name'], playlist['description']), request['items']))
 
     for playlist in playlists:
 
-        if playlist[1] == name:
+        if playlist[1] == name and (f', within the playlist {base_playlist_name}' in playlist[2] or _update_created_playlists):
             return playlist[0]
 
     return False
@@ -226,3 +227,23 @@ def print_base_caracteristics(*args):
     print(f'{instrumentalness = }')
     print(f'{tempo = }')
     print(f'{valence = }')
+
+def get_base_playlist_name(playlist_id: str, headers: dict) -> str:
+    """Returns the base playlist name given the playlist id
+
+    Args:
+        playlist_id (str): The Spotify playlist id
+        headers (dict): Request headers
+
+    Returns:
+        str: The base playlist name
+    """
+
+    playlist = requests.get_request(
+        url=f'https://api.spotify.com/v1/playlists/{playlist_id}',
+        headers=headers
+    ).json()
+
+    playlist_name = playlist['name']
+
+    return playlist_name

@@ -21,8 +21,13 @@ def exponential_backoff(func, retries: int = 5):
     while x <= retries:
         try:
             response = func()
-            if 'error' in response.json():
-                raise Exception(f"{response.json()['error']['status']}: {response.json()['error']['message']}")
+            try:
+                response.json()
+            except Exception as e: # this error happens when there is a 204 response and the response.json() cannot be decoded properly regardless of the request being successful
+                pass
+            else:
+                if response.status_code != 204 and 'error' in response.json():
+                    raise Exception(f"{response.json()['error']['status']}: {response.json()['error']['message']}")
             return response
         except Exception as e:
             if any([errorCode in str(e) for errorCode in ['404', '50']]):
@@ -69,18 +74,19 @@ def post_request(url: str, headers: dict = None, data: dict = None, retries: int
     """
     return exponential_backoff(func=lambda: post(url=url, headers=headers, data=json.dumps(data)), retries=retries)
 
-def put_request(url: str, headers: dict = None, retries: int = 10):
+def put_request(url: str, headers: dict = None, data: dict = None, retries: int = 10):
     """PUT request with integrated exponential backoff retry strategy
 
     Args:
         url (str): Request URL
         headers (dict, optional): Request headers. Defaults to None.
+        data (dict, optional): Request body. Defaults to None.
         retries (int, optional): Number of retries. Defaults to 10.
 
     Returns:
         dict: Request response
     """
-    return exponential_backoff(func=lambda: put(url=url, headers=headers), retries=retries)
+    return exponential_backoff(func=lambda: put(url=url, headers=headers, data=json.dumps(data)), retries=retries)
 
 def delete_request(url: str, headers: dict = None, data: dict = None, retries: int = 10):
     """DELETE request with integrated exponential backoff retry strategy

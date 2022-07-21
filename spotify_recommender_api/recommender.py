@@ -17,15 +17,36 @@ class SpotifyAPI:
 
     def __get_playlist_from_csv(self):
         """
-        Function that creates the playlist variable from a CSV file previouusly created by this same API
+        Function that creates the playlist variable from a CSV file previously created by this same package
 
         """
-        df = pd.read_parquet('./.spotify-recommender-util/util.parquet')
+
+        try:
+            df = pd.read_parquet(f'./.spotify-recommender-util/{self.__base_playlist_name}.parquet')
+        except FileNotFoundError:
+            try:
+                df = pd.read_parquet(f'./.spotify-recommender-util/util.parquet')
+                print(f'The playlist {self.__base_playlist_name} does not exist in the CSV format, but ever since the version 3.5.0 the csv file and the util file created, have the same name as the playlist, but there is only a generic file on your machine.')
+                response = input('Therefore, do you want to rename the generic files to the new format, and therefore having the playlist name (y/n)? ')
+                while response not in ['y', 'n']:
+                    response = input('Select a valid option.\n Do you want to rename the generic files to the new format, and therefore having the playlist name (y/n)? ')
+
+                if response == 'n':
+                    raise FileNotFoundError('The playlist with the specified ID does not exist in the CSV format, try again but selecting the "web" option, as the source for the playlist')
+                else:
+                    self.__update_created_files = True
+
+
+            except FileNotFoundError:
+                raise FileNotFoundError('The playlist with the specified ID does not exist in the CSV format, try again but selecting the "web" option, as the source for the playlist')
 
         self.__artists, self.__songs, self.__all_genres = list(map(lambda arr: arr if type(
             arr) != 'str' else eval(arr), [df['artists'][0], df['songs'][0], df['all_genres'][0]]))
 
-        self.__playlist = pd.read_csv('playlist.csv')
+        if self.__update_created_files:
+            self.__playlist = pd.read_csv('playlist.csv')
+        else:
+            self.__playlist = pd.read_csv(f'{self.__base_playlist_name}.csv')
 
     def __get_playlist(self):
         """
@@ -34,8 +55,10 @@ class SpotifyAPI:
         """
         answer = input(
             'Do you want to get the playlist data via CSV saved previously or read from spotify, *which will take a few minutes* depending on the playlist size (csv/web)? ')
-        while answer.lower() not in ['csv', 'web', 'parquet']:
+        while answer.lower() not in ['csv', 'web']: # , 'parquet'
             answer = input("Please select a valid response: ")
+
+        self.__update_created_files = False
         if answer.lower() == 'csv':
             self.__get_playlist_from_csv()
             return False
@@ -165,6 +188,8 @@ class SpotifyAPI:
             self.__playlist_id = util.playlist_url_to_id(url=playlist_url)
             self.__playlist_url = playlist_url
 
+        self.__base_playlist_name = util.get_base_playlist_name(playlist_id=self.__playlist_id, headers=self.__headers)
+
         if self.__get_playlist():
             self.__get_playlist_items()
 
@@ -173,21 +198,26 @@ class SpotifyAPI:
         self.__song_dict = core.knn_prepared_data(playlist=self.__playlist)
         self.__prepare_favorites_playlist()
 
+        if self.__update_created_files:
+            self.playlist_to_csv()
+
+
     def playlist_to_csv(self):
         """
-        # Function to convert playlist to CSV format
-        # Really useful if the package is being used in a .py file since it is not worth it to use it directly through web requests everytime even more when the playlist has not changed since last package usage
+        Function to convert playlist to CSV format
+        Really useful if the package is being used in a .py file since it is not worth it to use it directly through web requests everytime even more when the playlist has not changed since last package usage
         """
         if not os.path.exists('./.spotify-recommender-util'):
             os.mkdir('./.spotify-recommender-util')
+
         df = pd.DataFrame(data=[{'artists': self.__artists, 'songs': self.__songs,
                         'all_genres': self.__all_genres}], columns=['artists', 'songs', 'all_genres'])
 
-        df.to_parquet('./.spotify-recommender-util/util.parquet')
+        df.to_parquet(f'./.spotify-recommender-util/{self.__base_playlist_name}.parquet')
 
         playlist = self.__playlist[['id', 'name', 'artists', 'genres', 'popularity', 'added_at', 'danceability', 'energy', 'instrumentalness', 'tempo', 'valence']]
 
-        playlist.to_csv('playlist.csv')
+        playlist.to_csv(f'{self.__base_playlist_name}.csv')
 
     def __get_neighbors(self, song: str, K: int, song_dict: list, type: str = None):
         """
@@ -221,8 +251,8 @@ class SpotifyAPI:
          - song: song name
         """
         if song not in list(self.__playlist['name']):
-            # print(self.__playlist['name'])
             raise ValueError(f'Playlist does not contain the song {song!r}')
+
         item = self.__playlist[[self.__playlist['name'][x] ==
                                 song for x in range(len(self.__playlist['name']))]]
         index = item.index[0]
@@ -239,8 +269,10 @@ class SpotifyAPI:
             type (str): the type of the playlist being created
             uris (str): string containing all song uris in the format the Spotify API expects
         """
-        add_songs_req = requests.post_request(url=f'https://api.spotify.com/v1/playlists/{core.create_playlist(type=type, headers=self.__headers, user_id=self.__user_id, additional_info=self.__song_name if type == "song" else self.__artist_name if "artist" in type else None)}/tracks?{uris=!s}', headers=self.__headers, data={})
-        add_songs_req.json()
+        if not uris:
+            raise ValueError('Invalid value for the song uris')
+
+        add_songs_req = requests.post_request(url=f'https://api.spotify.com/v1/playlists/{core.create_playlist(type=type, headers=self.__headers, user_id=self.__user_id, base_playlist_name= self.__base_playlist_name, additional_info=self.__song_name if type == "song" else self.__artist_name if "artist" in type else None, _update_created_playlists=self.__update_created_files)}/tracks?{uris=!s}', headers=self.__headers)
 
     def __write_playlist(self, type, K, additional_info=None):
         """
@@ -678,47 +710,48 @@ class SpotifyAPI:
         for offset in range(0, total_playlist_count, 50):
             request = requests.get_request(url=f'https://api.spotify.com/v1/me/playlists?limit=50&{offset=!s}',  headers=self.__headers).json()
 
-            playlists += list(map(lambda playlist: (playlist['id'], playlist['name'], playlist['tracks']['total']), request['items']))
+            playlists += list(map(lambda playlist: (playlist['id'], playlist['name'], playlist['description'], playlist['tracks']['total']), request['items']))
 
-        for id, name, total_tracks in playlists:
+        for id, name, description, total_tracks in playlists:
             try:
                 if K is not None:
                     total_tracks = K
-                if re.match(r"\'(.*?)\' Related", name) or re.match(r'\"(.*?)\" Related', name):
-                    song_name = name.replace(" Related", '')[1:-1]
-                    self.__song_name = song_name
-                    self.__write_playlist(type='song', K=total_tracks - 1, additional_info=song_name)
-
-                elif re.match(r"\'(.*?)\' Mix", name) or re.match(r'\"(.*?)\" Mix', name):
-                    artist_name = name.replace(" Mix", '')[1:-1]
-                    self.__artist_name = artist_name
-                    self.artist_specific_playlist(
-                        K=total_tracks,
-                        build_playlist=True,
-                        artist_name=artist_name,
-                        complete_with_similar=True,
-                        _auto=True
-                    )
-
-                elif re.match(r"This once was \'(.*?)\'", name) or re.match(r'This once was \"(.*?)\"', name):
-                    artist_name = name.replace("This once was ", '')[1:-1]
-                    self.__artist_name = artist_name
-                    self.artist_specific_playlist(
-                        K=total_tracks,
-                        build_playlist=True,
-                        artist_name=artist_name,
-                        complete_with_similar=False,
-                        _auto=True
-                    )
-
-                elif name in ['Long Term Most-listened Tracks', 'Medium Term Most-listened Tracks', 'Short Term Most-listened Tracks']:
+                if name in ['Long Term Most-listened Tracks', 'Medium Term Most-listened Tracks', 'Short Term Most-listened Tracks']:
                     self.get_most_listened(time_range=name.split(" ")[0].lower(), K=total_tracks, build_playlist=True)
 
-                elif name == 'Recent-ish Favorites':
-                    self.__write_playlist(type='medium', K=total_tracks)
+                elif f', within the playlist {self.__base_playlist_name}' in description or self.__update_created_files:
+                    if (re.match(r"\'(.*?)\' Related", name) or re.match(r'\"(.*?)\" Related', name)):
+                        song_name = name.replace(" Related", '')[1:-1]
+                        self.__song_name = song_name
+                        self.__write_playlist(type='song', K=total_tracks - 1, additional_info=song_name)
 
-                elif name == 'Latest Favorites':
-                    self.__write_playlist(type='short', K=total_tracks)
+                    elif (re.match(r"\'(.*?)\' Mix", name) or re.match(r'\"(.*?)\" Mix', name)):
+                        artist_name = name.replace(" Mix", '')[1:-1]
+                        self.__artist_name = artist_name
+                        self.artist_specific_playlist(
+                            K=total_tracks,
+                            build_playlist=True,
+                            artist_name=artist_name,
+                            complete_with_similar=True,
+                            _auto=True
+                        )
+
+                    elif (re.match(r"This once was \'(.*?)\'", name) or re.match(r'This once was \"(.*?)\"', name)):
+                        artist_name = name.replace("This once was ", '')[1:-1]
+                        self.__artist_name = artist_name
+                        self.artist_specific_playlist(
+                            K=total_tracks,
+                            build_playlist=True,
+                            artist_name=artist_name,
+                            complete_with_similar=False,
+                            _auto=True
+                        )
+
+                    elif name == 'Recent-ish Favorites':
+                        self.__write_playlist(type='medium', K=total_tracks)
+
+                    elif name == 'Latest Favorites':
+                        self.__write_playlist(type='short', K=total_tracks)
 
             except ValueError as e:
                 print(f"Unfortunately we couldn't update a playlist because\n {e}")
