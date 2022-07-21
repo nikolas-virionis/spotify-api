@@ -1,101 +1,10 @@
 import time
 import json
 import datetime
-from requests import get, post, delete, put
+import pandas as pd
+import spotify_recommender_api.requests as requests
+from dateutil import tz
 
-
-def exponential_backoff(func, retries: int = 5):
-    """Exponential backoff strategy (https://en.wikipedia.org/wiki/Exponential_backoff)
-    in order to retry certain function after exponetially increasing delay, to overcome "429: Too Many Requests" error
-
-    Args:
-        func (function): function to be executed with exponential backoff
-        retries (int, optional): Number of maximum retries before raising an exception. Defaults to 5.
-
-    Raises:
-        Exception: Error raised in the function after {retries} attempts
-
-    Returns:
-        Any: specified function return
-    """
-    x = 0
-    while x <= retries:
-        try:
-            response = func()
-            if 'error' in response.json():
-                raise Exception(f"{response.json()['error']['status']}: {response.json()['error']['message']}")
-            return response
-        except Exception as e:
-            if any([errorCode in str(e) for errorCode in ['404', '50']]):
-                continue
-            if '429' not in str(e):
-                raise Exception(e)
-            if x == 0:
-                print('\nExponential backoff triggered: ')
-            x += 1
-            if x >= retries:
-                print(
-                    f'AFTER {retries} ATTEMPTS, THE EXECUTION OF THE FUNCTION FAILED WITH THE EXCEPTION: {e}')
-                raise Exception(e)
-            else:
-                sleep = 2 ** x
-                print(f'\tError raised: sleeping {sleep} seconds')
-                time.sleep(sleep)
-
-
-def get_request(url: str, headers: dict = None, retries: int = 10):
-    """GET request with integrated exponential backoff retry strategy
-
-    Args:
-        url (str): Request URL
-        headers (dict, optional): Request headers. Defaults to None.
-        retries (int, optional): Number of retries. Defaults to 10.
-
-    Returns:
-        dict: Request response
-    """
-    return exponential_backoff(func=lambda: get(url=url, headers=headers), retries=retries)
-
-def post_request(url: str, headers: dict = None, data: dict = None, retries: int = 10):
-    """POST request with integrated exponential backoff retry strategy
-
-    Args:
-        url (str): Request URL
-        headers (dict, optional): Request headers. Defaults to None.
-        data (dict, optional): Request body. Defaults to None.
-        retries (int, optional): Number of retries. Defaults to 10.
-
-    Returns:
-        dict: Request response
-    """
-    return exponential_backoff(func=lambda: post(url=url, headers=headers, data=json.dumps(data)), retries=retries)
-
-def put_request(url: str, headers: dict = None, retries: int = 10):
-    """PUT request with integrated exponential backoff retry strategy
-
-    Args:
-        url (str): Request URL
-        headers (dict, optional): Request headers. Defaults to None.
-        retries (int, optional): Number of retries. Defaults to 10.
-
-    Returns:
-        dict: Request response
-    """
-    return exponential_backoff(func=lambda: put(url=url, headers=headers), retries=retries)
-
-def delete_request(url: str, headers: dict = None, data: dict = None, retries: int = 10):
-    """DELETE request with integrated exponential backoff retry strategy
-
-    Args:
-        url (str): Request URL
-        headers (dict, optional): Request headers. Defaults to None.
-        data (dict, optional): Request body. Defaults to None.
-        retries (int, optional): Number of retries. Defaults to 10.
-
-    Returns:
-        dict: Request response
-    """
-    return exponential_backoff(func=lambda: delete(url=url, headers=headers, data=json.dumps(data)), retries=retries)
 
 def playlist_url_to_id(url: str) -> str:
     """Extracts the playlist id from it's URL
@@ -121,7 +30,8 @@ def get_total_song_count(playlist_id: str, headers: dict) -> int:
     Returns:
         int: The total number of songs in the playlist
     """
-    playlist_res = get_request(url=f'https://api.spotify.com/v1/playlists/{playlist_id}', headers=headers)
+    playlist_res = requests.get_request(
+        url=f'https://api.spotify.com/v1/playlists/{playlist_id}', headers=headers)
 
     return playlist_res.json()["tracks"]["total"]
 
@@ -191,82 +101,6 @@ def item_list_indexed(items: 'list[str]', all_items: 'list[str]') -> 'list[int]'
     return indexed
 
 
-def list_distance(a: 'list[int]', b: 'list[int]') -> int:
-    """The weighted algorithm that calculates the distance between two songs according to either the distance between each song list of genres or the distance between each song list of artists
-
-
-    Note:
-        The "distance" is a mathematical value that represents how different two songs are, considering some parameter such as their genres or artists
-
-    Note:
-        For obvious reasons although both the parameters have two value options (genres, artists), when one of the parameters is specified as one of those, the other follows
-
-    Args:
-        a (list[int]): one song's list of genres or artists
-        b (list[int]): counterpart song's list of genres or artists
-
-    Returns:
-        int: The distance between the two indexed lists
-    """
-    distance = 0
-    for item_a, item_b in list(zip(a, b)):
-        if item_a != item_b:
-            if int(item_a) == 1:
-                distance += 0.4
-            else:
-                distance += 0.2
-        else:
-            if int(item_a) == 1:
-                distance -= 0.4
-
-    return distance
-
-
-def compute_distance(a: 'list[int]', b: 'list[int]', artist_recommendation: bool = False) -> float:
-    """The portion of the algorithm that calculates the overall distance between two songs regarding the following:
-    - genres: the difference between the two song's genres, using the list_distance function above
-    - artists: the difference between the two song's artists, using the list_distance function above
-    - popularity: the difference between the two song's popularity, considering it a basic absolute value from the actual difference between the values
-    - danceability: Danceability describes how suitable a track is for dancing based on a combination of musical elements including tempo, rhythm stability, beat strength, and overall regularity. A value of 0.0 is least danceable and 1.0 is most danceable.
-    - energy: Energy is a measure from 0.0 to 1.0 and represents a perceptual measure of intensity and activity. Typically, energetic tracks feel fast, loud, and noisy. For example, death metal has high energy, while a Bach prelude scores low on the scale. Perceptual features contributing to this attribute include dynamic range, perceived loudness, timbre, onset rate, and general entropy.
-    - instrumentalness: Predicts whether a track contains no vocals. "Ooh" and "aah" sounds are treated as instrumental in this context. Rap or spoken word tracks are clearly "vocal". The closer the instrumentalness value is to 1.0, the greater likelihood the track contains no vocal content
-    - tempo: The overall estimated tempo of a track in beats per minute (BPM). In musical terminology, tempo is the speed or pace of a given piece and derives directly from the average beat duration.
-    - valence: A measure from 0.0 to 1.0 describing the musical positiveness conveyed by a track. Tracks with high valence sound more positive (e.g. happy, cheerful, euphoric), while tracks with low valence sound more negative (e.g. sad, depressed, angry).
-
-    Note:
-        At the end there is a weighted multiplication of all the factors that implies two things:
-         - They are in REALLY different scales
-         - They have different importance levels to the final result of the calculation
-
-    Args:
-        a (list[int]): the song a, having all it's caracteristics
-        b (list[int]): the song b, having all it's caracteristics
-
-    Returns:
-        float: the distance between the two songs
-    # """
-
-    genres_distance = list_distance(a['genres_indexed'], b['genres_indexed'])
-    artists_distance = list_distance(a['artists_indexed'], b['artists_indexed'])
-    popularity_distance = abs(a['popularity'] - b['popularity'])
-    danceability_distance = abs(a['danceability'] - b['danceability'])
-    energy_distance = abs(a['energy'] - b['energy'])
-    instrumentalness_distance = abs(round(a['instrumentalness'], 2) - round(b['instrumentalness'], 2))
-    tempo_distance = abs(a['tempo'] - b['tempo'])
-    valence_distance = abs(a['valence'] - b['valence'])
-
-    return (
-        genres_distance * 0.8 +
-        energy_distance * 0.6 +
-        valence_distance * 0.9 +
-        artists_distance * 0.38 +
-        tempo_distance * 0.0025 +
-        danceability_distance * 0.25 +
-        instrumentalness_distance * 0.4 +
-        popularity_distance * (0.015 if not artist_recommendation else 0.003)
-    )
-
-
 def playlist_exists(name: str, headers: dict) -> 'str|bool':
     """Function used to check if a playlist exists inside the user's library
     Used before the creation of a new playlist
@@ -278,12 +112,15 @@ def playlist_exists(name: str, headers: dict) -> 'str|bool':
     Returns:
         str|bool: If the playlist already exists, returns the id of the playlist, otherwise returns False
     """
-    total_playlist_count = get_request(url=f'https://api.spotify.com/v1/me/playlists?limit=1', headers=headers).json()['total']
+    total_playlist_count = requests.get_request(
+        url=f'https://api.spotify.com/v1/me/playlists?limit=1', headers=headers).json()['total']
     playlists = []
     for offset in range(0, total_playlist_count, 50):
-        request = get_request(url=f'https://api.spotify.com/v1/me/playlists?limit=50&{offset=!s}',  headers=headers).json()
+        request = requests.get_request(
+            url=f'https://api.spotify.com/v1/me/playlists?limit=50&{offset=!s}',  headers=headers).json()
 
-        playlists += list(map(lambda playlist: (playlist['id'], playlist['name']), request['items']))
+        playlists += list(map(lambda playlist: (
+            playlist['id'], playlist['name']), request['items']))
 
     for playlist in playlists:
 
@@ -293,73 +130,99 @@ def playlist_exists(name: str, headers: dict) -> 'str|bool':
     return False
 
 
-def create_playlist(type: str, headers: dict, user_id: str, additional_info: str = None) -> str:
-    """Function that will return the empty playlist id, to be filled in later by the recommender songs
-    This playlist may be a new one just created or a playlist that was previously created and now had all its songs removed
-
-    Note:
-        This function will change the user's library either making a new playlist or making an existing one empty
+def query_audio_features(song: pd.Series, headers: dict) -> 'list[float]':
+    """Queries the audio features for a given song and returns the ones that match the recommendations within this package
 
     Args:
-        type (str): the type of the playlist being created ('song', 'short', 'medium'), meaning:\n
-        --- 'song': a playlist related to a song\n
-        --- 'short': a playlist related to the short term favorites for that given user\n
-        --- 'medium': a playlist related to the medium term favorites for that given user\n
-        --- 'most-listened-short': a playlist related to the short term most listened songs\n
-        --- 'most-listened-medium': a playlist related to the medium term most listened songs\n
-        --- 'most-listened-long': a playlist related to the long term most listened songs\n
-        --- 'artist-related': a playlist related to a specific artist songs\n
-        --- 'artist': a playlist containing only a specific artist songs\n
-
+        song (pd.Series): song containing its base information
         headers (dict): Request headers
-        user_id (str): Spotify User id
-        additional_info (str, optional): name of the song, artist, or whatever additional information is needed. Defaults to None
-
-    Raises:
-        ValueError: The type argument musts be one of the valid options
 
     Returns:
-        str: The playlist id
+        list[float]: list with the audio features for the given song
     """
-    playlist_name = ''
-    description = ''
-    if type == 'song':
-        playlist_name = f"{additional_info!r} Related"
-        description = f"Songs related to {additional_info!r}"
-    elif type in ['short', 'medium']:
-        playlist_name = "Recent-ish Favorites" if type == 'medium' else "Latest Favorites"
-        description = f"Songs related to your {type} term top 5"
 
-    elif 'most-listened' in type:
-        playlist_name = f"{type.replace('most-listened-', '').capitalize()} Term Most-listened Tracks"
-        description = f"The most listened tracks in a {type.replace('most-listened-', '')} period of time"
+    id = song['id']
 
-    elif type == 'artist-related':
-        playlist_name = f"{additional_info!r} Mix"
-        description = f"Songs related to {additional_info!r}"
+    audio_features = requests.get_request(
+        url=f'https://api.spotify.com/v1/audio-features/{id}',
+        headers=headers
+    ).json()
 
-    elif type == 'artist':
-        playlist_name = f"This once was {additional_info!r}"
-        description = f'''{additional_info}'{"" if additional_info[-1] == "s" else "s"} songs'''
+    return [audio_features['danceability'], audio_features['energy'], audio_features['instrumentalness'], audio_features['tempo'], audio_features['valence']]
+
+
+def get_datetime_by_time_range(time_range: str = 'all_time') -> datetime.datetime:
+    """Calculates the datetime that corresponds to the given time range before the current date
+
+    Args:
+        time_range (str, optional): Time range that represents how much of the playlist will be considered for the trend. Can be one of the following: 'all_time', 'month', 'trimester', 'semester', 'year'. Defaults to 'all_time'.
+
+    Raises:
+        ValueError: If the time_range parameter is not valid the error is raised.
+
+    Returns:
+        datetime.datetime: Datetime of the specified time_range before the current date
+    """
+    if time_range not in ['all_time', 'month', 'trimester', 'semester', 'year']:
+        raise ValueError(
+            'time_range must be one of the following: "all_time", "month", "trimester", "semester", "year"')
+
+    now = datetime.datetime.now(tz=tz.gettz('UTC'))
+    date_options = {
+        'all_time': datetime.datetime(year=2000, month=1, day=1, hour=0, minute=0, second=0, microsecond=0, tzinfo=tz.gettz('UTC')),
+        'month': now - datetime.timedelta(days=30),
+        'trimester': now - datetime.timedelta(days=90),
+        'semester': now - datetime.timedelta(days=180),
+        'year': now - datetime.timedelta(days=365),
+    }
+
+    return date_options[time_range]
+
+
+def list_to_count_dict(dictionary: dict, item: str) -> dict:
+    """Tranforms a list of strings into a dictionary which has the strings as keys and the amount they appear as values
+
+    Note:
+        This function needs to be used in conjunction with a reduce function
+
+    Args:
+        dictionary (dict): Dictionary to be created / updated
+        item (str): new item from the list
+
+    Returns:
+        dict: dictionary with the incremented value that represents the 'item' key
+    """
+
+    if item in dictionary.keys():
+        dictionary[item] += 1
     else:
-        raise ValueError('type not valid')
-    new_id = ""
-    playlist_id_found = playlist_exists(name=playlist_name, headers=headers)
+        dictionary[item] = 1
 
-    if playlist_id_found:
-        new_id = playlist_id_found
+    return dictionary
 
-        playlist_tracks = list(map(lambda track: {'uri': track['track']['uri']}, get_request(url=f'https://api.spotify.com/v1/playlists/{new_id}/tracks', headers=headers).json()['items']))
 
-        delete_json = delete_request(url=f'https://api.spotify.com/v1/playlists/{new_id}/tracks', headers=headers, data={"tracks": playlist_tracks}).json()
+def value_dict_to_value_and_percentage_dict(dictionary: 'dict[str, int]') -> 'dict[str, dict[str, float]]':
+    """Transforms a dictionary containing only values for a given key into a dictionary containing the values and the total percentage of that key
 
-    else:
-        data = {
-            "name": playlist_name,
-            "description": description,
-            "public": False
-        }
-        playlist_creation = post_request(url=f'https://api.spotify.com/v1/users/{user_id}/playlists', headers=headers, data=data)
-        new_id = playlist_creation.json()['id']
+    Args:
+        dictionary (dict): dictionary with only the values for each
 
-    return new_id
+    Returns:
+        dict[str, dict[str, float]]: new dictionary with values and total percentages
+    """
+    dictionary = {key: {'value': value, 'percentage': round(value / dictionary['total'], 5)} for key, value in dictionary.items()}
+
+    return dictionary
+
+def print_base_caracteristics(*args):
+    name, genres, artists, popularity, danceability, energy, instrumentalness, tempo, valence = args
+
+    print(f'{name = }')
+    print(f'{artists = }')
+    print(f'{genres = }')
+    print(f'{popularity = }')
+    print(f'{danceability = }')
+    print(f'{energy = }')
+    print(f'{instrumentalness = }')
+    print(f'{tempo = }')
+    print(f'{valence = }')

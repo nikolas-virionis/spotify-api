@@ -1,17 +1,14 @@
 import os
 import re
 import operator
-import datetime
 import pandas as pd
-import seaborn as sns
-from dateutil import tz
 from functools import reduce
-import matplotlib.pyplot as plt
 import spotify_recommender_api.util as util
+import spotify_recommender_api.core as core
+import spotify_recommender_api.requests as requests
 from spotify_recommender_api.sensitive import *
 from spotify_recommender_api.authentication import get_auth
 pd.options.mode.chained_assignment = None
-sns.set()
 
 class SpotifyAPI:
     """
@@ -57,7 +54,7 @@ class SpotifyAPI:
         for artist in song_artists:
             id = artist["id"]
             if id not in self.__artists:
-                artist_genres_res = util.get_request(url=f'https://api.spotify.com/v1/artists/{id}', headers=self.__headers)
+                artist_genres_res = requests.get_request(url=f'https://api.spotify.com/v1/artists/{id}', headers=self.__headers)
                 try:
                     artist_genres = artist_genres_res.json()["genres"]
                 except Exception as e:
@@ -81,14 +78,14 @@ class SpotifyAPI:
         self.__all_genres = []
         try:
             for offset in range(0, util.get_total_song_count(playlist_id=self.__playlist_id, headers=self.__headers), 100):
-                all_genres_res = util.get_request(
+                all_genres_res = requests.get_request(
                     headers=self.__headers,
                     url=f'https://api.spotify.com/v1/playlists/{self.__playlist_id}/tracks?limit=100&{offset=}'
                 )
                 for song in all_genres_res.json()["items"]:
                     (id, name, popularity, artist, added_at), song_genres = util.song_data(song=song), self.__get_song_genres(song)
                     song['id'] = id
-                    danceability, energy, instrumentalness, tempo, valence = self.__query_audio_features(song=song)
+                    danceability, energy, instrumentalness, tempo, valence = util.query_audio_features(song=song)
                     self.__songs.append({
                         "id": id,
                         "name": name,
@@ -134,26 +131,6 @@ class SpotifyAPI:
         self.__playlist = playlist
 
 
-    def __query_audio_features(self, song: pd.Series) -> 'list[float]':
-        """Queries the audio features for a given song and returns the ones that match the recommendations within this package
-
-        Args:
-            song (pd.Series): song containing its base information
-
-        Returns:
-            list[float]: list with the audio features for the given song
-        """
-
-        id = song['id']
-
-        audio_features = util.get_request(
-            url=f'https://api.spotify.com/v1/audio-features/{id}',
-            headers=self.__headers
-        ).json()
-
-        return [audio_features['danceability'], audio_features['energy'], audio_features['instrumentalness'], audio_features['tempo'], audio_features['valence']]
-
-
     def __init__(self, auth_token, user_id, playlist_id=None, playlist_url=None):
         """
         # Spotify API is the Class that provides access to the playlists recommendations
@@ -193,7 +170,7 @@ class SpotifyAPI:
 
         self.__playlist_adjustments()
 
-        self.__knn_prepared_data()
+        self.__song_dict = core.knn_prepared_data(playlist=self.__playlist)
         self.__prepare_favorites_playlist()
 
     def playlist_to_csv(self):
@@ -212,83 +189,6 @@ class SpotifyAPI:
 
         playlist.to_csv('playlist.csv')
 
-    def __knn_prepared_data(self):
-        """
-        Function to prepare the data for the algorithm which calculates the distances between the songs
-
-        # Note
-        It will make a copy of the playlist to a list, to avoid changing the original DataFrame playlist
-        And also leave it in an easier to iterate over format
-        """
-        data = self.__playlist[
-            [
-                'id',
-                'name',
-                'genres',
-                'artists',
-                'popularity',
-                'added_at',
-                'danceability',
-                'energy',
-                'instrumentalness',
-                'tempo',
-                'valence',
-                'genres_indexed',
-                'artists_indexed'
-            ]
-        ]
-
-        array = []
-
-        for (
-            id,
-            name,
-            genres,
-            artists,
-            popularity,
-            added_at,
-            danceability,
-            energy,
-            instrumentalness,
-            tempo,
-            valence,
-            genres_indexed,
-            artists_indexed
-        ) in zip(
-            data['id'],
-            data['name'],
-            data['genres'],
-            data['artists'],
-            data['popularity'],
-            data['added_at'],
-            data['danceability'],
-            data['energy'],
-            data['instrumentalness'],
-            data['tempo'],
-            data['valence'],
-            data['genres_indexed'],
-            data['artists_indexed']
-        ):
-            array.append(
-                {
-                    'id': id,
-                    'name': name,
-                    'genres': genres,
-                    'artists': artists,
-                    'popularity': popularity,
-                    'added_at': added_at,
-                    'danceability': danceability,
-                    'energy': energy,
-                    'instrumentalness': instrumentalness,
-                    'tempo': tempo,
-                    'valence': valence,
-                    'genres_indexed': genres_indexed,
-                    'artists_indexed': artists_indexed
-                }
-            )
-
-        self.__song_dict = array
-
     def __get_neighbors(self, song: str, K: int, song_dict: list, type: str = None):
         """
         Function thats using the distance calculated above, returns the K nearest neighbors for a given song
@@ -303,7 +203,7 @@ class SpotifyAPI:
 
         for song_index, song_value in enumerate(song_dict):
             if song_index != song:
-                dist = util.compute_distance(a=song_dict[song], b=song_value, artist_recommendation='artist' in type)
+                dist = core.compute_distance(a=song_dict[song], b=song_value, artist_recommendation='artist' in type)
                 distances.append((song_index, dist))
 
         distances.sort(key=operator.itemgetter(1))
@@ -339,7 +239,7 @@ class SpotifyAPI:
             type (str): the type of the playlist being created
             uris (str): string containing all song uris in the format the Spotify API expects
         """
-        add_songs_req = util.post_request(url=f'https://api.spotify.com/v1/playlists/{util.create_playlist(type=type, headers=self.__headers, user_id=self.__user_id, additional_info=self.__song_name if type == "song" else self.__artist_name if "artist" in type else None)}/tracks?{uris=!s}', headers=self.__headers, data={})
+        add_songs_req = requests.post_request(url=f'https://api.spotify.com/v1/playlists/{core.create_playlist(type=type, headers=self.__headers, user_id=self.__user_id, additional_info=self.__song_name if type == "song" else self.__artist_name if "artist" in type else None)}/tracks?{uris=!s}', headers=self.__headers, data={})
         add_songs_req.json()
 
     def __write_playlist(self, type, K, additional_info=None):
@@ -432,15 +332,7 @@ class SpotifyAPI:
                 index = self.__get_index_for_song(song)
                 caracteristics = self.__song_dict[index]
                 name, genres, artists, popularity, _, danceability, energy, instrumentalness, tempo, valence = list(caracteristics.values())[1:11]
-                print(f'{name = }')
-                print(f'{artists = }')
-                print(f'{genres = }')
-                print(f'{popularity = }')
-                print(f'{danceability = }')
-                print(f'{energy = }')
-                print(f'{instrumentalness = }')
-                print(f'{tempo = }')
-                print(f'{valence = }')
+                util.print_base_caracteristics(name, genres, artists, popularity, danceability, energy, instrumentalness, tempo, valence)
 
             if generate_csv:
                 df.to_csv(f'{playlist_name}.csv')
@@ -580,7 +472,7 @@ class SpotifyAPI:
         if time_range not in ['medium', 'short']:
             raise ValueError(
                 'time_range must be either medium_term or short_term')
-        top_5 = util.get_request(url=f'https://api.spotify.com/v1/me/top/tracks?{time_range=!s}_term&limit=5', headers=self.__headers).json()
+        top_5 = requests.get_request(url=f'https://api.spotify.com/v1/me/top/tracks?{time_range=!s}_term&limit=5', headers=self.__headers).json()
         top_5_songs = list(
             map(lambda song: {
                 'name': song['name'],
@@ -764,7 +656,7 @@ class SpotifyAPI:
         if K > 100 or K < 1:
             raise ValueError('K must be between 1 and 100')
 
-        top = util.get_request(url=f'https://api.spotify.com/v1/me/top/tracks?{time_range=!s}_term&limit={K}', headers=self.__headers).json()
+        top = requests.get_request(url=f'https://api.spotify.com/v1/me/top/tracks?{time_range=!s}_term&limit={K}', headers=self.__headers).json()
 
         top_songs = list(map(lambda song: {'id': song['id'], 'name': song['name'], 'genres': self.__get_song_genres(song), 'artists': list(map(
             lambda artist: artist['name'], song['artists'])), 'popularity': song['popularity']}, top['items']))
@@ -781,10 +673,10 @@ class SpotifyAPI:
         Args:
             K (int, optional): Number of songs in the new playlists, if not set, defaults to the number of songs already in the playlist. Defaults to None.
         """
-        total_playlist_count = util.get_request(url=f'https://api.spotify.com/v1/me/playlists?limit=1', headers=self.__headers).json()['total']
+        total_playlist_count = requests.get_request(url=f'https://api.spotify.com/v1/me/playlists?limit=1', headers=self.__headers).json()['total']
         playlists = []
         for offset in range(0, total_playlist_count, 50):
-            request = util.get_request(url=f'https://api.spotify.com/v1/me/playlists?limit=50&{offset=!s}',  headers=self.__headers).json()
+            request = requests.get_request(url=f'https://api.spotify.com/v1/me/playlists?limit=50&{offset=!s}',  headers=self.__headers).json()
 
             playlists += list(map(lambda playlist: (playlist['id'], playlist['name'], playlist['tracks']['total']), request['items']))
 
@@ -829,95 +721,7 @@ class SpotifyAPI:
                     self.__write_playlist(type='short', K=total_tracks)
 
             except ValueError as e:
-                print(
-                    f"Unfortunately we couldn't update a playlist because\n {e}")
-
-    def __get_datetime_by_time_range(self, time_range: str = 'all_time'):
-        """Calculates the datetime that corresponds to the given time range before the current date
-
-        Args:
-            time_range (str, optional): Time range that represents how much of the playlist will be considered for the trend. Can be one of the following: 'all_time', 'month', 'trimester', 'semester', 'year'. Defaults to 'all_time'.
-
-        Raises:
-            ValueError: If the time_range parameter is not valid the error is raised.
-
-        Returns:
-            datetime.datetime: Datetime of the specified time_range before the current date
-        """
-        if time_range not in ['all_time', 'month', 'trimester', 'semester', 'year']:
-            raise ValueError('time_range must be one of the following: "all_time", "month", "trimester", "semester", "year"')
-
-        now = datetime.datetime.now(tz=tz.gettz('UTC'))
-        date_options = {
-            'all_time': datetime.datetime(year=2000, month=1, day=1, hour=0, minute=0, second=0, microsecond=0, tzinfo=tz.gettz('UTC')),
-            'month': now - datetime.timedelta(days=30),
-            'trimester': now - datetime.timedelta(days=90),
-            'semester': now - datetime.timedelta(days=180),
-            'year': now - datetime.timedelta(days=365),
-        }
-
-        return date_options[time_range]
-
-    def __list_to_count_dict(self, dictionary: dict, item: str) -> dict:
-        """Tranforms a list of strings into a dictionary which has the strings as keys and the amount they appear as values
-
-        ## Note\n
-        ## This function is to be used in conjunction with a reduce function
-        ## Note
-
-        Args:
-            dictionary (dict): Dictionary to be created / updated
-            item (str): new item from the list
-        """
-        if item in dictionary.keys():
-            dictionary[item] += 1
-        else:
-            dictionary[item] = 1
-
-        return dictionary
-
-    def __value_dict_to_value_and_percentage_dict(self, dictionary: 'dict[str, int]') -> 'dict[dict[str, float]]':
-        """Transforms a dictionary containing only values for a given key into a dictionary containing the values and the total percentage of that key
-
-        Args:
-            dictionary (dict): dictionary with only the values for each
-
-        Returns:
-            dict[dict[str, float]]: new dictionary with values and total percentages
-        """
-        dictionary = {key: {'value': value, 'percentage': round(value / dictionary['total'], 5)} for key, value in dictionary.items()}
-
-        return dictionary
-
-    def __plot_bar_chart(self, df: pd.DataFrame, chart_title: str = None, top: int = 10, plot_max: bool = True):
-        """Plot a bar Chart with the top values from the dictionary
-
-        Args:
-            df (pd.DataFrame): DataFrame to plotthat contains the data
-            chart_title (str, optional): label of the chart. Defaults to None
-            top (int, optional): numbers of values to be in the chart. Defaults to 10
-        """
-
-        if plot_max:
-            df = df[df['name'] != ''][0:top + 1]
-        else:
-            print(f'Total number of songs: {df["number of songs"][0]}')
-            df = df[df['name'] != ''][1:top + 1]
-
-        plt.figure(figsize=(15,10))
-
-        sns.color_palette('bright')
-
-        sns.barplot(x='name', y='number of songs', data=df, label=chart_title)
-
-        plt.xticks(
-            rotation=45,
-            horizontalalignment='right',
-            fontweight='light',
-            fontsize='x-large'
-        )
-
-        plt.show()
+                print(f"Unfortunately we couldn't update a playlist because\n {e}")
 
     def get_playlist_trending_genres(self, time_range: str = 'all_time', plot_top: 'int|bool' = False) -> pd.DataFrame:
         """Calculates the amount of times each genre was spotted in the playlist, and can plot a bar chart to represent this information
@@ -939,7 +743,7 @@ class SpotifyAPI:
         if plot_top not in [5, 10, 15, False]:
             raise ValueError('plot_top must be one of the following: 5, 10, 15 or False')
 
-        playlist = self.__playlist[self.__playlist['added_at'] > self.__get_datetime_by_time_range(time_range=time_range)]
+        playlist = self.__playlist[self.__playlist['added_at'] > util.get_datetime_by_time_range(time_range=time_range)]
 
         if not len(playlist):
             print(f"No songs added to the playlist in the time range {time_range} ")
@@ -947,13 +751,13 @@ class SpotifyAPI:
 
         genres = list(reduce(lambda x, y: list(x) + list(y), playlist['genres'], []))
 
-        genres_dict = dict(reduce(lambda x, y: self.__list_to_count_dict(dictionary=x, item=y), genres, {}))
+        genres_dict = dict(reduce(lambda x, y: util.list_to_count_dict(dictionary=x, item=y), genres, {}))
 
         genres_dict['total'] = len(playlist['genres'])
 
         genres_dict = dict(sorted(genres_dict.items(), key=lambda x: x[1], reverse=True))
 
-        genres_dict = self.__value_dict_to_value_and_percentage_dict(dictionary=genres_dict)
+        genres_dict = util.value_dict_to_value_and_percentage_dict(dictionary=genres_dict)
 
         dictionary = {'name': [], 'number of songs': [], 'rate': []}
 
@@ -965,7 +769,7 @@ class SpotifyAPI:
         df = pd.DataFrame(data=dictionary, columns=['name', 'number of songs', 'rate'])
 
         if plot_top:
-            self.__plot_bar_chart(df=df, top=plot_top, plot_max=reduce(lambda x, y: x + y, df['rate'][1:4], 0) >= 0.50)
+            core.plot_bar_chart(df=df, top=plot_top, plot_max=reduce(lambda x, y: x + y, df['rate'][1:4], 0) >= 0.50)
 
         return df
 
@@ -985,7 +789,7 @@ class SpotifyAPI:
         if time_range not in ['all_time', 'month', 'trimester', 'semester', 'year']:
             raise ValueError('time_range must be one of the following: "all_time", "month", "trimester", "semester", "year"')
 
-        playlist = self.__playlist[self.__playlist['added_at'] > self.__get_datetime_by_time_range(time_range=time_range)]
+        playlist = self.__playlist[self.__playlist['added_at'] > util.get_datetime_by_time_range(time_range=time_range)]
 
         if not len(playlist):
             print(f"No songs added to the playlist in the time range {time_range} ")
@@ -993,13 +797,13 @@ class SpotifyAPI:
 
         artists = list(reduce(lambda x, y: list(x) + list(y), playlist['artists'], []))
 
-        artists_dict = dict(reduce(lambda x, y: self.__list_to_count_dict(dictionary=x, item=y), artists, {}))
+        artists_dict = dict(reduce(lambda x, y: util.list_to_count_dict(dictionary=x, item=y), artists, {}))
 
         artists_dict['total'] = len(playlist['artists'])
 
         artists_dict = dict(sorted(artists_dict.items(), key=lambda x: x[1], reverse=True))
 
-        artists_dict = self.__value_dict_to_value_and_percentage_dict(dictionary=artists_dict)
+        artists_dict = util.value_dict_to_value_and_percentage_dict(dictionary=artists_dict)
 
         dictionary = {'name': [], 'number of songs': [], 'rate': []}
 
@@ -1011,7 +815,7 @@ class SpotifyAPI:
         df = pd.DataFrame(data=dictionary, columns=['name', 'number of songs', 'rate'])
 
         if plot_top:
-            self.__plot_bar_chart(df=df, top=plot_top, plot_max=reduce(lambda x, y: x + y, df['rate'][1:4], 0) >= 0.50)
+            core.plot_bar_chart(df=df, top=plot_top, plot_max=reduce(lambda x, y: x + y, df['rate'][1:4], 0) >= 0.50)
 
         return df
 
@@ -1079,15 +883,7 @@ class SpotifyAPI:
                     instrumentalness = artist_songs_record['instrumentalness']
                     tempo = artist_songs_record['tempo']
                     valence = artist_songs_record['valence']
-                    print(f'{name = }')
-                    print(f'{artists = }')
-                    print(f'{genres = }')
-                    print(f'{popularity = }')
-                    print(f'{danceability = }')
-                    print(f'{energy = }')
-                    print(f'{instrumentalness = }')
-                    print(f'{tempo = }')
-                    print(f'{valence = }')
+                    util.print_base_caracteristics(name, genres, artists, popularity, danceability, energy, instrumentalness, tempo, valence)
 
 
             else:
@@ -1282,11 +1078,13 @@ class SpotifyAPI:
 def start_api(user_id, *, playlist_url=None, playlist_id=None):
     """Function that prepares for and initializes the API
 
-    ## Note:
-    Internet Connection is required
+    Note:
+        Internet Connection is required
 
     Args:
-        user_id: the id of user, present in the user account profile
+        user_id(str): the id of user, present in the user account profile
+
+    Keyword Arguments:
         playlist_url(str, optional, keyword-argument only): the url for the playlist, which is visible when trying to share it. Defaults to None.
         playlist_id (str, optional, keyword-argument only): the id of the playlist, an unique big hash which identifies the playlist. Defaults to None.
 
@@ -1297,16 +1095,15 @@ def start_api(user_id, *, playlist_url=None, playlist_id=None):
     Returns:
         SpotifyAPI: The instance of the SpotifyAPI class
 
-    ## Note:
+    Note:
     Although both the playlist_url and playlist_id are optional, informing at least one of them is required, though the choice is up to you
     """
 
     if not playlist_url and not playlist_id:
-        raise ValueError(
-            'It is necessary to specify a playlist either with playlist id or playlist url')
-    if playlist_url and not playlist_id:
+        raise ValueError('It is necessary to specify a playlist either with playlist id or playlist url')
+    if not playlist_id:
         playlist_id = False
-    if playlist_id and not playlist_url:
+    else:
         playlist_url = False
 
     get_auth()
