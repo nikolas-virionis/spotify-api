@@ -20,7 +20,7 @@
  - The perfect use case for this is that one playlist (or more) that you put a bunch of songs in different times and mood styles, and when you listen to it, you feel like only listening to a part of it, some days later, that part is useless, but some other part is awesome. The big issue here is that those "parts" are shuffled all across the playlist. Then how would one find those songs that they are craving for, today, tomorrow, and later? Speaking from experience, it is not worth it to map manually a 1000 song playlist and filter out 50, or 100.
  - This package comes to solve this issue, roughly, because it tries to find the K (number) nearest songs taking into consideration genres, artists and popularity, using the KNN supervised machine learning technique
  - One issue with this is that spotify api is not the best, E.g. A LOT of artists do not have any genre associated to them, which, as justified in the next topic, is the main source of genre information used in the algorithm
- - Other issue is that spotify api does not provide, at the time of publish of version 3.1.0, neither song nor album genres, which compromise a portion of the accuracy of the recommendations, still i recommend you give it a try
+ - Other issue is that spotify api does not provide, at the time of publish of version 3.3.0, neither song nor album genres, which compromise a portion of the accuracy of the recommendations, still i recommend you give it a try
 
 
 
@@ -38,8 +38,8 @@
  The perfect use case for this package is that of one big playlist (200+ songs), which you feel like listening to some of them, then others but never, or rarely, all of them, since they belong to diferent genres/styles
   - ## <strong>Patience</strong>
     It may seem funny or a joke, but the first mapping process of the playlist to a local pandas DataFrame... it will take a good while, up to 2.5 to 3 second per song, at 20-40Mbps Internet connection, being in Latam. All these factors play a part in the time for it to first load.
-    Just to make it clear, cpu, ram, sdd, etc., will not help much, the issue is to have up to 5 different http requests per song, which make this take so long
-    Besides, as of july/2022, Spotify implemented a possible API Response: ["429: Too Many Requests"](https://http.cat/429) which forced this package to implement [Exponential Backoff](https://en.wikipedia.org/wiki/Exponential_backoff) in order to complete it's requests, therefore what already took a while, now takes a little bit more, nothing much but still worth noting
+    Just to make it clear, cpu, ram, sdd, etc., will not help much, the issue is to have up to 7 different http requests per song, which make this take so long
+    Besides, as of july/2022, Spotify implemented a possible API Response: ["429: Too Many Requests"](https://http.cat/429) which forced this package to implement [Exponential Backoff](https://en.wikipedia.org/wiki/Exponential_backoff) in order to complete it's requests, therefore what already took a while, now takes a little bit more
   - Jupyter Notebook<br>
  Not exactly a requirement but it is advised that a jupyter notebook is used (even more recommended to use the vscode extension for jupyter notebooks), because it is important, or at least more confortable, to have the variable still in memory and then decide how to use it, without having to run a script multiple times, having to reconnect to Spotify, redownload the playlist, redo some computations, etc.
   - Spotify access<br>
@@ -211,6 +211,15 @@ api.artist_specific_playlist(artist_name='Joyner Lucas', K=50, complete_with_sim
 # If complete_with_similar is True and K is more than all the songs with that artist, a Artist Mix is created, 
 # otherwise, a "This once was" Playlist is created
 # BUILD_PLAYLIST WILL CHANGE THE USER'S LIBRARY IF SET TO TRUE
+~~~
+ - audio_features_extraordinary_songs
+~~~python
+# Parameters
+audio_features_extraordinary_songs()
+# Method Use Example
+api.audio_features_extraordinary_songs()
+# Function that returns a dictionary containing the songs that have the maximum and minimum values 
+# for the 5 audio features used in this package: ['danceability', 'energy', 'instrumentalness', 'tempo', 'valence']
 ~~~
 ## Advice towards leaving everything more organized
 It is recommended that the user creates folders to group the playlists created by this package, because after creating more than 70 playlists, your library can become a mess. Unfortunately Spotify library does not behave like a file system, hence it is not possible to create nor populate said folders by the API. So the only way to do so, is manually, through the web page or Apps.
