@@ -196,7 +196,7 @@ def list_distance(a: 'list[int]', b: 'list[int]') -> int:
 
 
     Note:
-        The "distance" is a mathematical value that represents how different two songs are considering some parameter such as their genres or artists
+        The "distance" is a mathematical value that represents how different two songs are, considering some parameter such as their genres or artists
 
     Note:
         For obvious reasons although both the parameters have two value options (genres, artists), when one of the parameters is specified as one of those, the other follows
@@ -206,7 +206,7 @@ def list_distance(a: 'list[int]', b: 'list[int]') -> int:
         b (list[int]): counterpart song's list of genres or artists
 
     Returns:
-        int: _description_
+        int: The distance between the two indexed lists
     """
     distance = 0
     for item_a, item_b in list(zip(a, b)):
@@ -227,10 +227,16 @@ def compute_distance(a: 'list[int]', b: 'list[int]', artist_recommendation: bool
     - genres: the difference between the two song's genres, using the list_distance function above
     - artists: the difference between the two song's artists, using the list_distance function above
     - popularity: the difference between the two song's popularity, considering it a basic absolute value from the actual difference between the values
+    - danceability: Danceability describes how suitable a track is for dancing based on a combination of musical elements including tempo, rhythm stability, beat strength, and overall regularity. A value of 0.0 is least danceable and 1.0 is most danceable.
+    - energy: Energy is a measure from 0.0 to 1.0 and represents a perceptual measure of intensity and activity. Typically, energetic tracks feel fast, loud, and noisy. For example, death metal has high energy, while a Bach prelude scores low on the scale. Perceptual features contributing to this attribute include dynamic range, perceived loudness, timbre, onset rate, and general entropy.
+    - instrumentalness: Predicts whether a track contains no vocals. "Ooh" and "aah" sounds are treated as instrumental in this context. Rap or spoken word tracks are clearly "vocal". The closer the instrumentalness value is to 1.0, the greater likelihood the track contains no vocal content
+    - tempo: The overall estimated tempo of a track in beats per minute (BPM). In musical terminology, tempo is the speed or pace of a given piece and derives directly from the average beat duration.
+    - valence: A measure from 0.0 to 1.0 describing the musical positiveness conveyed by a track. Tracks with high valence sound more positive (e.g. happy, cheerful, euphoric), while tracks with low valence sound more negative (e.g. sad, depressed, angry).
 
-    At the end there is a weighted multiplication of all the factors that implies two things:
-    - They are in really different scales
-    - They have different importance levels to the final result of the calculation
+    Note:
+        At the end there is a weighted multiplication of all the factors that implies two things:
+         - They are in REALLY different scales
+         - They have different importance levels to the final result of the calculation
 
     Args:
         a (list[int]): the song a, having all it's caracteristics
@@ -238,12 +244,27 @@ def compute_distance(a: 'list[int]', b: 'list[int]', artist_recommendation: bool
 
     Returns:
         float: the distance between the two songs
-    """
+    # """
+
     genres_distance = list_distance(a['genres_indexed'], b['genres_indexed'])
     artists_distance = list_distance(a['artists_indexed'], b['artists_indexed'])
     popularity_distance = abs(a['popularity'] - b['popularity'])
+    danceability_distance = abs(a['danceability'] - b['danceability'])
+    energy_distance = abs(a['energy'] - b['energy'])
+    instrumentalness_distance = abs(round(a['instrumentalness'], 2) - round(b['instrumentalness'], 2))
+    tempo_distance = abs(a['tempo'] - b['tempo'])
+    valence_distance = abs(a['valence'] - b['valence'])
 
-    return genres_distance + artists_distance * 0.38 + popularity_distance * (0.03 if not artist_recommendation else 0.005)
+    return (
+        genres_distance * 0.8 +
+        energy_distance * 0.6 +
+        valence_distance * 0.9 +
+        artists_distance * 0.38 +
+        tempo_distance * 0.0025 +
+        danceability_distance * 0.25 +
+        instrumentalness_distance * 0.4 +
+        popularity_distance * (0.015 if not artist_recommendation else 0.003)
+    )
 
 
 def playlist_exists(name: str, headers: dict) -> 'str|bool':
@@ -311,7 +332,7 @@ def create_playlist(type: str, headers: dict, user_id: str, additional_info: str
 
     elif 'most-listened' in type:
         playlist_name = f"{type.replace('most-listened-', '').capitalize()} Term Most-listened Tracks"
-        description = f"The most listened tracks in a {type.replace('most-listened', '')} period of time"
+        description = f"The most listened tracks in a {type.replace('most-listened-', '')} period of time"
 
     elif type == 'artist-related':
         playlist_name = f"{additional_info!r} Mix"
