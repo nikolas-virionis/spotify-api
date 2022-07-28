@@ -108,7 +108,7 @@ class SpotifyAPI:
                 for song in all_genres_res.json()["items"]:
                     (id, name, popularity, artist, added_at), song_genres = util.song_data(song=song), self.__get_song_genres(song)
                     song['id'] = id
-                    danceability, energy, instrumentalness, tempo, valence = util.query_audio_features(song=song)
+                    danceability, energy, instrumentalness, tempo, valence = util.query_audio_features(song=song, headers=self.__headers)
                     self.__songs.append({
                         "id": id,
                         "name": name,
