@@ -125,7 +125,7 @@ def playlist_exists(name: str, base_playlist_name: str, headers: dict, _update_c
 
     for playlist in playlists:
 
-        if playlist[1] == name and (f', within the playlist {base_playlist_name}' in playlist[2] or _update_created_playlists):
+        if playlist[1] == name and (' Term Most-listened Tracks' in name or f', within the playlist {base_playlist_name}' in playlist[2] or _update_created_playlists):
             return playlist[0]
 
     return False
