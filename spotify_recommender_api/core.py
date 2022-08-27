@@ -126,6 +126,10 @@ def create_playlist(type: str, headers: dict, user_id: str, base_playlist_name: 
         playlist_name = f"{additional_info!r} Mix"
         description = f"Songs related to {additional_info!r}, within the playlist {base_playlist_name}"
 
+    elif type == 'artist-full':
+        playlist_name = f"This once was {additional_info!r}"
+        description = f'''All {additional_info}'{"" if additional_info[-1] == "s" else "s"} songs, within the playlist {base_playlist_name}'''
+
     elif type == 'artist':
         playlist_name = f"This once was {additional_info!r}"
         description = f'''{additional_info}'{"" if additional_info[-1] == "s" else "s"} songs, within the playlist {base_playlist_name}'''

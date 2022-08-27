@@ -258,6 +258,19 @@ class SpotifyAPI:
         index = item.index[0]
         return index
 
+    def __push_songs_to_playlist(self, full_uris: str, playlist_id: str):
+        full_uris = full_uris.split(',')
+
+        if len(full_uris) <= 100:
+            uris = ','.join(full_uris)
+            add_songs_req = requests.post_request(url=f'https://api.spotify.com/v1/playlists/{playlist_id}/tracks?{uris=!s}', headers=self.__headers)
+
+        else:
+
+            for offset in range(0, len(full_uris), 100):
+
+                uris = ','.join(full_uris[offset: offset + (100 if len(full_uris) - offset >= 100 else len(full_uris) - offset)])
+                add_songs_req = requests.post_request(url=f'https://api.spotify.com/v1/playlists/{playlist_id}/tracks?{uris=!s}', headers=self.__headers)
 
     def __build_playlist(self, type: str, uris: str):
         """Function that builds the contents of a playlist
@@ -272,7 +285,10 @@ class SpotifyAPI:
         if not uris:
             raise ValueError('Invalid value for the song uris')
 
-        add_songs_req = requests.post_request(url=f'https://api.spotify.com/v1/playlists/{core.create_playlist(type=type, headers=self.__headers, user_id=self.__user_id, base_playlist_name= self.__base_playlist_name, additional_info=self.__song_name if type == "song" else self.__artist_name if "artist" in type else None, _update_created_playlists=self.__update_created_files)}/tracks?{uris=!s}', headers=self.__headers)
+        playlist_id = core.create_playlist(type=type, headers=self.__headers, user_id=self.__user_id, base_playlist_name= self.__base_playlist_name, additional_info=self.__song_name if type == "song" else self.__artist_name if "artist" in type else None, _update_created_playlists=self.__update_created_files)
+
+        self.__push_songs_to_playlist(full_uris=uris, playlist_id=playlist_id)
+
 
     def __write_playlist(self, type, K, additional_info=None):
         """
@@ -292,11 +308,11 @@ class SpotifyAPI:
 
 
         """
-        if K > 99 and all([x not in type for x in ['most-listened', 'artist']]):
-            print('K limit exceded. Maximum value for K is 99')
-            K = 99
+        if K > 1500:
+            print('K limit exceded. Maximum value for K is 1500')
+            K = 1500
         elif K < 1:
-            raise ValueError('Value for K must be between 1 and 99')
+            raise ValueError('Value for K must be between 1 and 1500')
         uris = ''
         if type == 'song':
             index = self.__get_index_for_song(additional_info)
@@ -350,11 +366,8 @@ class SpotifyAPI:
 
         """
         try:
-            if K > 99:
-                print('K limit exceded. Maximum value for K is 99')
-                K = 99
-            elif K < 1:
-                raise ValueError('Value for K must be between 1 and 99')
+            if not (1 < K <= 1500):
+                raise ValueError('Value for K must be between 1 and 1500')
 
             self.__song_name = song
             df = self.__get_recommendations('song', song, K)
@@ -675,7 +688,7 @@ class SpotifyAPI:
 
         Raises:
             ValueError: time range does not correspond to a valid time range ('long', 'medium', 'short')
-            ValueError: K number of songs must be between 1 and 100
+            ValueError: Value for K must be between 1 and 1500
 
 
         Returns:
@@ -685,8 +698,8 @@ class SpotifyAPI:
             raise ValueError(
                 'time_range must be long, medium or short')
 
-        if K > 100 or K < 1:
-            raise ValueError('K must be between 1 and 100')
+        if not (1 < K <= 1500):
+                raise ValueError('Value for K must be between 1 and 1500')
 
         top = requests.get_request(url=f'https://api.spotify.com/v1/me/top/tracks?{time_range=!s}_term&limit={K}', headers=self.__headers).json()
 
@@ -744,6 +757,7 @@ class SpotifyAPI:
                             build_playlist=True,
                             artist_name=artist_name,
                             complete_with_similar=False,
+                            ensure_all_artist_songs=f'All {artist_name}' in description,
                             _auto=True
                         )
 
@@ -852,26 +866,37 @@ class SpotifyAPI:
 
         return df
 
-    def artist_specific_playlist(self, artist_name: str, K: int = 50, complete_with_similar: bool = False, build_playlist: bool = False, print_base_caracteristics: bool = False, with_distance: bool = False, _auto: bool = False) -> pd.DataFrame:
+    def artist_specific_playlist(
+            self,
+            artist_name: str,
+            K: int = 50,
+            with_distance: bool = False,
+            build_playlist: bool = False,
+            complete_with_similar: bool = False,
+            ensure_all_artist_songs: bool = True,
+            print_base_caracteristics: bool = False,
+            _auto: bool = False
+        ) -> pd.DataFrame:
         """Function that generates DataFrame containing only a specific artist songs, with the possibility of completing it with the closest songs to that artist
 
         Args:
             artist_name (str): The name of the artist
             K (int, optional): Maximum number of songs. Defaults to 50.
-            complete_with_similar (bool, optional): Flag to complete the list of songs with songs that are similar to that artist, until the K number is reached. Defaults to False.
+            with_distance (bool, optional): Whether to allow the distance column to the DataFrame returned, which will have no actual value for most use cases, since it does not obey any actual unit, it is just a mathematical value to determine the closet songs. ONLY TAKES EFFECT IF complete_with_similar == True AND K > NUMBER_OF_SONGS_WITH_THAT_ARTIST. Defaults to False.
             build_playlist (bool, optional): Whether to build the playlist to the user's library. Defaults to False.
+            ensure_all_artist_songs (bool, optional): Whether to ensure that all artist songs are in the playlist, regardless of the K number specified. Defaults to True
+            complete_with_similar (bool, optional): Flag to complete the list of songs with songs that are similar to that artist, until the K number is reached. Only applies if K is greater than the number of songs by that artist in the playlist. Defaults to False.
             print_base_caracteristics (bool, optional): Whether to print the base / informed song information, in order to check why such predictions were made by the algorithm. ONLY TAKES EFFECT IF complete_with_similar == True AND K > NUMBER OF SONGS WITH THAT ARTIST. Defaults to False.
-            with_distance (bool, optional): Whether to allow the distance column to the DataFrame returned, which will have no actual value for most use cases, since it does not obey any actual unit, it is just a mathematical value to determine the closet songs. ONLY TAKES EFFECT IF complete_with_similar == True AND K > NUMBER OF SONGS WITH THAT ARTIST. Defaults to False.
 
         Raises:
-            ValueError: Value for K must be between 1 and 100
+            ValueError: Value for K must be between 1 and 1500
             ValueError: The artist_name specified is not valid
 
         Returns:
             pd.DataFrame: DataFrame containing the new playlist based on the artist
         """
-        if not (1 <= K <= 100):
-            raise ValueError('Value for K must be between 1 and 100')
+        if not (1 < K <= 1500):
+                raise ValueError('Value for K must be between 1 and 1500')
 
         artist_songs = self.__playlist[self.__playlist['artists'].str.contains(artist_name, regex=False)]
 
@@ -926,14 +951,18 @@ class SpotifyAPI:
                 ids = artist_songs['id']
                 df = artist_songs[columns]
 
-        else:
+        elif ensure_all_artist_songs:
             ids = artist_songs['id']
             df = artist_songs[columns]
+
+        else:
+            ids = artist_songs['id'][:K]
+            df = artist_songs[columns][:K]
 
         if build_playlist:
             self.__write_playlist(
                 K=K,
-                type=f'artist{"-related" if len(artist_songs) < K and complete_with_similar else ""}',
+                type=f'artist{"-related" if len(artist_songs) < K and complete_with_similar else "-full" if ensure_all_artist_songs else ""}',
                 additional_info=ids
             )
 
