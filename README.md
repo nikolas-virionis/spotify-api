@@ -16,11 +16,11 @@
 
 
 ## Use Case
- - This is the first section of this readme, because, you will see, this package can help, but nothing is perfect, so it will, as long as you fit in this very, very, particular use case ;(
- - The perfect use case for this is that one playlist (or more) that you put a bunch of songs in different times and mood styles, and when you listen to it, you feel like only listening to a part of it, some days later, that part is useless, but some other part is awesome. The big issue here is that those "parts" are shuffled all across the playlist. Then how would one find those songs that they are craving for, today, tomorrow, and later? Speaking from experience, it is not worth it to map manually a 1000 song playlist and filter out 50, or 100.
- - This package comes to solve this issue, roughly, because it tries to find the K (number) nearest songs taking into consideration genres, artists and popularity, using the KNN supervised machine learning technique
- - One issue with this is that spotify api is not the best, E.g. A LOT of artists do not have any genre associated to them, which, as justified in the next topic, is the main source of genre information used in the algorithm
- - Other issue is that spotify api does not provide, at the time of publish of version 3.3.0, neither song nor album genres, which compromise a portion of the accuracy of the recommendations, still i recommend you give it a try
+ - This is the first section of this readme, because, you will see, this package can help, but nothing is perfect, so it will, as long as you fit in this particular use case ;(
+ - The perfect use case for this is that one playlist (or more) that you put a bunch of songs in different times and mood styles, and when you listen to it, you feel like only listening to a part of it, some days later, that part is useless, but some other part is awesome. The big issue here is that those "parts" are shuffled, all across the playlist. Then how would one find those songs they crave, today, tomorrow, and later? Speaking from experience, it is not worth it to map manually a 1000 song playlist and filter out 50, or 100 of them.
+ - This package comes to solve this issue, roughly, because it tries to find the K (number) nearest songs taking into consideration genres, artists, popularity, and some audio features, such as danceability, energy, instrumentalness, tempo, and valence, using the KNN supervised machine learning technique to find the closest songs to some threshold.
+ - One issue with this is that Spotify API is not the best, E.g. A LOT of artists do not have any genre associated with them, which, as justified in the next topic, is the main source of genre information used
+ - Another issue is that Spotify API does not provide, at the time of publication of version 3.5.2, neither song nor album genres, which compromises a portion of the accuracy of the recommendations.  Still, I recommend you give it a try
 
 
 
@@ -29,19 +29,17 @@
 
 ### Requirements:
   - Python installed<br>
- The ideal version, to run the package is 3.8.x, the version in which the package was built over,
- older versions many have some issues, as the package uses a handful of other packages
- and their versions may conflict
+ The ideal version, to run the package is 3.8.x, the version on top of which the package was built, older versions may have some issues, as the package uses a handful of other packages and their versions may conflict.
   - Network Connection<br>
- So that a wide range of songs can be analised, it is imperative to have a network connection, at least for the first time executing a script using this package
+ So that a wide range of songs can be analyzed, it is imperative to have a network connection, at least for the first time executing a script using this package.
   - <strong>A fitting playlist</strong><br>
- The perfect use case for this package is that of one big playlist (200+ songs), which you feel like listening to some of them, then others but never, or rarely, all of them, since they belong to diferent genres/styles
+ The perfect use case for this package is that of one big playlist (200+ songs), which you feel like listening to some of them, then others but never, or rarely, all of them, since they belong to different genres/styles.
   - ## <strong>Patience</strong>
-    It may seem funny or a joke, but the first mapping process of the playlist to a local pandas DataFrame... it will take a good while, up to 2.5 to 3 second per song, at 20-40Mbps Internet connection, being in Latam. All these factors play a part in the time for it to first load.
-    Just to make it clear, cpu, ram, sdd, etc., will not help much, the issue is to have up to 7 different http requests per song, which make this take so long
-    Besides, as of july/2022, Spotify implemented a possible API Response: ["429: Too Many Requests"](https://http.cat/429) which forced this package to implement [Exponential Backoff](https://en.wikipedia.org/wiki/Exponential_backoff) in order to complete it's requests, therefore what already took a while, now takes a little bit more
+    It may seem funny or a joke, but the first mapping process of the playlist to a local pandas DataFrame... it will take a good while, up to 2.5 to 3 seconds per song, at 20-40Mbps Internet connection, being in Latam. All these factors play a part in the time for it to the first load.
+    Just to make it clear, CPU, ram, sdd, etc., will not help much, the issue is to have up to 7 different HTTP requests per song, which make this take so long.
+    Besides, as of July/2022, Spotify implemented a possible API Response: ["429: Too Many Requests"](https://http.cat/429) which forced this package to implement [Exponential Backoff](https://en.wikipedia.org/wiki/Exponential_backoff) to complete its requests, therefore what already took a while, now takes a little bit more
   - Jupyter Notebook<br>
- Not exactly a requirement but it is advised that a jupyter notebook is used (even more recommended to use the vscode extension for jupyter notebooks), because it is important, or at least more confortable, to have the variable still in memory and then decide how to use it, without having to run a script multiple times, having to reconnect to Spotify, redownload the playlist, redo some computations, etc.
+ Not exactly a requirement but it is advised that a jupyter notebook is used (even more recommended to use the vscode extension for jupyter notebooks) because it is important, or at least more comfortable, to have the variable still in memory and then decide how to use it, without having to run a script multiple times, having to reconnect to Spotify, redownload the playlist, redo some computations, etc.
   - Spotify access<br>
  I mean, you knew that already, right?
 
@@ -64,7 +62,7 @@ Firstly, it's necessary to import the method start_api from the package spotify_
   --- Playlist URL: The playlist url is available when right clicking the playlist name / or going to the three dots that represent the playlist options <br>
   --- Playlist ID: The playlist id is available the hash string between the last '/' in and the '?' in the playlist url<br>
   <img src='./readme-pictures/Playlist Configs.png' width='25%'><br>
-  --- User ID: The user id is available when clicking the account, and accessing its information, on spotify's website<br>
+  --- User ID: The user id is available when clicking the account, and accessing its information, on Spotify's website<br>
   <img src='./readme-pictures/Account.png' width='25%'><br>
 
   - Calling the function:
