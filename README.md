@@ -169,8 +169,8 @@ api.update_all_generated_playlists()
 # Note that if only a few updates are preferred, the methods above are a better fit
 # No parameters are mandatory but the default values should be noted, and if a value for K
 # is not specified, it takes as default the already existing playlist total song count,
-# or in the case of the playlist being one of the "This is" type, and was creted with the ensure_all_artist_songs
-# Falg set to True, then the Flag will continue to take effect
+# or in the case of the playlist being one of the "This is" type, and was created with the 
+# ensure_all_artist_songs Flag set to True, then the Flag will continue to take effect
 ~~~
  - get_playlist_trending_genres
 ~~~python
