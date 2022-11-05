@@ -91,6 +91,10 @@ def create_playlist(type: str, headers: dict, user_id: str, base_playlist_name: 
         This function will change the user's library either making a new playlist or making an existing one empty
 
     Args:
+        headers (dict): Request headers
+        user_id (str): Spotify User id
+        base_playlist_name (str): name of the base playlist
+        additional_info (str, optional): name of the song, artist, or whatever additional information is needed. Defaults to None\n
         type (str): the type of the playlist being created ('song', 'short', 'medium'), meaning:\n
         --- 'song': a playlist related to a song\n
         --- 'short': a playlist related to the short term favorites for that given user\n
@@ -100,11 +104,6 @@ def create_playlist(type: str, headers: dict, user_id: str, base_playlist_name: 
         --- 'most-listened-long': a playlist related to the long term most listened songs\n
         --- 'artist-related': a playlist related to a specific artist songs\n
         --- 'artist': a playlist containing only a specific artist songs\n
-
-        headers (dict): Request headers
-        user_id (str): Spotify User id
-        base_playlist_name (str): name of the base playlist
-        additional_info (str, optional): name of the song, artist, or whatever additional information is needed. Defaults to None
 
     Raises:
         ValueError: The type argument musts be one of the valid options

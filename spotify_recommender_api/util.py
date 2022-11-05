@@ -30,8 +30,7 @@ def get_total_song_count(playlist_id: str, headers: dict) -> int:
     Returns:
         int: The total number of songs in the playlist
     """
-    playlist_res = requests.get_request(
-        url=f'https://api.spotify.com/v1/playlists/{playlist_id}', headers=headers)
+    playlist_res = requests.get_request(url=f'https://api.spotify.com/v1/playlists/{playlist_id}', headers=headers)
 
     return playlist_res.json()["tracks"]["total"]
 
@@ -61,12 +60,6 @@ def song_data(song: dict, added_at: bool = True) -> 'tuple[str, str, float, list
 
     Returns:
         tuple[str, str, float, list[str], datetime.datetime]: A tuple containing the song's information
-    """"""
-    Function that gets additional information about the song
-    like its name, artists, id, popularity
-
-    # Parameters
-    - song: the song raw dictionary
     """
     try:
         data = [song["track"]['id'], song["track"]['name'], song["track"]['popularity'], [artist["name"] for artist in song["track"]["artists"]]]
@@ -224,6 +217,21 @@ def value_dict_to_value_and_percentage_dict(dictionary: 'dict[str, int]') -> 'di
     return dictionary
 
 def print_base_caracteristics(*args):
+    """
+    Function that receives a list of values and print them
+
+    Args:
+        name (str): name of the song
+        artists (list[str]): song's artists
+        genres (list[str]): song's genres
+        popularity (int): song's popularity
+        danceability (float): song's danceability
+        energy (float): song's energy
+        instrumentalness (float): song's instrumentalness
+        tempo (float): song's tempo
+        valence (float): song's valence
+
+    """
     name, genres, artists, popularity, danceability, energy, instrumentalness, tempo, valence = args
 
     print(f'{name = }')

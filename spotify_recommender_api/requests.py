@@ -47,7 +47,7 @@ def exponential_backoff(func, retries: int = 5):
                 time.sleep(sleep)
 
 
-def get_request(url: str, headers: dict = None, retries: int = 10):
+def get_request(url: str, headers: dict = None, retries: int = 10) -> dict:
     """GET request with integrated exponential backoff retry strategy
 
     Args:
@@ -60,7 +60,7 @@ def get_request(url: str, headers: dict = None, retries: int = 10):
     """
     return exponential_backoff(func=lambda: get(url=url, headers=headers), retries=retries)
 
-def post_request(url: str, headers: dict = None, data: dict = None, retries: int = 10):
+def post_request(url: str, headers: dict = None, data: dict = None, retries: int = 10) -> dict:
     """POST request with integrated exponential backoff retry strategy
 
     Args:
@@ -74,7 +74,7 @@ def post_request(url: str, headers: dict = None, data: dict = None, retries: int
     """
     return exponential_backoff(func=lambda: post(url=url, headers=headers, data=json.dumps(data)), retries=retries)
 
-def put_request(url: str, headers: dict = None, data: dict = None, retries: int = 10):
+def put_request(url: str, headers: dict = None, data: dict = None, retries: int = 10) -> dict:
     """PUT request with integrated exponential backoff retry strategy
 
     Args:
@@ -88,7 +88,7 @@ def put_request(url: str, headers: dict = None, data: dict = None, retries: int 
     """
     return exponential_backoff(func=lambda: put(url=url, headers=headers, data=json.dumps(data)), retries=retries)
 
-def delete_request(url: str, headers: dict = None, data: dict = None, retries: int = 10):
+def delete_request(url: str, headers: dict = None, data: dict = None, retries: int = 10) -> dict:
     """DELETE request with integrated exponential backoff retry strategy
 
     Args:
