@@ -1,3 +1,5 @@
+import pytz
+import datetime
 import pandas as pd
 import seaborn as sns
 import matplotlib.pyplot as plt
@@ -133,6 +135,31 @@ def create_playlist(type: str, headers: dict, user_id: str, base_playlist_name: 
     elif type == 'artist':
         playlist_name = f"This once was {additional_info!r}"
         description = f'''{additional_info}'{"" if additional_info[-1] == "s" else "s"} songs, within the playlist {base_playlist_name}'''
+
+    elif type == 'profile-recommendation':
+        criteria = additional_info[0] if additional_info[0] != 'mixed' else 'genres, tracks and artists'
+        playlist_name = f"Profile Recommendation"
+        description = f'''Profile-based recommendations based on favorite {criteria}'''
+
+        if additional_info[1]:
+            now = datetime.datetime.now(tz=pytz.timezone('UTC'))
+            playlist_name += f' ({criteria} - {now.strftime("%Y-%m-%d")})'
+            description += f' - {now.strftime("%Y-%m-%d")} snapshot'
+        else:
+            playlist_name += f' ({criteria})'
+
+    elif type == 'playlist-recommendation':
+        criteria = additional_info[0] if additional_info[0] != 'mixed' else 'genres, tracks and artists'
+        time_range = f'for the last {additional_info[2]}' if additional_info[2] != 'all_time' else 'for all_time'
+        playlist_name = f"Playlist Recommendation {time_range}"
+        description = f'''Playlist-based recommendations based on favorite {criteria}, within the playlist {base_playlist_name} {time_range}'''
+
+        if additional_info[1]:
+            now = datetime.datetime.now(tz=pytz.timezone('UTC'))
+            playlist_name += f' ({criteria} - {now.strftime("%Y-%m-%d")})'
+            description += f' - {now.strftime("%Y-%m-%d")} snapshot'
+        else:
+            playlist_name += f' ({criteria})'
     else:
         raise ValueError('type not valid')
 
