@@ -53,7 +53,7 @@ def add_items_to_list(item_list: 'list[str]', items: 'list[str]') -> 'list[str]'
     return item_list
 
 
-def song_data(song: dict) -> 'tuple[str, str, float, list[str], datetime.datetime]':
+def song_data(song: dict, added_at: bool = True) -> 'tuple[str, str, float, list[str], datetime.datetime]':
     """Function that gets additional information about the song, like its name, artists, id, popularity, date when it was added to the playlist, etc.
 
     Args:
@@ -68,7 +68,15 @@ def song_data(song: dict) -> 'tuple[str, str, float, list[str], datetime.datetim
     # Parameters
     - song: the song raw dictionary
     """
-    return song["track"]['id'], song["track"]['name'], song["track"]['popularity'], [artist["name"] for artist in song["track"]["artists"]], song['added_at']
+    try:
+        data = [song["track"]['id'], song["track"]['name'], song["track"]['popularity'], [artist["name"] for artist in song["track"]["artists"]]]
+    except KeyError:
+        data = [song['id'], song['name'], song['popularity'], [artist["name"] for artist in song["artists"]]]
+
+    if added_at:
+        data.append(song['added_at'])
+
+    return data
 
 
 def item_list_indexed(items: 'list[str]', all_items: 'list[str]') -> 'list[int]':
@@ -125,7 +133,7 @@ def playlist_exists(name: str, base_playlist_name: str, headers: dict, _update_c
 
     for playlist in playlists:
 
-        if playlist[1] == name and (' Term Most-listened Tracks' in name or f', within the playlist {base_playlist_name}' in playlist[2] or _update_created_playlists):
+        if playlist[1] == name and (' Term Most-listened Tracks' in name or f', within the playlist {base_playlist_name}' in playlist[2] or _update_created_playlists or playlist[1] == name and 'Recommendation (' in name):
             return playlist[0]
 
     return False
