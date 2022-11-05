@@ -169,7 +169,7 @@ api.update_all_generated_playlists()
 # Note that if only a few updates are preferred, the methods above are a better fit
 # No parameters are mandatory but the default values should be noted, and if a value for K
 # is not specified, it takes as default the already existing playlist total song count,
-# or in the case of the playlist being one of the "This is" type, and was created with the 
+# or in the case of the playlist being one of the "This is" type, and was created with the
 # ensure_all_artist_songs Flag set to True, then the Flag will continue to take effect
 ~~~
  - get_playlist_trending_genres
@@ -222,6 +222,39 @@ audio_features_extraordinary_songs()
 api.audio_features_extraordinary_songs()
 # Function that returns a dictionary containing the songs that have the maximum and minimum values
 # for the 5 audio features used in this package: ['danceability', 'energy', 'instrumentalness', 'tempo', 'valence']
+~~~
+ - refresh_token
+~~~python
+# Parameters
+refresh_token(token: str)
+# Method Use Example
+api.refresh_token(token='AUTH TOKEN')
+# Function that refreshes the auth token in order to not having to rerun the initialization every hour
+~~~
+ - get_profile_recommendation
+~~~python
+# Parameters
+get_profile_recommendation(K: int = 50, main_criteria: str = 'mixed', save_with_date: bool = False,
+build_playlist: bool = False)
+# Method Use Example
+api.get_profile_recommendation(build_playlist=True)
+# Function that returns a pandas DataFrame with profile based recommendations, and create it in the users account
+# main_criteria is the base info to get the recommendations
+# save_with_date is a flag to save the recommendations as a playlist as a point in time Snapshot
+# BUILD_PLAYLIST WILL CHANGE THE USER'S LIBRARY IF SET TO TRUE
+~~~
+ - get_playlist_recommendation
+~~~python
+# Parameters
+get_playlist_recommendation(K: int = 50, time_range: str = 'all_time', main_criteria: str = 'mixed', save_with_date: bool = False,
+build_playlist: bool = False)
+# Method Use Example
+api.get_playlist_recommendation(build_playlist=True)
+# Function that returns a pandas DataFrame with playlist based recommendations, and create it in the users account
+# main_criteria is the base info to get the recommendations
+# time_range is the time range to be looked at for the recommendations baseline
+# save_with_date is a flag to save the recommendations as a playlist as a point in time Snapshot
+# BUILD_PLAYLIST WILL CHANGE THE USER'S LIBRARY IF SET TO TRUE
 ~~~
 ## Advice towards leaving everything more organized
 It is recommended that the user creates folders to group the playlists created by this package, because after creating more than 70 playlists, your library can become a mess. Unfortunately Spotify library does not behave like a file system, hence it is not possible to create nor populate said folders by the API. So the only way to do so, is manually, through the web page or Apps.
