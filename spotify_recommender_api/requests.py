@@ -4,6 +4,7 @@ from requests import get, post, delete, put
 
 
 def exponential_backoff(func, retries: int = 5):
+    # sourcery skip: raise-specific-error
     """Exponential backoff strategy (https://en.wikipedia.org/wiki/Exponential_backoff)
     in order to retry certain function after exponetially increasing delay, to overcome "429: Too Many Requests" error
 
@@ -30,17 +31,16 @@ def exponential_backoff(func, retries: int = 5):
                     raise Exception(f"{response.json()['error']['status']}: {response.json()['error']['message']}")
             return response
         except Exception as e:
-            if any([errorCode in str(e) for errorCode in ['404', '50']]):
+            if any(errorCode in str(e) for errorCode in ['404', '50']):
                 continue
             if '429' not in str(e):
-                raise Exception(e)
+                raise Exception(e) from e
             if x == 0:
                 print('\nExponential backoff triggered: ')
             x += 1
             if x >= retries:
-                print(
-                    f'AFTER {retries} ATTEMPTS, THE EXECUTION OF THE FUNCTION FAILED WITH THE EXCEPTION: {e}')
-                raise Exception(e)
+                print(f'AFTER {retries} ATTEMPTS, THE EXECUTION OF THE FUNCTION FAILED WITH THE EXCEPTION: {e}')
+                raise Exception(e) from e
             else:
                 sleep = 2 ** x
                 print(f'\tError raised: sleeping {sleep} seconds')

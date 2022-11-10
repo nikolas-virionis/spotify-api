@@ -27,12 +27,8 @@ def list_distance(a: 'list[int]', b: 'list[int]') -> int:
     distance = 0
     for item_a, item_b in list(zip(a, b)):
         if item_a != item_b:
-            if int(item_a) == 1:
-                distance += 0.4
-            else:
-                distance += 0.2
-        else:
-            if int(item_a) == 1:
+            distance += 0.4 if int(item_a) == 1 else 0.2
+        elif int(item_a) == 1:
                 distance -= 0.4
 
     return distance
@@ -79,7 +75,7 @@ def compute_distance(a: 'list[int]', b: 'list[int]', artist_recommendation: bool
         tempo_distance * 0.0025 +
         danceability_distance * 0.25 +
         instrumentalness_distance * 0.4 +
-        popularity_distance * (0.015 if not artist_recommendation else 0.003)
+        popularity_distance * (0.003 if artist_recommendation else 0.015)
     )
 
 
@@ -115,7 +111,7 @@ def create_playlist(type: str, headers: dict, user_id: str, base_playlist_name: 
     if type == 'song':
         playlist_name = f"{additional_info!r} Related"
         description = f"Songs related to {additional_info!r}, within the playlist {base_playlist_name}"
-    elif type in ['short', 'medium']:
+    elif type in {'short', 'medium'}:
         playlist_name = "Recent-ish Favorites" if type == 'medium' else "Latest Favorites"
         description = f"Songs related to your {type} term top 5, within the playlist {base_playlist_name}"
 
@@ -137,7 +133,7 @@ def create_playlist(type: str, headers: dict, user_id: str, base_playlist_name: 
 
     elif type == 'profile-recommendation':
         criteria = additional_info[0] if additional_info[0] != 'mixed' else 'genres, tracks and artists'
-        playlist_name = f"Profile Recommendation"
+        playlist_name = "Profile Recommendation"
         description = f'''Profile-based recommendations based on favorite {criteria}'''
 
         if additional_info[1]:
@@ -162,10 +158,7 @@ def create_playlist(type: str, headers: dict, user_id: str, base_playlist_name: 
     else:
         raise ValueError('type not valid')
 
-    new_id = ""
-    playlist_id_found = util.playlist_exists(name=playlist_name, base_playlist_name=base_playlist_name, headers=headers, _update_created_playlists=_update_created_playlists)
-
-    if playlist_id_found:
+    if playlist_id_found := util.playlist_exists(name=playlist_name, base_playlist_name=base_playlist_name, headers=headers, _update_created_playlists=_update_created_playlists):
         new_id = playlist_id_found
 
         playlist_tracks = list(map(lambda track: {'uri': track['track']['uri']}, requests.get_request(url=f'https://api.spotify.com/v1/playlists/{new_id}/tracks', headers=headers).json()['items']))
@@ -225,38 +218,8 @@ def knn_prepared_data(playlist: pd.DataFrame) -> 'list[dict[str,]]':
         ]
     ]
 
-    array = []
-
-    for (
-        id,
-        name,
-        genres,
-        artists,
-        popularity,
-        added_at,
-        danceability,
-        energy,
-        instrumentalness,
-        tempo,
-        valence,
-        genres_indexed,
-        artists_indexed
-    ) in zip(
-        data['id'],
-        data['name'],
-        data['genres'],
-        data['artists'],
-        data['popularity'],
-        data['added_at'],
-        data['danceability'],
-        data['energy'],
-        data['instrumentalness'],
-        data['tempo'],
-        data['valence'],
-        data['genres_indexed'],
-        data['artists_indexed']
-    ):
-        array.append(
+    return (
+        [
             {
                 'id': id,
                 'name': name,
@@ -272,9 +235,38 @@ def knn_prepared_data(playlist: pd.DataFrame) -> 'list[dict[str,]]':
                 'genres_indexed': genres_indexed,
                 'artists_indexed': artists_indexed
             }
-        )
-
-    return array
+            for
+                id,
+                name,
+                genres,
+                artists,
+                popularity,
+                added_at,
+                danceability,
+                energy,
+                instrumentalness,
+                tempo,
+                valence,
+                genres_indexed,
+                artists_indexed
+            in
+                zip(
+                    data['id'],
+                    data['name'],
+                    data['genres'],
+                    data['artists'],
+                    data['popularity'],
+                    data['added_at'],
+                    data['danceability'],
+                    data['energy'],
+                    data['instrumentalness'],
+                    data['tempo'],
+                    data['valence'],
+                    data['genres_indexed'],
+                    data['artists_indexed']
+                )
+        ]
+    )
 
 
 def plot_bar_chart(df: pd.DataFrame, chart_title: str = None, top: int = 10, plot_max: bool = True):
@@ -287,7 +279,7 @@ def plot_bar_chart(df: pd.DataFrame, chart_title: str = None, top: int = 10, plo
     """
 
     if plot_max:
-        df = df[df['name'] != ''][0:top + 1]
+        df = df[df['name'] != ''][:top + 1]
     else:
         print(f'Total number of songs: {df["number of songs"][0]}')
         df = df[df['name'] != ''][1:top + 1]

@@ -16,8 +16,8 @@ def playlist_url_to_id(url: str) -> str:
         str: The Spotify playlist Id
     """
     uri = url.split('?')[0]
-    id = uri.split('open.spotify.com/playlist/')[1]
-    return id
+
+    return uri.split('open.spotify.com/playlist/')[1]
 
 
 def get_total_song_count(playlist_id: str, headers: dict) -> int:
@@ -114,8 +114,7 @@ def playlist_exists(name: str, base_playlist_name: str, headers: dict, _update_c
     Returns:
         str|bool: If the playlist already exists, returns the id of the playlist, otherwise returns False
     """
-    total_playlist_count = requests.get_request(
-        url=f'https://api.spotify.com/v1/me/playlists?limit=1', headers=headers).json()['total']
+    total_playlist_count = requests.get_request(url='https://api.spotify.com/v1/me/playlists?limit=1', headers=headers).json()['total']
     playlists = []
     for offset in range(0, total_playlist_count, 50):
         request = requests.get_request(
@@ -124,12 +123,19 @@ def playlist_exists(name: str, base_playlist_name: str, headers: dict, _update_c
         playlists += list(map(lambda playlist: (
             playlist['id'], playlist['name'], playlist['description']), request['items']))
 
-    for playlist in playlists:
-
-        if playlist[1] == name and (' Term Most-listened Tracks' in name or f', within the playlist {base_playlist_name}' in playlist[2] or _update_created_playlists or playlist[1] == name and 'Recommendation (' in name):
-            return playlist[0]
-
-    return False
+    return next(
+        (
+            playlist[0] for playlist in playlists
+                if playlist[1] == name and
+                    (
+                        ' Term Most-listened Tracks' in name or
+                        f', within the playlist {base_playlist_name}' in playlist[2] or
+                        _update_created_playlists or
+                        'Recommendation (' in name
+                    )
+        ),
+        False
+    )
 
 
 def query_audio_features(song: pd.Series, headers: dict) -> 'list[float]':
@@ -143,10 +149,10 @@ def query_audio_features(song: pd.Series, headers: dict) -> 'list[float]':
         list[float]: list with the audio features for the given song
     """
 
-    id = song['id']
+    song_id = song['id']
 
     audio_features = requests.get_request(
-        url=f'https://api.spotify.com/v1/audio-features/{id}',
+        url=f'https://api.spotify.com/v1/audio-features/{song_id}',
         headers=headers
     ).json()
 
@@ -195,7 +201,7 @@ def list_to_count_dict(dictionary: dict, item: str) -> dict:
         dict: dictionary with the incremented value that represents the 'item' key
     """
 
-    if item in dictionary.keys():
+    if item in dictionary:
         dictionary[item] += 1
     else:
         dictionary[item] = 1
@@ -260,6 +266,4 @@ def get_base_playlist_name(playlist_id: str, headers: dict) -> str:
         headers=headers
     ).json()
 
-    playlist_name = playlist['name']
-
-    return playlist_name
+    return playlist['name']
