@@ -10,6 +10,7 @@
 - [Use Case](#use-case)
 - [Setup](#setup)
 - [Methods](#methods)
+- [Suggestions](#suggestions)
 - [Packages used](#packages-used)
 - [OG Scripts](#og-scripts)
 - [Contribution Rules](#contributing)
@@ -256,8 +257,17 @@ api.get_playlist_recommendation(build_playlist=True)
 # save_with_date is a flag to save the recommendations as a playlist as a point in time Snapshot
 # BUILD_PLAYLIST WILL CHANGE THE USER'S LIBRARY IF SET TO TRUE
 ~~~
-## Advice towards leaving everything more organized
-It is recommended that the user creates folders to group the playlists created by this package, because after creating more than 70 playlists, your library can become a mess. Unfortunately Spotify library does not behave like a file system, hence it is not possible to create nor populate said folders by the API. So the only way to do so, is manually, through the web page or Apps.
+
+
+## Suggestions
+ - ### Advice towards leaving everything more organized <br>
+   It is recommended that the user creates folders to group the playlists created by this package, because after creating more than 150 playlists, your library can, and probably will, become a mess.  Unfortunately, the Spotify API does not allow users to create or manipulate folders in the same way that a file system does. The only way to create folders is manually, through the web page or app. Some suggestions for folders that could be useful include "Song Related" for playlists created using the get_recommendations_for_song function, "Profile Recommendations" for playlists created with get_profile_recommendation, "Personal Trends" for playlists created with get_most_listened, get_short_term_favorites_playlist, or get_medium_term_favorites_playlist, and any other categories that the user thinks would be useful.
+ - ### Spotify Enhance Feature vs spotify-recommender-api package <br>
+    I think it is really possible, and legitimate, to wonder if the Enhance Feature replaces the use of this package. However, in my opinion, they can actually be used in a complementary fashion. For example, you can create a profile recommendation based on your most listened tracks, and then use the Enhance feature to increase the number of new and enjoyable songs in that playlist, both from the profile recommendation playlist and from the enhancement itself. This can improve the overall listening experience. It's worth noting that while the Enhance Feature was introduced after the development of most of the package, they do not conflict with each other.
+
+
+
+
 
 # OG Scripts
 ###DEPRECATED###
