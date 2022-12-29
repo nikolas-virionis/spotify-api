@@ -25,7 +25,7 @@ def list_distance(a: 'list[int]', b: 'list[int]') -> int:
         int: The distance between the two indexed lists
     """
     distance = 0
-    for item_a, item_b in list(zip(a, b)):
+    for item_a, item_b in zip(a, b):
         if item_a != item_b:
             distance += 0.4 if int(item_a) == 1 else 0.2
         elif int(item_a) == 1:
@@ -187,6 +187,31 @@ def create_playlist(type: str, headers: dict, user_id: str, base_playlist_name: 
 
     return new_id
 
+def create_playlist_data_dict(row) -> dict:
+    """Function to be applied to the pandas DataFrame to create a dictionary with each row's information
+
+    Args:
+        row (Row): Row of the iteration on the Pandas DataFrame
+
+    Returns:
+        dict: Dictionary containing the data with the columns necessary for the use in KNN
+    """
+    return {
+        'id': row['id'],
+        'name': row['name'],
+        'genres': row['genres'],
+        'artists': row['artists'],
+        'popularity': row['popularity'],
+        'added_at': row['added_at'],
+        'danceability': row['danceability'],
+        'energy': row['energy'],
+        'instrumentalness': row['instrumentalness'],
+        'tempo': row['tempo'],
+        'valence': row['valence'],
+        'genres_indexed': row['genres_indexed'],
+        'artists_indexed': row['artists_indexed']
+    }
+
 def knn_prepared_data(playlist: pd.DataFrame) -> 'list[dict[str,]]':
     """Function to prepare the data for the algorithm which calculates the distances between the songs
 
@@ -216,57 +241,11 @@ def knn_prepared_data(playlist: pd.DataFrame) -> 'list[dict[str,]]':
             'genres_indexed',
             'artists_indexed'
         ]
-    ]
+    ].copy()
 
-    return (
-        [
-            {
-                'id': id,
-                'name': name,
-                'genres': genres,
-                'artists': artists,
-                'popularity': popularity,
-                'added_at': added_at,
-                'danceability': danceability,
-                'energy': energy,
-                'instrumentalness': instrumentalness,
-                'tempo': tempo,
-                'valence': valence,
-                'genres_indexed': genres_indexed,
-                'artists_indexed': artists_indexed
-            }
-            for
-                id,
-                name,
-                genres,
-                artists,
-                popularity,
-                added_at,
-                danceability,
-                energy,
-                instrumentalness,
-                tempo,
-                valence,
-                genres_indexed,
-                artists_indexed
-            in
-                zip(
-                    data['id'],
-                    data['name'],
-                    data['genres'],
-                    data['artists'],
-                    data['popularity'],
-                    data['added_at'],
-                    data['danceability'],
-                    data['energy'],
-                    data['instrumentalness'],
-                    data['tempo'],
-                    data['valence'],
-                    data['genres_indexed'],
-                    data['artists_indexed']
-                )
-        ]
-    )
+    data['track_dict'] = data.apply(create_playlist_data_dict, axis=1)
+
+    return data['track_dict'].tolist()
 
 
 def plot_bar_chart(df: pd.DataFrame, chart_title: str = None, top: int = 10, plot_max: bool = True):
