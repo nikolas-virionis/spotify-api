@@ -279,7 +279,7 @@ There are also 2 variations from that, which consist of medium term favorites re
 
 ### DISCLAIMER ###
 Not fit for direct use since some information such as client id, client secret, both of which are, now, in a hidden script on .gitignore so that it is not made public, have to be informed in order for the Spotify Web API to work properly.
-And also, these scripts are deprecated, so they will not have any maintenance or overtime improvements / new features
+And also, as of January 2022, these scripts are deprecated, so they will not have any maintenance or overtime improvements or new features
 
 
 
