@@ -102,34 +102,6 @@ api.playlist_to_csv()
 # Function that creates a csv format file containing the items in the playlist
 # Especially useful when re running the script without having changed the playlist
 ~~~
- - get_medium_term_favorites_playlist
-~~~python
-# Parameters
-get_medium_term_favorites_playlist(with_distance: bool, generate_csv: bool,
-                        generate_parquet: bool, build_playlist: bool)
-# Method Use Example
-api.get_medium_term_favorites_playlist(generate_csv=True, build_playlist=True)
-# Function that returns the pandas DataFrame representing the
-# medium term top 5 recommendation playlist
-# All parameters are defaulted to False
-# The "distance" is a mathematical value with no explicit units, that is
-# used by te algorithm to find the closest songs
-# BUILD_PLAYLIST WILL CHANGE THE USER'S LIBRARY IF SET TO TRUE
-~~~
- - get_short_term_favorites_playlist
-~~~python
-# Parameters
-get_short_term_favorites_playlist(with_distance: bool, generate_csv: bool,
-                        generate_parquet: bool, build_playlist: bool)
-# Method Use Example
-api.get_short_term_favorites_playlist(generate_csv=True, build_playlist=True)
-# Function that returns the pandas DataFrame representing the
-# short term top 5 recommendation playlist
-# All parameters are defaulted to False
-# The "distance" is a mathematical value with no explicit units, that is
-# used by te algorithm to find the closest songs
-# BUILD_PLAYLIST WILL CHANGE THE USER'S LIBRARY IF SET TO TRUE
-~~~
  - get_recommendations_for_song
 ~~~python
 # Parameters
@@ -255,6 +227,17 @@ api.get_playlist_recommendation(build_playlist=True)
 # main_criteria is the base info to get the recommendations
 # time_range is the time range to be looked at for the recommendations baseline
 # save_with_date is a flag to save the recommendations as a playlist as a point in time Snapshot
+# BUILD_PLAYLIST WILL CHANGE THE USER'S LIBRARY IF SET TO TRUE
+~~~
+ - get_general_recommendation
+~~~python
+# Parameters
+get_general_recommendation(K: int = 50, genres_info: 'list[str]' = [], artists_info: 'list[str]' = [], build_playlist: bool = False, use_main_playlist_audio_features: bool = False, tracks_info: Union['list[str]', 'list[tuple[str]]', 'list[list[str]]', 'dict[str, str]'] = [])
+# Method Use Example
+api.get_general_recommendation(build_playlist=True, artists_info=['NF', 'Logic'], use_main_playlist_audio_features=True)
+# Function that returns a pandas DataFrame with artists, genres, and/or tracks based recommendations, and create it in the users account
+# genres_info, artists_info and tracks_info are the lists of information that the recommendation would be based on
+# use_main_playlist_audio_features is the flag to indicate if the playlist provided audio features will be used as target for a better recommendation
 # BUILD_PLAYLIST WILL CHANGE THE USER'S LIBRARY IF SET TO TRUE
 ~~~
 
