@@ -279,7 +279,7 @@ There are also 2 variations from that, which consist of medium term favorites re
 
 ### DISCLAIMER ###
 Not fit for direct use since some information such as client id, client secret, both of which are, now, in a hidden script on .gitignore so that it is not made public, have to be informed in order for the Spotify Web API to work properly.
-And also, these scripts are deprecated, so they will not have any maintenance or overtime improvements / new features
+And also, as of January 2022, these scripts are deprecated, so they will not have any maintenance or overtime improvements or new features
 
 
 
@@ -312,17 +312,17 @@ pip install seaborn
 # Contributing
 Well, since this is a really simple package, contributing is always welcome, just as much as creating issues experienced with the package
 
-In order to better organize this contributions, it would be ideal that all PRs follow the template:
+In order to better organize these contributions, it would be ideal that all PRs follow the template:
 
 ## PR Template
  WHAT: <br>
  A brief description of the improvements
 
  WHY: <br>
-A explanation on why those changes were needed, necessary, or at least, why is was on the best interest of the package users
+A explanation on why those changes were needed, necessary, or at least, why it was on the best interest of the package users, for the package to have this changed
 
 CHANGES: <br>
-List of changes made, can be the name of the commits made, or a simple changes list
+List of changes made, can be the list of the commits made, or a simple changes list
 
 ## Commits
 Ideally the commits should make use of the convention of [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) <br>
