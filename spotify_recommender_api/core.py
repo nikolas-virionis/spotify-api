@@ -155,6 +155,11 @@ def create_playlist(type: str, headers: dict, user_id: str, base_playlist_name: 
             description += f' - {now.strftime("%Y-%m-%d")} snapshot'
         else:
             playlist_name += f' ({criteria})'
+
+    elif type == 'general-recommendation':
+        playlist_name = f"General Recommendation based on {additional_info[1]}"
+        description = additional_info[0]
+
     else:
         raise ValueError('type not valid')
 

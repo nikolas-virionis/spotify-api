@@ -6,6 +6,7 @@ from functools import reduce
 import spotify_recommender_api.util as util
 import spotify_recommender_api.core as core
 import spotify_recommender_api.requests as requests
+from typing import Union
 from spotify_recommender_api.sensitive import *
 from spotify_recommender_api.authentication import get_auth
 pd.options.mode.chained_assignment = None
@@ -205,7 +206,7 @@ class SpotifyAPI:
         self.__playlist_adjustments()
 
         self.__song_dict = core.knn_prepared_data(playlist=self.__playlist)
-        self.__prepare_favorites_playlist()
+        # self.__prepare_favorites_playlist()
 
         if self.__update_created_files:
             self.playlist_to_csv()
@@ -349,7 +350,12 @@ class SpotifyAPI:
                                 self.__playlist_recommendation_time_range
                             ]
                                 if type == 'playlist-recommendation'
-                                else None,
+                                else [
+                                    self.__general_recommendation_description,
+                                    self.__general_recommendation_description_types
+                                ]
+                                    if type == 'general-recommendation'
+                                    else None,
         )
 
         self.__push_songs_to_playlist(full_uris=uris, playlist_id=playlist_id)
@@ -702,71 +708,71 @@ class SpotifyAPI:
         """
         return self.__playlist[['id', 'name', 'artists', 'genres', 'popularity', 'added_at', 'danceability', 'energy', 'instrumentalness', 'tempo', 'valence']]
 
-    def get_short_term_favorites_playlist(
-            self,
-            generate_csv: bool = False,
-            with_distance: bool = False,
-            build_playlist: bool = False,
-            generate_parquet: bool = False,
-        ) -> pd.DataFrame:
-        """Playlist which centralises the actions for a recommendation made for top 5 songs short term
+    # def get_short_term_favorites_playlist(
+    #         self,
+    #         generate_csv: bool = False,
+    #         with_distance: bool = False,
+    #         build_playlist: bool = False,
+    #         generate_parquet: bool = False,
+    #     ) -> pd.DataFrame:
+    #     """Playlist which centralises the actions for a recommendation made for top 5 songs short term
 
-        Note
-            The build_playlist option when set to True will change the user's library
+    #     Note
+    #         The build_playlist option when set to True will change the user's library
 
-        Args:
-            generate_csv (bool, optional): Whether to generate a CSV file containing the recommended playlist. Defaults to False.
-            with_distance (bool, optional): Whether to allow the distance column to the DataFrame returned, which will have no actual value for most use cases, since  it does not obey any actual unit, it is just a mathematical value to determine the closet songs. Defaults to False.
-            build_playlist (bool, optional): Whether to generate a parquet file containing the recommended playlist. Defaults to False.
-            generate_parquet (bool, optional): Whether to build the playlist to the user's library. Defaults to False.
+    #     Args:
+    #         generate_csv (bool, optional): Whether to generate a CSV file containing the recommended playlist. Defaults to False.
+    #         with_distance (bool, optional): Whether to allow the distance column to the DataFrame returned, which will have no actual value for most use cases, since  it does not obey any actual unit, it is just a mathematical value to determine the closet songs. Defaults to False.
+    #         build_playlist (bool, optional): Whether to generate a parquet file containing the recommended playlist. Defaults to False.
+    #         generate_parquet (bool, optional): Whether to build the playlist to the user's library. Defaults to False.
 
-        Returns:
-            pd.DataFrame: Short term favorites DataFrame
-        """
-        if self.__deny_favorites:
-            print("The chosen playlist does not contain the user's favorite songs")
-            return
-        df = self.__short_fav
-        playlist_name = 'Latest Favorites'
-        if generate_csv:
-            df.to_csv(f'{playlist_name}.csv')
-        if generate_parquet:
-            df.to_parquet(f'{playlist_name}.parquet', compression='snappy')
+    #     Returns:
+    #         pd.DataFrame: Short term favorites DataFrame
+    #     """
+    #     if self.__deny_favorites:
+    #         print("The chosen playlist does not contain the user's favorite songs")
+    #         return
+    #     df = self.__short_fav
+    #     playlist_name = 'Latest Favorites'
+    #     if generate_csv:
+    #         df.to_csv(f'{playlist_name}.csv')
+    #     if generate_parquet:
+    #         df.to_parquet(f'{playlist_name}.parquet', compression='snappy')
 
-        if build_playlist:
-            self.__write_playlist('short', 51)
+    #     if build_playlist:
+    #         self.__write_playlist('short', 51)
 
-        return df if with_distance else df.drop(columns=['distance'])
+    #     return df if with_distance else df.drop(columns=['distance'])
 
-    def get_medium_term_favorites_playlist(self, with_distance: bool = False, generate_csv: bool = False, generate_parquet: bool = False, build_playlist: bool = False) -> pd.DataFrame:
-        """Playlist which centralises the actions for a recommendation made for top 5 songs medium term
+    # def get_medium_term_favorites_playlist(self, with_distance: bool = False, generate_csv: bool = False, generate_parquet: bool = False, build_playlist: bool = False) -> pd.DataFrame:
+    #     """Playlist which centralises the actions for a recommendation made for top 5 songs medium term
 
-        Note
-            The build_playlist option when set to True will change the user's library
+    #     Note
+    #         The build_playlist option when set to True will change the user's library
 
-        Args:
-            with_distance (bool, optional): Whether to allow the distance column to the DataFrame returned, which will have no actual value for most use cases, since  it does not obey any actual unit, it is just a mathematical value to determine the closet songs. Defaults to False.
-            generate_csv (bool, optional): Whether to generate a CSV file containing the recommended playlist. Defaults to False.
-            generate_parquet (bool, optional): Whether to generate a parquet file containing the recommended playlist. Defaults to False.
-            build_playlist (bool, optional): Whether to build the playlist to the user's library. Defaults to False.
+    #     Args:
+    #         with_distance (bool, optional): Whether to allow the distance column to the DataFrame returned, which will have no actual value for most use cases, since  it does not obey any actual unit, it is just a mathematical value to determine the closet songs. Defaults to False.
+    #         generate_csv (bool, optional): Whether to generate a CSV file containing the recommended playlist. Defaults to False.
+    #         generate_parquet (bool, optional): Whether to generate a parquet file containing the recommended playlist. Defaults to False.
+    #         build_playlist (bool, optional): Whether to build the playlist to the user's library. Defaults to False.
 
-        Returns:
-            pd.DataFrame: Medium term favorites DataFrame
-        """
-        if self.__deny_favorites:
-            print("The chosen playlist does not contain the user's favorite songs")
-            return
-        df = self.__medium_fav
-        playlist_name = 'Recent-ish Favorites'
-        if generate_csv:
-            df.to_csv(f'{playlist_name}.csv')
-        if generate_parquet:
-            df.to_parquet(f'{playlist_name}.parquet', compression='snappy')
+    #     Returns:
+    #         pd.DataFrame: Medium term favorites DataFrame
+    #     """
+    #     if self.__deny_favorites:
+    #         print("The chosen playlist does not contain the user's favorite songs")
+    #         return
+    #     df = self.__medium_fav
+    #     playlist_name = 'Recent-ish Favorites'
+    #     if generate_csv:
+    #         df.to_csv(f'{playlist_name}.csv')
+    #     if generate_parquet:
+    #         df.to_parquet(f'{playlist_name}.parquet', compression='snappy')
 
-        if build_playlist:
-            self.__write_playlist('medium', 51)
+    #     if build_playlist:
+    #         self.__write_playlist('medium', 51)
 
-        return df if with_distance else df.drop(columns=['distance'])
+    #     return df if with_distance else df.drop(columns=['distance'])
 
     def __prepare_favorites_playlist(self):
         """
@@ -867,11 +873,11 @@ class SpotifyAPI:
                             _auto=True
                         )
 
-                    elif name == 'Recent-ish Favorites':
-                        self.__write_playlist(type='medium', K=total_tracks)
+                    # elif name == 'Recent-ish Favorites':
+                    #     self.__write_playlist(type='medium', K=total_tracks)
 
-                    elif name == 'Latest Favorites':
-                        self.__write_playlist(type='short', K=total_tracks)
+                    # elif name == 'Latest Favorites':
+                    #     self.__write_playlist(type='short', K=total_tracks)
 
                     elif 'Playlist Recommendation' in name and ' - 20' not in name:
                         criteria = name.split('(')[1].split(')')[0]
@@ -1004,7 +1010,7 @@ class SpotifyAPI:
             ensure_all_artist_songs: bool = True,
             print_base_caracteristics: bool = False,
             _auto: bool = False
-        ) -> pd.DataFrame:
+        ) -> pd.DataFrame:  # sourcery skip: extract-method
         """Function that generates DataFrame containing only a specific artist songs, with the possibility of completing it with the closest songs to that artist
 
         Args:
@@ -1522,6 +1528,188 @@ class SpotifyAPI:
             self.__write_playlist(
                 K=K,
                 type='playlist-recommendation',
+                additional_info=ids
+            )
+
+        return recommendations_playlist
+
+    def get_general_recommendation(
+            self,
+            K: int = 50,
+            genres_info: 'list[str]' = [],
+            artists_info: 'list[str]' = [],
+            build_playlist: bool = False,
+            use_main_playlist_audio_features: bool = False,
+            tracks_info: Union['list[str]', 'list[tuple[str]]', 'list[list[str]]', 'dict[str, str]'] = [],
+        ) -> pd.DataFrame:
+        """Builds a general recommendation based on up to 5 items spread across artists, genres, and tracks.
+
+        Args:
+            K (int, optional): Number of songs in the recommendations playlist. Defaults to 50.
+            genres_info (list[str], optional): list of the genre names to be used in the recommendation. Defaults to [].
+            artists_info (list[str], optional): list of the artist names to be used in the recommendation. Defaults to [].
+            build_playlist (bool, optional): Flag to build the recommendations playlist in the users library. Defaults to False.
+            use_main_playlist_audio_features (bool, optional): Flag to use the audio features of the main playlist to target better recommendations. Defaults to False.
+            tracks_info (list[str] | list[tuple[str]] | list[list[str]] | dict[str, str]], optional): List of the song names to be used in the recommendations. They can be only the song names, but since there are a lot of songs with the same name i recommend using also the artist name in a key-value format using either a tuple, or list, or dict. Defaults to [].
+
+        Raises:
+            ValueError: K must be between 1 and 100
+            ValueError: At least one of the three args must be provided: genres_info, artists_info, tracks_info
+            ValueError: The sum of the number of items in each of the three args mustn't exceed 5
+            ValueError: The argument tracks_info must be an instance of one of the following 4 types: list[str], list[tuple[str]], list[list[str]], dict[str, str]
+
+        Returns:
+            pd.DataFrame: Recommendations playlist
+        """
+
+        if not (1 < K <= 100):
+            raise ValueError('K must be between 1 and 100')
+
+        if not (genres_info or artists_info or tracks_info):
+            raise ValueError('At least one of the three args must be provided: genres_info, artists_info, tracks_info')
+
+        if len(genres_info) + len(artists_info) + len(tracks_info) > 5:
+            raise ValueError('The sum of the number of items in each of the three args mustn\'t exceed 5')
+
+
+        url = f'https://api.spotify.com/v1/recommendations?limit={K}'
+
+        description = 'General Recommendation based on '
+
+        types = []
+
+        if artists_info:
+            types.append('artists')
+            description += 'the artists '
+            for artist in artists_info:
+                description += f'{artist}, '
+
+            description = ' and '.join(description[:-2].rsplit(', ', 1))
+
+            artists = list(map(lambda x: requests.get_request(url=f'https://api.spotify.com/v1/search?q={x}&type=artist&limit=1', headers=self.__headers).json()['artists']['items'][0]['id'], artists_info))
+            url += f'&seed_artists={",".join(artists)}'
+
+            if len(artists_info) == 1:
+                description = description.replace('artists', 'artist')
+
+        if genres_info:
+            types.append('genres')
+            url += f'&seed_genres={",".join(genres_info)}'
+
+            if artists_info and not tracks_info:
+                description += ', and the genres '
+                final_sep = ''
+            elif not artists_info and tracks_info:
+                description += 'the genres '
+                final_sep = ', and the tracks '
+            elif not (artists_info or tracks_info):
+                description += 'the genres '
+                final_sep = ''
+            else: # both artists and tracks exist
+                description += ', the genres '
+                final_sep = ', and the tracks '
+
+            for genre in genres_info:
+                description += f'{genre}, '
+
+            description = f"{' and '.join(description[:-2].rsplit(', ', 1)) if len(genres_info) > 1 else description[:-2]}{final_sep}"
+
+            if len(genres_info) == 1:
+                description = description.replace('genres', 'genre')
+
+
+        if tracks_info:
+            types.append('tracks')
+            if artists_info and not genres_info:
+                description += ', and the tracks '
+            elif not artists_info and not genres_info:
+                description += 'the tracks '
+
+
+            if isinstance(tracks_info, dict):
+                for song, artist in tracks_info.items():
+                    description += f'{song} by {artist}, '
+
+                tracks = [requests.get_request(url=f'https://api.spotify.com/v1/search?q={song} {artist}&type=track&limit=1', headers=self.__headers).json()['tracks']['items'][0]['id'] for song, artist in tracks_info.items()]
+
+
+            elif isinstance(tracks_info[0], tuple) or isinstance(tracks_info[0], list):
+                for song, artist in tracks_info:
+                    description += f'{song} by {artist}, '
+                tracks = [requests.get_request(url=f'https://api.spotify.com/v1/search?q={song} {artist}&type=track&limit=1', headers=self.__headers).json()['tracks']['items'][0]['id'] for song, artist in tracks_info]
+
+            elif isinstance(tracks_info[0], str):
+                for song in tracks_info:
+                    description += f'{song}, '
+                tracks = [requests.get_request(url=f'https://api.spotify.com/v1/search?q={song}&type=track&limit=1', headers=self.__headers).json()['tracks']['items'][0]['id'] for song in tracks_info]
+
+            else:
+                raise ValueError('The argument tracks_info must be an instance of one of the following 4 types: list[str], list[tuple[str]], list[list[str]], dict[str, str]')
+
+            description = ' and '.join(description[:-2].rsplit(', ', 1)) if len(artists_info) > 1 else description[:-2]
+
+            url += f'&seed_tracks={",".join(tracks)}'
+
+            if len(tracks_info) == 1:
+                description = description.replace('tracks', 'track')
+
+
+        if use_main_playlist_audio_features:
+
+            audio_statistics = self.audio_features_statistics()
+
+            min_tempo = audio_statistics['min_tempo'] * 0.8
+            max_tempo = audio_statistics['max_tempo'] * 1.2
+            target_tempo = audio_statistics['mean_tempo']
+            min_energy = audio_statistics['min_energy'] * 0.8
+            max_energy = audio_statistics['max_energy'] * 1.2
+            target_energy = audio_statistics['mean_energy']
+            min_valence = audio_statistics['min_valence'] * 0.8
+            max_valence = audio_statistics['max_valence'] * 1.2
+            target_valence = audio_statistics['mean_valence']
+            min_danceability = audio_statistics['min_danceability'] * 0.8
+            max_danceability = audio_statistics['max_danceability'] * 1.2
+            target_danceability = audio_statistics['mean_danceability']
+            min_instrumentalness = audio_statistics['min_instrumentalness'] * 0.8
+            max_instrumentalness = audio_statistics['max_instrumentalness'] * 1.2
+            target_instrumentalness = audio_statistics['mean_instrumentalness']
+
+
+            url += f'&{min_tempo=!s}&{max_tempo=!s}&{target_tempo=!s}&{min_energy=!s}&{max_energy=!s}&{target_energy=!s}&{min_valence=!s}&{max_valence=!s}&{target_valence=!s}&{min_danceability=!s}&{max_danceability=!s}&{target_danceability=!s}&{min_instrumentalness=!s}&{max_instrumentalness=!s}&{target_instrumentalness=!s}'
+
+        recommendations = requests.get_request(url=url, headers=self.__headers).json()
+
+        songs = []
+
+        for song in recommendations["tracks"]:
+            (id, name, popularity, artist), song_genres = util.song_data(song=song, added_at=False), self.__get_song_genres(song)
+            song['id'] = id
+            danceability, energy, instrumentalness, tempo, valence = util.query_audio_features(song=song, headers=self.__headers)
+            songs.append({
+                "id": id,
+                "name": name,
+                "artists": artist,
+                "popularity": popularity,
+                "genres": song_genres,
+                "danceability": danceability,
+                "energy": energy,
+                "instrumentalness": instrumentalness,
+                "tempo": tempo,
+                "valence": valence
+            })
+
+        recommendations_playlist = pd.DataFrame(data=songs)
+
+
+        if build_playlist:
+            ids = recommendations_playlist['id'].tolist()
+            types = ' and '.join(', '.join(types).rsplit(', ', 1)) if len(types) > 1 else types[0]
+            self.__general_recommendation_description = description
+            self.__general_recommendation_description_types = types
+
+            self.__write_playlist(
+                K=K,
+                type='general-recommendation',
                 additional_info=ids
             )
 
