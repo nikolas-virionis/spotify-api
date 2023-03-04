@@ -86,9 +86,9 @@ Though, to be honest, it is easier and more convenient to use the playlist URL
   Then request it, after that hit crtl+A / command+A to select it all then crtl+C / command+C to copy it.
   Then, back to python, paste it in the field requiring it and press enter.
   Then if you already have a previously generated CSV file format playlist, type csv then hit enter, if you do not have the playlist as previously generated, type web, but know that it will take a good while as said [here](#patience),and if this is the case, go get a cup of coffee, tea, or whatever you are into.
-  
+
 ## _*IMPORTANT*_
-  It is important to notice that the auth token only lasts for an hour and there is no way of making one last longer, so when the time comes, it will error out the function it's processing and the user should get another one and input it into the refresh_token() function 
+  It is important to notice that the auth token only lasts for an hour and there is no way of making one last longer, so when the time comes, it will error out the function it's processing and the user should get another one and input it into the refresh_token() function
 
 
 ## Methods
@@ -242,7 +242,34 @@ api.get_general_recommendation(build_playlist=True, artists_info=['NF', 'Logic']
 # genres_info, artists_info and tracks_info are the lists of information that the recommendation would be based on
 # use_main_playlist_audio_features is the flag to indicate if the playlist provided audio features will be used as target for a better recommendation
 # BUILD_PLAYLIST WILL CHANGE THE USER'S LIBRARY IF SET TO TRUE
+~~~~~~
+ - get_medium_term_favorites_playlist - DEPRECATED
+~~~python
+# Parameters
+get_medium_term_favorites_playlist(with_distance: bool, generate_csv: bool,
+                        generate_parquet: bool, build_playlist: bool)
+# Method Use Example
+api.get_medium_term_favorites_playlist(generate_csv=True, build_playlist=True)
+# Function that returns the pandas DataFrame representing the
+# medium term top 5 recommendation playlist
+# All parameters are defaulted to False
+# The "distance" is a mathematical value with no explicit units, that is
+# used by te algorithm to find the closest songs
+# BUILD_PLAYLIST WILL CHANGE THE USER'S LIBRARY IF SET TO TRUE
 ~~~
+ - get_short_term_favorites_playlist - DEPRECATED
+~~~python
+# Parameters
+get_short_term_favorites_playlist(with_distance: bool, generate_csv: bool,
+                        generate_parquet: bool, build_playlist: bool)
+# Method Use Example
+api.get_short_term_favorites_playlist(generate_csv=True, build_playlist=True)
+# Function that returns the pandas DataFrame representing the
+# short term top 5 recommendation playlist
+# All parameters are defaulted to False
+# The "distance" is a mathematical value with no explicit units, that is
+# used by te algorithm to find the closest songs
+# BUILD_PLAYLIST WILL CHANGE THE USER'S LIBRARY IF SET TO TRUE
 
 
 ## Suggestions
