@@ -1,8 +1,8 @@
-import time
-import json
+import warnings
 import datetime
+import functools
 import pandas as pd
-import spotify_recommender_api.requests as requests
+import spotify_recommender_api.request_handler as requests
 from dateutil import tz
 
 
@@ -30,26 +30,10 @@ def get_total_song_count(playlist_id: str, headers: dict) -> int:
     Returns:
         int: The total number of songs in the playlist
     """
-    playlist_res = requests.get_request(url=f'https://api.spotify.com/v1/playlists/{playlist_id}', headers=headers)
+    playlist_res = requests.get_request(
+        url=f'https://api.spotify.com/v1/playlists/{playlist_id}', headers=headers)
 
     return playlist_res.json()["tracks"]["total"]
-
-
-def add_items_to_list(item_list: 'list[str]', items: 'list[str]') -> 'list[str]':
-    """Function represents a way to have only unique values for a given list while constantly appending new genre values
-
-    Args:
-        item_list (list[str]): the overall, big, complete, list of items
-        items (list[str]): the possibly new item values
-
-    Returns:
-        list[str]: the new, and deduplicated, complete list of items
-    """
-    for item in items:
-        if item not in item_list:
-            item_list.append(item)
-
-    return item_list
 
 
 def song_data(song: dict, added_at: bool = True) -> 'tuple[str, str, float, list[str], datetime.datetime]':
@@ -62,9 +46,11 @@ def song_data(song: dict, added_at: bool = True) -> 'tuple[str, str, float, list
         tuple[str, str, float, list[str], datetime.datetime]: A tuple containing the song's information
     """
     try:
-        data = [song["track"]['id'], song["track"]['name'], song["track"]['popularity'], [artist["name"] for artist in song["track"]["artists"]]]
+        data = [song["track"]['id'], song["track"]['name'], song["track"]['popularity'], [
+            artist["name"] for artist in song["track"]["artists"]]]
     except KeyError:
-        data = [song['id'], song['name'], song['popularity'], [artist["name"] for artist in song["artists"]]]
+        data = [song['id'], song['name'], song['popularity'],
+                [artist["name"] for artist in song["artists"]]]
 
     if added_at:
         data.append(song['added_at'])
@@ -83,23 +69,8 @@ def item_list_indexed(items: 'list[str]', all_items: 'list[str]') -> 'list[int]'
     Returns:
         list[int]: indexed list of items in binary format in comparison to all the items inside the playlist
     """
-    indexed = []
-    for all_genres_x in all_items:
 
-        continue_outer = False
-        for item in items:
-            index = all_genres_x == item
-            if index:
-                continue_outer = True
-                indexed.append(int(True))
-                break
-
-        if continue_outer:
-            continue
-
-        indexed.append(int(False))
-
-    return indexed
+    return [int(all_genres_x in items) for all_genres_x in all_items]
 
 
 def playlist_exists(name: str, base_playlist_name: str, headers: dict, _update_created_playlists: bool = False) -> 'str|bool':
@@ -114,7 +85,8 @@ def playlist_exists(name: str, base_playlist_name: str, headers: dict, _update_c
     Returns:
         str|bool: If the playlist already exists, returns the id of the playlist, otherwise returns False
     """
-    total_playlist_count = requests.get_request(url='https://api.spotify.com/v1/me/playlists?limit=1', headers=headers).json()['total']
+    total_playlist_count = requests.get_request(
+        url='https://api.spotify.com/v1/me/playlists?limit=1', headers=headers).json()['total']
     playlists = []
     for offset in range(0, total_playlist_count, 50):
         request = requests.get_request(
@@ -126,13 +98,13 @@ def playlist_exists(name: str, base_playlist_name: str, headers: dict, _update_c
     return next(
         (
             playlist[0] for playlist in playlists
-                if playlist[1] == name and
-                    (
-                        ' Term Most-listened Tracks' in name or
-                        f', within the playlist {base_playlist_name}' in playlist[2] or
-                        _update_created_playlists or
-                        'Recommendation (' in name
-                    )
+            if playlist[1] == name and
+            (
+                ' Term Most-listened Tracks' in name or
+                f', within the playlist {base_playlist_name}' in playlist[2] or
+                _update_created_playlists or
+                'Recommendation (' in name
+            )
         ),
         False
     )
@@ -201,10 +173,7 @@ def list_to_count_dict(dictionary: dict, item: str) -> dict:
         dict: dictionary with the incremented value that represents the 'item' key
     """
 
-    if item in dictionary:
-        dictionary[item] += 1
-    else:
-        dictionary[item] = 1
+    dictionary[item] = dictionary.get(item, 0) + 1
 
     return dictionary
 
@@ -218,9 +187,11 @@ def value_dict_to_value_and_percentage_dict(dictionary: 'dict[str, int]') -> 'di
     Returns:
         dict[str, dict[str, float]]: new dictionary with values and total percentages
     """
-    dictionary = {key: {'value': value, 'percentage': round(value / dictionary['total'], 5)} for key, value in dictionary.items()}
+    dictionary = {key: {'value': value, 'percentage': round(
+        value / dictionary['total'], 5)} for key, value in dictionary.items()}
 
     return dictionary
+
 
 def print_base_caracteristics(*args):
     """
@@ -250,6 +221,7 @@ def print_base_caracteristics(*args):
     print(f'{tempo = }')
     print(f'{valence = }')
 
+
 def get_base_playlist_name(playlist_id: str, headers: dict) -> str:
     """Returns the base playlist name given the playlist id
 
@@ -267,3 +239,18 @@ def get_base_playlist_name(playlist_id: str, headers: dict) -> str:
     ).json()
 
     return playlist['name']
+
+
+def deprecated(func):
+    """This is a decorator which can be used to mark functions
+    as deprecated. It will result in a warning being emitted
+    when the function is used."""
+
+    @functools.wraps(func)
+    def new_func(*args, **kwargs):
+        warnings.simplefilter('always', DeprecationWarning)  # turn off filter
+        warnings.warn(
+            f"Call to deprecated function {func.__name__}.", category=DeprecationWarning, stacklevel=2)
+        warnings.simplefilter('default', DeprecationWarning)  # reset filter
+        return func(*args, **kwargs)
+    return new_func

@@ -4,11 +4,11 @@ import pandas as pd
 import seaborn as sns
 import matplotlib.pyplot as plt
 import spotify_recommender_api.util as util
-import spotify_recommender_api.requests as requests
+import spotify_recommender_api.request_handler as requests
 sns.set()
 
 
-def list_distance(a: 'list[int]', b: 'list[int]') -> int:
+def list_distance(indexed_genre_list_a: 'list[int]', indexed_genre_list_b: 'list[int]') -> int:
     """The weighted algorithm that calculates the distance between two songs according to either the distance between each song list of genres or the distance between each song list of artists
 
     Note:
@@ -25,16 +25,29 @@ def list_distance(a: 'list[int]', b: 'list[int]') -> int:
         int: The distance between the two indexed lists
     """
     distance = 0
-    for item_a, item_b in zip(a, b):
+    for item_a, item_b in zip(indexed_genre_list_a, indexed_genre_list_b):
         if item_a != item_b:
             distance += 0.4 if int(item_a) == 1 else 0.2
         elif int(item_a) == 1:
-                distance -= 0.4
+            distance -= 0.4
 
     return distance
 
 
-def compute_distance(a: 'list[int]', b: 'list[int]', artist_recommendation: bool = False) -> float:
+def calculate_total_distance(genres_distance: float, energy_distance: float, valence_distance: float, artists_distance: float, tempo_distance: float, danceability_distance: float, instrumentalness_distance: float, popularity_distance: float, artist_recommendation: bool) -> float:
+    return (
+        genres_distance * 0.8 +
+        energy_distance * 0.6 +
+        valence_distance * 0.9 +
+        artists_distance * 0.38 +
+        tempo_distance * 0.0025 +
+        danceability_distance * 0.25 +
+        instrumentalness_distance * 0.4 +
+        popularity_distance * (0.003 if artist_recommendation else 0.015)
+    )
+
+
+def compute_distance(song_a: 'dict[str,]', song_b: 'dict[str,]', artist_recommendation: bool = False) -> float:
     """The portion of the algorithm that calculates the overall distance between two songs regarding the following:
     - genres: the difference between the two song's genres, using the list_distance function above
     - artists: the difference between the two song's artists, using the list_distance function above
@@ -51,31 +64,36 @@ def compute_distance(a: 'list[int]', b: 'list[int]', artist_recommendation: bool
          - They have different importance levels to the final result of the calculation
 
     Args:
-        a (list[int]): the song a, having all it's caracteristics
-        b (list[int]): the song b, having all it's caracteristics
+        a (dict[str,]): the song a, having all it's caracteristics
+        b (dict[str,]): the song b, having all it's caracteristics
 
     Returns:
         float: the distance between the two songs
     # """
 
-    genres_distance = list_distance(a['genres_indexed'], b['genres_indexed'])
-    artists_distance = list_distance(a['artists_indexed'], b['artists_indexed'])
-    popularity_distance = abs(a['popularity'] - b['popularity'])
-    danceability_distance = abs(a['danceability'] - b['danceability'])
-    energy_distance = abs(a['energy'] - b['energy'])
-    instrumentalness_distance = abs(round(a['instrumentalness'], 2) - round(b['instrumentalness'], 2))
-    tempo_distance = abs(a['tempo'] - b['tempo'])
-    valence_distance = abs(a['valence'] - b['valence'])
+    genres_distance = list_distance(
+        song_a['genres_indexed'], song_b['genres_indexed'])
+    artists_distance = list_distance(
+        song_a['artists_indexed'], song_b['artists_indexed'])
+    popularity_distance = abs(song_a['popularity'] - song_b['popularity'])
+    danceability_distance = abs(
+        song_a['danceability'] - song_b['danceability'])
+    energy_distance = abs(song_a['energy'] - song_b['energy'])
+    instrumentalness_distance = abs(
+        round(song_a['instrumentalness'], 2) - round(song_b['instrumentalness'], 2))
+    tempo_distance = abs(song_a['tempo'] - song_b['tempo'])
+    valence_distance = abs(song_a['valence'] - song_b['valence'])
 
-    return (
-        genres_distance * 0.8 +
-        energy_distance * 0.6 +
-        valence_distance * 0.9 +
-        artists_distance * 0.38 +
-        tempo_distance * 0.0025 +
-        danceability_distance * 0.25 +
-        instrumentalness_distance * 0.4 +
-        popularity_distance * (0.003 if artist_recommendation else 0.015)
+    return calculate_total_distance(
+        tempo_distance=tempo_distance,
+        genres_distance=genres_distance,
+        energy_distance=energy_distance,
+        valence_distance=valence_distance,
+        artists_distance=artists_distance,
+        popularity_distance=popularity_distance,
+        danceability_distance=danceability_distance,
+        artist_recommendation=artist_recommendation,
+        instrumentalness_distance=instrumentalness_distance,
     )
 
 
@@ -166,9 +184,11 @@ def create_playlist(type: str, headers: dict, user_id: str, base_playlist_name: 
     if playlist_id_found := util.playlist_exists(name=playlist_name, base_playlist_name=base_playlist_name, headers=headers, _update_created_playlists=_update_created_playlists):
         new_id = playlist_id_found
 
-        playlist_tracks = list(map(lambda track: {'uri': track['track']['uri']}, requests.get_request(url=f'https://api.spotify.com/v1/playlists/{new_id}/tracks', headers=headers).json()['items']))
+        playlist_tracks = list(map(lambda track: {'uri': track['track']['uri']}, requests.get_request(
+            url=f'https://api.spotify.com/v1/playlists/{new_id}/tracks', headers=headers).json()['items']))
 
-        delete_json = requests.delete_request(url=f'https://api.spotify.com/v1/playlists/{new_id}/tracks', headers=headers, data={"tracks": playlist_tracks}).json()
+        delete_json = requests.delete_request(
+            url=f'https://api.spotify.com/v1/playlists/{new_id}/tracks', headers=headers, data={"tracks": playlist_tracks}).json()
 
         if _update_created_playlists:
             data = {
@@ -177,9 +197,8 @@ def create_playlist(type: str, headers: dict, user_id: str, base_playlist_name: 
                 "public": False
             }
 
-            update_playlist_details = requests.put_request(url=f'https://api.spotify.com/v1/playlists/{new_id}', headers=headers, data=data)
-
-
+            update_playlist_details = requests.put_request(
+                url=f'https://api.spotify.com/v1/playlists/{new_id}', headers=headers, data=data)
 
     else:
         data = {
@@ -187,10 +206,12 @@ def create_playlist(type: str, headers: dict, user_id: str, base_playlist_name: 
             "description": description,
             "public": False
         }
-        playlist_creation = requests.post_request(url=f'https://api.spotify.com/v1/users/{user_id}/playlists', headers=headers, data=data)
+        playlist_creation = requests.post_request(
+            url=f'https://api.spotify.com/v1/users/{user_id}/playlists', headers=headers, data=data)
         new_id = playlist_creation.json()['id']
 
     return new_id
+
 
 def create_playlist_data_dict(row) -> dict:
     """Function to be applied to the pandas DataFrame to create a dictionary with each row's information
@@ -216,6 +237,7 @@ def create_playlist_data_dict(row) -> dict:
         'genres_indexed': row['genres_indexed'],
         'artists_indexed': row['artists_indexed']
     }
+
 
 def knn_prepared_data(playlist: pd.DataFrame) -> 'list[dict[str,]]':
     """Function to prepare the data for the algorithm which calculates the distances between the songs
@@ -268,7 +290,7 @@ def plot_bar_chart(df: pd.DataFrame, chart_title: str = None, top: int = 10, plo
         print(f'Total number of songs: {df["number of songs"][0]}')
         df = df[df['name'] != ''][1:top + 1]
 
-    plt.figure(figsize=(15,10))
+    plt.figure(figsize=(15, 10))
 
     sns.color_palette('bright')
 
