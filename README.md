@@ -86,6 +86,9 @@ Though, to be honest, it is easier and more convenient to use the playlist URL
   Then request it, after that hit crtl+A / command+A to select it all then crtl+C / command+C to copy it.
   Then, back to python, paste it in the field requiring it and press enter.
   Then if you already have a previously generated CSV file format playlist, type csv then hit enter, if you do not have the playlist as previously generated, type web, but know that it will take a good while as said [here](#patience),and if this is the case, go get a cup of coffee, tea, or whatever you are into.
+  
+## _*IMPORTANT*_
+  It is important to notice that the auth token only lasts for an hour and there is no way of making one last longer, so when the time comes, it will error out the function it's processing and the user should get another one and input it into the refresh_token() function 
 
 
 ## Methods
