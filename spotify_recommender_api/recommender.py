@@ -746,7 +746,7 @@ class SpotifyAPI:
         """
         return self.__playlist[['id', 'name', 'artists', 'genres', 'popularity', 'added_at', 'danceability', 'energy', 'instrumentalness', 'tempo', 'valence']]
 
-    @util.deprecated
+    # @util.deprecated
     def get_short_term_favorites_playlist(
         self,
         generate_csv: bool = False,
@@ -784,7 +784,7 @@ class SpotifyAPI:
 
         return df if with_distance else df.drop(columns=['distance'])
 
-    @util.deprecated
+    # @util.deprecated
     def get_medium_term_favorites_playlist(self, with_distance: bool = False, generate_csv: bool = False, generate_parquet: bool = False, build_playlist: bool = False) -> pd.DataFrame:
         """###DEPRECATED METHOD###\n
         Playlist which centralises the actions for a recommendation made for top 5 songs medium term
