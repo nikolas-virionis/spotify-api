@@ -270,7 +270,7 @@ api.get_short_term_favorites_playlist(generate_csv=True, build_playlist=True)
 # The "distance" is a mathematical value with no explicit units, that is
 # used by te algorithm to find the closest songs
 # BUILD_PLAYLIST WILL CHANGE THE USER'S LIBRARY IF SET TO TRUE
-
+~~~
 
 ## Suggestions
  - ### Advice towards leaving everything more organized <br>
