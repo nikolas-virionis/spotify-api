@@ -1,15 +1,50 @@
-import webbrowser
+import os
+from spotify_recommender_api.sensitive import *
+from spotify_recommender_api.server import up_server
+from spotify_recommender_api.request_handler import post_request_with_auth
 
-def get_auth():
-    print('In order to get the authentication code that allows everything to work nicely, you have to get to the spotify console and set the OAuth token scopes (powers) as follow, then you click onto the token then ctrl + A, to select it all, then crtl + C to copy it, then provide it to the class constructor and its all set\n')
-    scope = 'playlist-modify-private playlist-read-private user-library-read user-library-modify user-top-read\n'
 
-    print(scope)
-    answer = input("Ready to be redirected to get the token (y/n)? ")
-    while answer.lower() not in ['y', 'n']:
-        answer = input("Please select a valid response about being redirected to get the token: ")
-    if answer.lower() == 'y':
-        webbrowser.open('https://developer.spotify.com/console/get-artist/')
-    else:
-        print('In order to get the token and use this lib, it is necessary to get the auth token')
+def get_auth() -> str:
+    """Function to retrieve the authentication token for the first time in the execution
 
+    Returns:
+        str: Auth Token
+    """
+    up_server()
+
+    with open('./.spotify-recommender-util/execution.txt', 'r') as f:
+        auth_token = f.readline()
+
+    if os.path.exists("./.spotify-recommender-util/execution-status.txt"):
+        os.remove("./.spotify-recommender-util/execution-status.txt")
+
+    return auth_token
+
+
+def refresh_token() -> str:
+    """Function to refresh the auth token
+
+    Returns:
+        str: Refreshed auth token
+    """
+
+    print('Retrieving refresh token')
+
+    with open('./.spotify-recommender-util/execution.txt', 'r') as f:
+        refresh_token = f.readline()
+
+    req = post_request_with_auth(
+        url="https://accounts.spotify.com/api/token",
+        auth=(CLIENT_ID, CLIENT_SECRET),
+        data={
+            'grant_type': 'refresh_token',
+            'refresh_token': refresh_token
+        }
+    )
+
+    token = req['access_token']
+
+    with open('./.spotify-recommender-util/execution.txt', 'w') as f:
+        f.write(token)
+
+    return token
