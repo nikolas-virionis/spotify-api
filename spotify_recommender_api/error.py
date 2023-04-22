@@ -1,3 +1,5 @@
+from typing import Callable
+
 class HTTPRequestError(Exception):
     """Generic exception for HTTP Request Exceptions
         It can receive the error code and function name, and the function arguments, besides the message, to better help debugging the error
@@ -31,3 +33,17 @@ class TooManyRequestsError(HTTPRequestError):
     """
     def __init__(self, func_name=None, message=None, *args, **kwargs):
         super().__init__(err_code='429 Too Many Requests', func_name=func_name, message=message, *args, **kwargs)
+
+class AccessTokenExpiredError(HTTPRequestError):
+    """Exception raised when the SpofifyAPI access token has expired
+        It can receive the function name and the function arguments, besides the message, to better help debugging the error
+    """
+    func: Callable
+    args: list
+    kwargs: 'dict[str,]'
+
+    def __init__(self, func_name: str = None, func: Callable = None, message: str = None, *args, **kwargs):
+        super().__init__(err_code='401 Access Token Expired', func_name=func_name, message=message, *args, **kwargs)
+        self.func = func
+        self.args = args
+        self.kwargs = kwargs
