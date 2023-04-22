@@ -4,10 +4,11 @@ import operator
 import pandas as pd
 import spotify_recommender_api.util as util
 import spotify_recommender_api.core as core
+import spotify_recommender_api.authentication as auth
 import spotify_recommender_api.request_handler as requests
 from functools import reduce
 from spotify_recommender_api.sensitive import *
-from spotify_recommender_api.authentication import get_auth
+from spotify_recommender_api.error import AccessTokenExpiredError
 
 
 pd.options.mode.chained_assignment = None
@@ -114,10 +115,12 @@ class SpotifyAPI:
         """
         self.__all_genres = []
         try:
-            for offset in range(0, util.get_total_song_count(playlist_id=self.__playlist_id, headers=self.__headers), 100):
+            total_song_count = util.get_total_song_count(playlist_id=self.__playlist_id, headers=self.__headers)
+            for offset in range(0, total_song_count, 100):
+                print(f'Songs mapped: {offset}/{total_song_count}')
                 all_genres_res = requests.get_request(
                     headers=self.__headers,
-                    url=f'https://api.spotify.com/v1/playlists/{self.__playlist_id}/tracks?limit=100&{offset=}'
+                    url=f'https://api.spotify.com/v1/playlists/{self.__playlist_id}/tracks?limit=100&{offset=!s}'
                 )
                 for song in all_genres_res.json()["items"]:
                     (id, name, popularity, artist, added_at), song_genres = util.song_data(
@@ -216,11 +219,14 @@ class SpotifyAPI:
             self.__playlist_id = util.playlist_url_to_id(url=playlist_url)
             self.__playlist_url = playlist_url
 
-        self.__base_playlist_name = util.get_base_playlist_name(
-            playlist_id=self.__playlist_id, headers=self.__headers)
+        self.__base_playlist_name = util.get_base_playlist_name(playlist_id=self.__playlist_id, headers=self.__headers)
+
+        print('Mapping playlist items')
 
         if self.__get_playlist():
             self.__get_playlist_items()
+
+        print('Seting up some operations with the playlist')
 
         self.__playlist_adjustments()
 
@@ -470,25 +476,40 @@ class SpotifyAPI:
                     f'Value for K must be between 1 and 1500 on creation of recommendation for the song {song}')
 
             self.__song_name = song
-            df = self.__get_recommendations('song', song, K)
-            playlist_name = f'{song} Related'
 
-            if print_base_caracteristics:
-                index = self.__get_index_for_song(song)
-                caracteristics = self.__song_dict[index]
-                name, genres, artists, popularity, _, danceability, energy, instrumentalness, tempo, valence = list(
-                    caracteristics.values())[1:11]
-                util.print_base_caracteristics(
-                    name, genres, artists, popularity, danceability, energy, instrumentalness, tempo, valence)
+            for _ in range(2):
+                try:
 
-            if generate_csv:
-                df.to_csv(f'{playlist_name}.csv')
+                    df = self.__get_recommendations('song', song, K)
+                    playlist_name = f'{song} Related'
 
-            if generate_parquet:
-                df.to_parquet(f'{playlist_name}.parquet', compression='snappy')
+                    if print_base_caracteristics:
+                        index = self.__get_index_for_song(song)
+                        caracteristics = self.__song_dict[index]
+                        name, genres, artists, popularity, _, danceability, energy, instrumentalness, tempo, valence = list(
+                            caracteristics.values())[1:11]
+                        util.print_base_caracteristics(
+                            name, genres, artists, popularity, danceability, energy, instrumentalness, tempo, valence)
 
-            if build_playlist:
-                self.__write_playlist('song', K, additional_info=song)
+                    if generate_csv:
+                        df.to_csv(f'{playlist_name}.csv')
+
+                    if generate_parquet:
+                        df.to_parquet(f'{playlist_name}.parquet', compression='snappy')
+
+                    if build_playlist:
+                        self.__write_playlist('song', K, additional_info=song)
+
+
+                except AccessTokenExpiredError as e:
+                    print('Error due to the access token expiration')
+                    auth_token = auth.refresh_token()
+
+                    self.__auth_token = auth_token
+
+                    self.__headers['Authorization'] = f'Bearer {auth_token}'
+                else:
+                    break
 
             return df if with_distance else df.drop(columns=['distance'])
 
@@ -746,7 +767,7 @@ class SpotifyAPI:
         """
         return self.__playlist[['id', 'name', 'artists', 'genres', 'popularity', 'added_at', 'danceability', 'energy', 'instrumentalness', 'tempo', 'valence']]
 
-    # @util.deprecated
+    @util.deprecated
     def get_short_term_favorites_playlist(
         self,
         generate_csv: bool = False,
@@ -784,7 +805,7 @@ class SpotifyAPI:
 
         return df if with_distance else df.drop(columns=['distance'])
 
-    # @util.deprecated
+    @util.deprecated
     def get_medium_term_favorites_playlist(self, with_distance: bool = False, generate_csv: bool = False, generate_parquet: bool = False, build_playlist: bool = False) -> pd.DataFrame:
         """###DEPRECATED METHOD###\n
         Playlist which centralises the actions for a recommendation made for top 5 songs medium term
@@ -819,6 +840,7 @@ class SpotifyAPI:
     def __prepare_favorites_playlist(self):
         """###DEPRECATED METHOD###\n
         Note: Although this method and the whole medium and short term favorite category is deprecated, this method will stil run, since somebody may want to use it. Having that said, I do not recommend it
+
         Automatic creation of both the favorites related recommendations
         """
         try:
@@ -852,15 +874,28 @@ class SpotifyAPI:
             raise ValueError(
                 f'Value for K must be between 1 and 1500: {time_range} term most listened')
 
-        top = requests.get_request(
-            url=f'https://api.spotify.com/v1/me/top/tracks?{time_range=!s}_term&limit={K}', headers=self.__headers).json()
+        for _ in range(2):
+            try:
 
-        top_songs = list(map(lambda song: {'id': song['id'], 'name': song['name'], 'genres': self.__get_song_genres(song), 'artists': list(map(
-            lambda artist: artist['name'], song['artists'])), 'popularity': song['popularity']}, top['items']))
+                top = requests.get_request(
+                    url=f'https://api.spotify.com/v1/me/top/tracks?{time_range=!s}_term&limit={K}', headers=self.__headers).json()
 
-        if build_playlist:
-            self.__write_playlist(
-                f'most-listened-{time_range}', K, additional_info=list(map(lambda x: x['id'], top_songs)))
+                top_songs = list(map(lambda song: {'id': song['id'], 'name': song['name'], 'genres': self.__get_song_genres(song), 'artists': list(map(
+                    lambda artist: artist['name'], song['artists'])), 'popularity': song['popularity']}, top['items']))
+
+                if build_playlist:
+                    self.__write_playlist(
+                        f'most-listened-{time_range}', K, additional_info=list(map(lambda x: x['id'], top_songs)))
+
+            except AccessTokenExpiredError as e:
+                print('Error due to the access token expiration')
+                auth_token = auth.refresh_token()
+
+                self.__auth_token = auth_token
+
+                self.__headers['Authorization'] = f'Bearer {auth_token}'
+            else:
+                break
 
         return pd.DataFrame(data=list(map(lambda x: {'name': x['name'], 'genres': x['genres'], 'artists': x['artists'], 'popularity': x['popularity']}, top_songs)), columns=['name', 'artists', 'genres', 'popularity'])
 
@@ -1134,7 +1169,7 @@ class SpotifyAPI:
                 mix_songs = self.__get_recommendations(
                     'artist-related', song_dict, K=K-len(artist_songs))
 
-                ids = artist_songs['id'].append(mix_songs['id'])
+                ids = pd.concat([artist_songs['id'], mix_songs['id']])
 
                 if with_distance:
                     df = artist_songs[columns]
@@ -1143,10 +1178,10 @@ class SpotifyAPI:
 
                     df['distance'] = pd.to_numeric(0)
 
-                    df = df[columns].append(mix_songs[columns])
+                    df = pd.concat([df[columns], mix_songs[columns]])
 
                 else:
-                    df = artist_songs[columns].append(mix_songs[columns])
+                    df = pd.concat([artist_songs[columns], mix_songs[columns]])
 
                 if print_base_caracteristics and not _auto:
                     name = artist_songs_record['name']
@@ -1212,15 +1247,12 @@ class SpotifyAPI:
             'instrumentalness', ascending=True)
         df_tempo = df.sort_values('tempo', ascending=True)
         df_valence = df.sort_values('valence', ascending=True)
-        mean_danceability = df['danceability'].mean()
         max_danceability = df_danceability.tail(n=1).reset_index(drop=True)
         min_danceability = df_danceability.head(n=1).reset_index(drop=True)
         max_energy = df_energy.tail(n=1).reset_index(drop=True)
         min_energy = df_energy.head(n=1).reset_index(drop=True)
-        max_instrumentalness = df_instrumentalness.tail(
-            n=1).reset_index(drop=True)
-        min_instrumentalness = df_instrumentalness.head(
-            n=1).reset_index(drop=True)
+        max_instrumentalness = df_instrumentalness.tail(n=1).reset_index(drop=True)
+        min_instrumentalness = df_instrumentalness.head(n=1).reset_index(drop=True)
         max_tempo = df_tempo.tail(n=1).reset_index(drop=True)
         min_tempo = df_tempo.head(n=1).reset_index(drop=True)
         max_valence = df_valence.tail(n=1).reset_index(drop=True)
@@ -1359,8 +1391,10 @@ class SpotifyAPI:
             },
         }
 
+    @util.deprecated
     def refresh_token(self, token: str):
-        """Refreshes the authorization token for the Spotify API, so that it is not necessary to rerun the entire script using the package to reauthenticate
+        """###DEPRECATED METHOD###
+        Refreshes the authorization token for the Spotify API, so that it is not necessary to rerun the entire script using the package to reauthenticate
 
         Args:
             token (str): Token generated from the Spotify API Console, with the following scopes:
@@ -1435,82 +1469,95 @@ class SpotifyAPI:
             raise ValueError(
                 "main_criteria must be one of the following: 'mixed', 'artists', 'tracks', 'genres'")
 
-        if main_criteria != 'tracks':
-            if self.__top_genres or self.__top_artists:
-                genres = self.__top_genres
-                artists = self.__top_artists
+        for _ in range(2):
+            try:
 
+                if main_criteria != 'tracks':
+                    if self.__top_genres or self.__top_artists:
+                        genres = self.__top_genres
+                        artists = self.__top_artists
+
+                    else:
+                        top_artists_req = requests.get_request(
+                            url='https://api.spotify.com/v1/me/top/artists?time_range=short_term&limit=5', headers=self.__headers).json()['items']
+
+                        artists = list(map(lambda x: x['id'], top_artists_req))
+                        genres = list(set(reduce(
+                            lambda x, y: x + y, list(map(lambda x: x['genres'], top_artists_req)), [])))[:5]
+                        self.__top_genres = genres
+                        self.__top_artists = artists
+                if main_criteria not in ['artists']:
+                    if self.__top_tracks:
+                        tracks = self.__top_tracks
+
+                    else:
+                        tracks = list(map(lambda x: x['id'], requests.get_request(
+                            url='https://api.spotify.com/v1/me/top/tracks?time_range=short_term&limit=5', headers=self.__headers).json()['items']))
+
+                        self.__top_tracks = tracks
+                url = f'https://api.spotify.com/v1/recommendations?limit={K}'
+
+                if main_criteria == 'artists':
+                    url += f'&seed_artists={",".join(artists)}'
+                elif main_criteria == 'genres':
+                    url += f'&seed_genres={",".join(genres[:4])}&seed_tracks={",".join(tracks[:1])}'
+                elif main_criteria == 'mixed':
+                    url += f'&seed_tracks={",".join(tracks[:2])}&seed_artists={",".join(artists[:1])}&seed_genres={",".join(genres[:2])}'
+                elif main_criteria == 'tracks':
+                    url += f'&seed_tracks={",".join(tracks)}'
+
+                recommendations = requests.get_request(
+                    url=url, headers=self.__headers).json()
+
+                if not recommendations.get("tracks"):
+                    print(
+                        f'There was a problem creating the profile recommendations based on {main_criteria}')
+                    return
+
+                songs = []
+
+                for song in recommendations["tracks"]:
+                    (id, name, popularity, artist), song_genres = util.song_data(
+                        song=song, added_at=False), self.__get_song_genres(song)
+                    song['id'] = id
+                    danceability, energy, instrumentalness, tempo, valence = util.query_audio_features(
+                        song=song, headers=self.__headers)
+                    songs.append({
+                        "id": id,
+                        "name": name,
+                        "artists": artist,
+                        "popularity": popularity,
+                        "genres": song_genres,
+                        "danceability": danceability,
+                        "energy": energy,
+                        "instrumentalness": instrumentalness,
+                        "tempo": tempo,
+                        "valence": valence
+                    })
+
+                recommendations_playlist = pd.DataFrame(data=songs)
+
+                ids = recommendations_playlist['id'].tolist()
+
+                if build_playlist:
+                    self.__profile_recommendation_date = save_with_date
+                    self.__profile_recommendation_criteria = main_criteria
+
+                    self.__write_playlist(
+                        K=K,
+                        type='profile-recommendation',
+                        additional_info=ids
+                    )
+
+            except AccessTokenExpiredError as e:
+                print('Error due to the access token expiration')
+                auth_token = auth.refresh_token()
+
+                self.__auth_token = auth_token
+
+                self.__headers['Authorization'] = f'Bearer {auth_token}'
             else:
-                top_artists_req = requests.get_request(
-                    url='https://api.spotify.com/v1/me/top/artists?time_range=short_term&limit=5', headers=self.__headers).json()['items']
-
-                artists = list(map(lambda x: x['id'], top_artists_req))
-                genres = list(set(reduce(
-                    lambda x, y: x + y, list(map(lambda x: x['genres'], top_artists_req)), [])))[:5]
-                self.__top_genres = genres
-                self.__top_artists = artists
-        if main_criteria not in ['artists']:
-            if self.__top_tracks:
-                tracks = self.__top_tracks
-
-            else:
-                tracks = list(map(lambda x: x['id'], requests.get_request(
-                    url='https://api.spotify.com/v1/me/top/tracks?time_range=short_term&limit=5', headers=self.__headers).json()['items']))
-
-                self.__top_tracks = tracks
-        url = f'https://api.spotify.com/v1/recommendations?limit={K}'
-
-        if main_criteria == 'artists':
-            url += f'&seed_artists={",".join(artists)}'
-        elif main_criteria == 'genres':
-            url += f'&seed_genres={",".join(genres[:4])}&seed_tracks={",".join(tracks[:1])}'
-        elif main_criteria == 'mixed':
-            url += f'&seed_tracks={",".join(tracks[:2])}&seed_artists={",".join(artists[:1])}&seed_genres={",".join(genres[:2])}'
-        elif main_criteria == 'tracks':
-            url += f'&seed_tracks={",".join(tracks)}'
-
-        recommendations = requests.get_request(
-            url=url, headers=self.__headers).json()
-
-        if not recommendations.get("tracks"):
-            print(
-                f'There was a problem creating the profile recommendations based on {main_criteria}')
-            return
-
-        songs = []
-
-        for song in recommendations["tracks"]:
-            (id, name, popularity, artist), song_genres = util.song_data(
-                song=song, added_at=False), self.__get_song_genres(song)
-            song['id'] = id
-            danceability, energy, instrumentalness, tempo, valence = util.query_audio_features(
-                song=song, headers=self.__headers)
-            songs.append({
-                "id": id,
-                "name": name,
-                "artists": artist,
-                "popularity": popularity,
-                "genres": song_genres,
-                "danceability": danceability,
-                "energy": energy,
-                "instrumentalness": instrumentalness,
-                "tempo": tempo,
-                "valence": valence
-            })
-
-        recommendations_playlist = pd.DataFrame(data=songs)
-
-        ids = recommendations_playlist['id'].tolist()
-
-        if build_playlist:
-            self.__profile_recommendation_date = save_with_date
-            self.__profile_recommendation_criteria = main_criteria
-
-            self.__write_playlist(
-                K=K,
-                type='profile-recommendation',
-                additional_info=ids
-            )
+                break
 
         return recommendations_playlist
 
@@ -1546,94 +1593,107 @@ class SpotifyAPI:
             raise ValueError(
                 "main_criteria must be one of the following: 'mixed', 'artists', 'tracks', 'genres'")
 
-        audio_statistics = self.audio_features_statistics()
 
-        if main_criteria not in ['genres', 'tracks']:
-            top_artists_names = self.get_playlist_trending_artists(time_range=time_range)[
-                'name'][1:6].tolist()
-            artists = list(map(lambda x: requests.get_request(
-                url=f'https://api.spotify.com/v1/search?q={x}&type=artist&limit=1', headers=self.__headers).json()['artists']['items'][0]['id'], top_artists_names))
+        for _ in range(2):
+            try:
+                audio_statistics = self.audio_features_statistics()
 
-        if main_criteria not in ['artists']:
-            if self.__top_tracks:
-                tracks = self.__top_tracks
+                if main_criteria not in ['genres', 'tracks']:
+                    top_artists_names = self.get_playlist_trending_artists(time_range=time_range)[
+                        'name'][1:6].tolist()
+                    artists = list(map(lambda x: requests.get_request(
+                        url=f'https://api.spotify.com/v1/search?q={x}&type=artist&limit=1', headers=self.__headers).json()['artists']['items'][0]['id'], top_artists_names))
 
+                if main_criteria not in ['artists']:
+                    if self.__top_tracks:
+                        tracks = self.__top_tracks
+
+                    else:
+                        tracks = list(map(lambda x: x['id'], requests.get_request(
+                            url='https://api.spotify.com/v1/me/top/tracks?time_range=short_term&limit=5', headers=self.__headers).json()['items']))
+
+                        self.__top_tracks = tracks
+                if main_criteria != 'artists':
+                    genres = self.get_playlist_trending_genres(time_range=time_range)[
+                        'name'][1:6].tolist()[:5]
+
+                min_tempo = audio_statistics['min_tempo'] * 0.8
+                max_tempo = audio_statistics['max_tempo'] * 1.2
+                target_tempo = audio_statistics['mean_tempo']
+                min_energy = audio_statistics['min_energy'] * 0.8
+                max_energy = audio_statistics['max_energy'] * 1.2
+                target_energy = audio_statistics['mean_energy']
+                min_valence = audio_statistics['min_valence'] * 0.8
+                max_valence = audio_statistics['max_valence'] * 1.2
+                target_valence = audio_statistics['mean_valence']
+                min_danceability = audio_statistics['min_danceability'] * 0.8
+                max_danceability = audio_statistics['max_danceability'] * 1.2
+                target_danceability = audio_statistics['mean_danceability']
+                min_instrumentalness = audio_statistics['min_instrumentalness'] * 0.8
+                max_instrumentalness = audio_statistics['max_instrumentalness'] * 1.2
+                target_instrumentalness = audio_statistics['mean_instrumentalness']
+
+                url = f'https://api.spotify.com/v1/recommendations?limit={K}'
+
+                if main_criteria == 'artists':
+                    url += f'&seed_artists={",".join(artists)}'
+
+                elif main_criteria == 'genres':
+                    url += f'&seed_genres={",".join(genres[:4])}&seed_tracks={",".join(tracks[:1])}'
+                elif main_criteria == 'mixed':
+                    url += f'&seed_tracks={",".join(tracks[:1])}&seed_artists={",".join(artists[:2])}&seed_genres={",".join(genres[:2])}'
+                elif main_criteria == 'tracks':
+                    url += f'&seed_tracks={",".join(tracks[:2])}&seed_genres={",".join(genres[:3])}'
+                url += f'&{min_tempo=!s}&{max_tempo=!s}&{target_tempo=!s}&{min_energy=!s}&{max_energy=!s}&{target_energy=!s}&{min_valence=!s}&{max_valence=!s}&{target_valence=!s}&{min_danceability=!s}&{max_danceability=!s}&{target_danceability=!s}&{min_instrumentalness=!s}&{max_instrumentalness=!s}&{target_instrumentalness=!s}'
+
+                recommendations = requests.get_request(
+                    url=url, headers=self.__headers).json()
+
+                songs = []
+
+                for song in recommendations["tracks"]:
+                    (id, name, popularity, artist), song_genres = util.song_data(
+                        song=song, added_at=False), self.__get_song_genres(song)
+                    song['id'] = id
+                    danceability, energy, instrumentalness, tempo, valence = util.query_audio_features(
+                        song=song, headers=self.__headers)
+                    songs.append({
+                        "id": id,
+                        "name": name,
+                        "artists": artist,
+                        "popularity": popularity,
+                        "genres": song_genres,
+                        "danceability": danceability,
+                        "energy": energy,
+                        "instrumentalness": instrumentalness,
+                        "tempo": tempo,
+                        "valence": valence
+                    })
+
+                recommendations_playlist = pd.DataFrame(data=songs)
+
+                ids = recommendations_playlist['id'].tolist()
+
+                if build_playlist:
+                    self.__playlist_recommendation_date = save_with_date
+                    self.__playlist_recommendation_time_range = time_range
+                    self.__playlist_recommendation_criteria = main_criteria
+
+                    self.__write_playlist(
+                        K=K,
+                        type='playlist-recommendation',
+                        additional_info=ids
+                    )
+
+            except AccessTokenExpiredError as e:
+                print('Error due to the access token expiration')
+                auth_token = auth.refresh_token()
+
+                self.__auth_token = auth_token
+
+                self.__headers['Authorization'] = f'Bearer {auth_token}'
             else:
-                tracks = list(map(lambda x: x['id'], requests.get_request(
-                    url='https://api.spotify.com/v1/me/top/tracks?time_range=short_term&limit=5', headers=self.__headers).json()['items']))
-
-                self.__top_tracks = tracks
-        if main_criteria != 'artists':
-            genres = self.get_playlist_trending_genres(time_range=time_range)[
-                'name'][1:6].tolist()[:5]
-
-        min_tempo = audio_statistics['min_tempo'] * 0.8
-        max_tempo = audio_statistics['max_tempo'] * 1.2
-        target_tempo = audio_statistics['mean_tempo']
-        min_energy = audio_statistics['min_energy'] * 0.8
-        max_energy = audio_statistics['max_energy'] * 1.2
-        target_energy = audio_statistics['mean_energy']
-        min_valence = audio_statistics['min_valence'] * 0.8
-        max_valence = audio_statistics['max_valence'] * 1.2
-        target_valence = audio_statistics['mean_valence']
-        min_danceability = audio_statistics['min_danceability'] * 0.8
-        max_danceability = audio_statistics['max_danceability'] * 1.2
-        target_danceability = audio_statistics['mean_danceability']
-        min_instrumentalness = audio_statistics['min_instrumentalness'] * 0.8
-        max_instrumentalness = audio_statistics['max_instrumentalness'] * 1.2
-        target_instrumentalness = audio_statistics['mean_instrumentalness']
-
-        url = f'https://api.spotify.com/v1/recommendations?limit={K}'
-
-        if main_criteria == 'artists':
-            url += f'&seed_artists={",".join(artists)}'
-
-        elif main_criteria == 'genres':
-            url += f'&seed_genres={",".join(genres[:4])}&seed_tracks={",".join(tracks[:1])}'
-        elif main_criteria == 'mixed':
-            url += f'&seed_tracks={",".join(tracks[:1])}&seed_artists={",".join(artists[:2])}&seed_genres={",".join(genres[:2])}'
-        elif main_criteria == 'tracks':
-            url += f'&seed_tracks={",".join(tracks[:2])}&seed_genres={",".join(genres[:3])}'
-        url += f'&{min_tempo=!s}&{max_tempo=!s}&{target_tempo=!s}&{min_energy=!s}&{max_energy=!s}&{target_energy=!s}&{min_valence=!s}&{max_valence=!s}&{target_valence=!s}&{min_danceability=!s}&{max_danceability=!s}&{target_danceability=!s}&{min_instrumentalness=!s}&{max_instrumentalness=!s}&{target_instrumentalness=!s}'
-
-        recommendations = requests.get_request(
-            url=url, headers=self.__headers).json()
-
-        songs = []
-
-        for song in recommendations["tracks"]:
-            (id, name, popularity, artist), song_genres = util.song_data(
-                song=song, added_at=False), self.__get_song_genres(song)
-            song['id'] = id
-            danceability, energy, instrumentalness, tempo, valence = util.query_audio_features(
-                song=song, headers=self.__headers)
-            songs.append({
-                "id": id,
-                "name": name,
-                "artists": artist,
-                "popularity": popularity,
-                "genres": song_genres,
-                "danceability": danceability,
-                "energy": energy,
-                "instrumentalness": instrumentalness,
-                "tempo": tempo,
-                "valence": valence
-            })
-
-        recommendations_playlist = pd.DataFrame(data=songs)
-
-        ids = recommendations_playlist['id'].tolist()
-
-        if build_playlist:
-            self.__playlist_recommendation_date = save_with_date
-            self.__playlist_recommendation_time_range = time_range
-            self.__playlist_recommendation_criteria = main_criteria
-
-            self.__write_playlist(
-                K=K,
-                type='playlist-recommendation',
-                additional_info=ids
-            )
+                break
 
         return recommendations_playlist
 
@@ -1684,144 +1744,156 @@ class SpotifyAPI:
 
         types = []
 
-        if artists_info:
-            types.append('artists')
-            description += 'the artists '
-            for artist in artists_info:
-                description += f'{artist}, '
+        for _ in range(2):
+            try:
 
-            description = ' and '.join(description[:-2].rsplit(', ', 1))
+                if artists_info:
+                    types.append('artists')
+                    description += 'the artists '
+                    for artist in artists_info:
+                        description += f'{artist}, '
 
-            artists = list(map(lambda x: requests.get_request(
-                url=f'https://api.spotify.com/v1/search?q={x}&type=artist&limit=1', headers=self.__headers).json()['artists']['items'][0]['id'], artists_info))
-            url += f'&seed_artists={",".join(artists)}'
+                    description = ' and '.join(description[:-2].rsplit(', ', 1))
 
-            if len(artists_info) == 1:
-                description = description.replace('artists', 'artist')
+                    artists = list(map(lambda x: requests.get_request(
+                        url=f'https://api.spotify.com/v1/search?q={x}&type=artist&limit=1', headers=self.__headers).json()['artists']['items'][0]['id'], artists_info))
+                    url += f'&seed_artists={",".join(artists)}'
 
-        if genres_info:
-            types.append('genres')
-            url += f'&seed_genres={",".join(genres_info)}'
+                    if len(artists_info) == 1:
+                        description = description.replace('artists', 'artist')
 
-            if artists_info and not tracks_info:
-                description += ', and the genres '
-                final_sep = ''
-            elif not artists_info and tracks_info:
-                description += 'the genres '
-                final_sep = ', and the tracks '
-            elif not (artists_info or tracks_info):
-                description += 'the genres '
-                final_sep = ''
-            else:  # both artists and tracks exist
-                description += ', the genres '
-                final_sep = ', and the tracks '
+                if genres_info:
+                    types.append('genres')
+                    url += f'&seed_genres={",".join(genres_info)}'
 
-            for genre in genres_info:
-                description += f'{genre}, '
+                    if artists_info and not tracks_info:
+                        description += ', and the genres '
+                        final_sep = ''
+                    elif not artists_info and tracks_info:
+                        description += 'the genres '
+                        final_sep = ', and the tracks '
+                    elif not (artists_info or tracks_info):
+                        description += 'the genres '
+                        final_sep = ''
+                    else:  # both artists and tracks exist
+                        description += ', the genres '
+                        final_sep = ', and the tracks '
 
-            description = f"{' and '.join(description[:-2].rsplit(', ', 1)) if len(genres_info) > 1 else description[:-2]}{final_sep}"
+                    for genre in genres_info:
+                        description += f'{genre}, '
 
-            if len(genres_info) == 1:
-                description = description.replace('genres', 'genre')
+                    description = f"{' and '.join(description[:-2].rsplit(', ', 1)) if len(genres_info) > 1 else description[:-2]}{final_sep}"
 
-        if tracks_info:
-            types.append('tracks')
-            if artists_info and not genres_info:
-                description += ', and the tracks '
-            elif not artists_info and not genres_info:
-                description += 'the tracks '
+                    if len(genres_info) == 1:
+                        description = description.replace('genres', 'genre')
 
-            if isinstance(tracks_info, dict):
-                for song, artist in tracks_info.items():
-                    description += f'{song} by {artist}, '
+                if tracks_info:
+                    types.append('tracks')
+                    if artists_info and not genres_info:
+                        description += ', and the tracks '
+                    elif not artists_info and not genres_info:
+                        description += 'the tracks '
 
-                tracks = [requests.get_request(url=f'https://api.spotify.com/v1/search?q={song} {artist}&type=track&limit=1', headers=self.__headers).json()[
-                    'tracks']['items'][0]['id'] for song, artist in tracks_info.items()]
+                    if isinstance(tracks_info, dict):
+                        for song, artist in tracks_info.items():
+                            description += f'{song} by {artist}, '
 
-            elif isinstance(tracks_info[0], tuple) or isinstance(tracks_info[0], list):
-                for song, artist in tracks_info:
-                    description += f'{song} by {artist}, '
-                tracks = [requests.get_request(url=f'https://api.spotify.com/v1/search?q={song} {artist}&type=track&limit=1', headers=self.__headers).json()[
-                    'tracks']['items'][0]['id'] for song, artist in tracks_info]
+                        tracks = [requests.get_request(url=f'https://api.spotify.com/v1/search?q={song} {artist}&type=track&limit=1', headers=self.__headers).json()[
+                            'tracks']['items'][0]['id'] for song, artist in tracks_info.items()]
 
-            elif isinstance(tracks_info[0], str):
-                for song in tracks_info:
-                    description += f'{song}, '
-                tracks = [requests.get_request(url=f'https://api.spotify.com/v1/search?q={song}&type=track&limit=1', headers=self.__headers).json()[
-                    'tracks']['items'][0]['id'] for song in tracks_info]
+                    elif isinstance(tracks_info[0], tuple) or isinstance(tracks_info[0], list):
+                        for song, artist in tracks_info:
+                            description += f'{song} by {artist}, '
+                        tracks = [requests.get_request(url=f'https://api.spotify.com/v1/search?q={song} {artist}&type=track&limit=1', headers=self.__headers).json()[
+                            'tracks']['items'][0]['id'] for song, artist in tracks_info]
 
+                    elif isinstance(tracks_info[0], str):
+                        for song in tracks_info:
+                            description += f'{song}, '
+                        tracks = [requests.get_request(url=f'https://api.spotify.com/v1/search?q={song}&type=track&limit=1', headers=self.__headers).json()[
+                            'tracks']['items'][0]['id'] for song in tracks_info]
+
+                    else:
+                        raise ValueError(
+                            'The argument tracks_info must be an instance of one of the following 4 types: list[str], list[tuple[str]], list[list[str]], dict[str, str]')
+
+                    description = ' and '.join(
+                        description[:-2].rsplit(', ', 1)) if len(artists_info) > 1 else description[:-2]
+
+                    url += f'&seed_tracks={",".join(tracks)}'
+
+                    if len(tracks_info) == 1:
+                        description = description.replace('tracks', 'track')
+
+                if use_main_playlist_audio_features:
+
+                    audio_statistics = self.audio_features_statistics()
+
+                    min_tempo = audio_statistics['min_tempo'] * 0.8
+                    max_tempo = audio_statistics['max_tempo'] * 1.2
+                    target_tempo = audio_statistics['mean_tempo']
+                    min_energy = audio_statistics['min_energy'] * 0.8
+                    max_energy = audio_statistics['max_energy'] * 1.2
+                    target_energy = audio_statistics['mean_energy']
+                    min_valence = audio_statistics['min_valence'] * 0.8
+                    max_valence = audio_statistics['max_valence'] * 1.2
+                    target_valence = audio_statistics['mean_valence']
+                    min_danceability = audio_statistics['min_danceability'] * 0.8
+                    max_danceability = audio_statistics['max_danceability'] * 1.2
+                    target_danceability = audio_statistics['mean_danceability']
+                    min_instrumentalness = audio_statistics['min_instrumentalness'] * 0.8
+                    max_instrumentalness = audio_statistics['max_instrumentalness'] * 1.2
+                    target_instrumentalness = audio_statistics['mean_instrumentalness']
+
+                    url += f'&{min_tempo=!s}&{max_tempo=!s}&{target_tempo=!s}&{min_energy=!s}&{max_energy=!s}&{target_energy=!s}&{min_valence=!s}&{max_valence=!s}&{target_valence=!s}&{min_danceability=!s}&{max_danceability=!s}&{target_danceability=!s}&{min_instrumentalness=!s}&{max_instrumentalness=!s}&{target_instrumentalness=!s}'
+
+                recommendations = requests.get_request(
+                    url=url, headers=self.__headers).json()
+
+                songs = []
+
+                for song in recommendations["tracks"]:
+                    (id, name, popularity, artist), song_genres = util.song_data(
+                        song=song, added_at=False), self.__get_song_genres(song)
+                    song['id'] = id
+                    danceability, energy, instrumentalness, tempo, valence = util.query_audio_features(
+                        song=song, headers=self.__headers)
+                    songs.append({
+                        "id": id,
+                        "name": name,
+                        "artists": artist,
+                        "popularity": popularity,
+                        "genres": song_genres,
+                        "danceability": danceability,
+                        "energy": energy,
+                        "instrumentalness": instrumentalness,
+                        "tempo": tempo,
+                        "valence": valence
+                    })
+
+                recommendations_playlist = pd.DataFrame(data=songs)
+
+                if build_playlist:
+                    ids = recommendations_playlist['id'].tolist()
+                    types = ' and '.join(', '.join(types).rsplit(
+                        ', ', 1)) if len(types) > 1 else types[0]
+                    self.__general_recommendation_description = description
+                    self.__general_recommendation_description_types = types
+
+                    self.__write_playlist(
+                        K=K,
+                        type='general-recommendation',
+                        additional_info=ids
+                    )
+            except AccessTokenExpiredError as e:
+                print('Error due to the access token expiration')
+                auth_token = auth.refresh_token()
+
+                self.__auth_token = auth_token
+
+                self.__headers['Authorization'] = f'Bearer {auth_token}'
             else:
-                raise ValueError(
-                    'The argument tracks_info must be an instance of one of the following 4 types: list[str], list[tuple[str]], list[list[str]], dict[str, str]')
-
-            description = ' and '.join(
-                description[:-2].rsplit(', ', 1)) if len(artists_info) > 1 else description[:-2]
-
-            url += f'&seed_tracks={",".join(tracks)}'
-
-            if len(tracks_info) == 1:
-                description = description.replace('tracks', 'track')
-
-        if use_main_playlist_audio_features:
-
-            audio_statistics = self.audio_features_statistics()
-
-            min_tempo = audio_statistics['min_tempo'] * 0.8
-            max_tempo = audio_statistics['max_tempo'] * 1.2
-            target_tempo = audio_statistics['mean_tempo']
-            min_energy = audio_statistics['min_energy'] * 0.8
-            max_energy = audio_statistics['max_energy'] * 1.2
-            target_energy = audio_statistics['mean_energy']
-            min_valence = audio_statistics['min_valence'] * 0.8
-            max_valence = audio_statistics['max_valence'] * 1.2
-            target_valence = audio_statistics['mean_valence']
-            min_danceability = audio_statistics['min_danceability'] * 0.8
-            max_danceability = audio_statistics['max_danceability'] * 1.2
-            target_danceability = audio_statistics['mean_danceability']
-            min_instrumentalness = audio_statistics['min_instrumentalness'] * 0.8
-            max_instrumentalness = audio_statistics['max_instrumentalness'] * 1.2
-            target_instrumentalness = audio_statistics['mean_instrumentalness']
-
-            url += f'&{min_tempo=!s}&{max_tempo=!s}&{target_tempo=!s}&{min_energy=!s}&{max_energy=!s}&{target_energy=!s}&{min_valence=!s}&{max_valence=!s}&{target_valence=!s}&{min_danceability=!s}&{max_danceability=!s}&{target_danceability=!s}&{min_instrumentalness=!s}&{max_instrumentalness=!s}&{target_instrumentalness=!s}'
-
-        recommendations = requests.get_request(
-            url=url, headers=self.__headers).json()
-
-        songs = []
-
-        for song in recommendations["tracks"]:
-            (id, name, popularity, artist), song_genres = util.song_data(
-                song=song, added_at=False), self.__get_song_genres(song)
-            song['id'] = id
-            danceability, energy, instrumentalness, tempo, valence = util.query_audio_features(
-                song=song, headers=self.__headers)
-            songs.append({
-                "id": id,
-                "name": name,
-                "artists": artist,
-                "popularity": popularity,
-                "genres": song_genres,
-                "danceability": danceability,
-                "energy": energy,
-                "instrumentalness": instrumentalness,
-                "tempo": tempo,
-                "valence": valence
-            })
-
-        recommendations_playlist = pd.DataFrame(data=songs)
-
-        if build_playlist:
-            ids = recommendations_playlist['id'].tolist()
-            types = ' and '.join(', '.join(types).rsplit(
-                ', ', 1)) if len(types) > 1 else types[0]
-            self.__general_recommendation_description = description
-            self.__general_recommendation_description_types = types
-
-            self.__write_playlist(
-                K=K,
-                type='general-recommendation',
-                additional_info=ids
-            )
+                break
 
         return recommendations_playlist
 
@@ -1858,11 +1930,8 @@ def start_api(user_id, *, playlist_url=None, playlist_id=None):
     else:
         playlist_url = False
 
-    get_auth()
-    auth_token = input('Paste here the auth token: ')
-    while not auth_token:
-        auth_token = input('Enter a valid auth token: ')
+    print('Retrieving Authentication token')
 
-    auth_token = f'Bearer {auth_token}'
+    auth_token = f'Bearer {auth.get_auth()}'
 
     return SpotifyAPI(auth_token=auth_token, playlist_id=playlist_id, user_id=user_id, playlist_url=playlist_url)

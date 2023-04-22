@@ -1,7 +1,7 @@
 import json
 import time
 from requests import get, post, delete, put
-from spotify_recommender_api.error import HTTPRequestError, TooManyRequestsError
+from spotify_recommender_api.error import HTTPRequestError, TooManyRequestsError, AccessTokenExpiredError
 
 
 def exponential_backoff(func, retries: int = 5, *args, **kwargs):
@@ -33,6 +33,10 @@ def exponential_backoff(func, retries: int = 5, *args, **kwargs):
         except Exception as e:
             if any(errorCode in f'{e}' for errorCode in ['404', '50']):
                 continue
+
+            if '401' in f'{e}':
+                print('Access Token Expired')
+                raise AccessTokenExpiredError(func_name=func.__name__, err_code=f"{response.json()['error']['status']}: {response.json()['error']['message']}", message=None, *args, **kwargs) from e
 
             if '429' not in f'{e}':
                 raise HTTPRequestError(func_name=func.__name__, err_code=f"{response.json()['error']['status']}: {response.json()['error']['message']}", message=None, *args, **kwargs) from e
@@ -76,6 +80,34 @@ def post_request(url: str, headers: dict = None, data: dict = None, retries: int
         dict: Request response
     """
     return exponential_backoff(func=post, url=url, headers=headers, data=json.dumps(data), retries=retries)
+
+def post_request_dict(url: str, headers: dict = None, data: dict = None, retries: int = 10) -> dict:
+    """POST request with integrated exponential backoff retry strategy
+
+    Args:
+        url (str): Request URL
+        headers (dict, optional): Request headers. Defaults to None.
+        data (dict, optional): Request body. Defaults to None.
+        retries (int, optional): Number of retries. Defaults to 10.
+
+    Returns:
+        dict: Request response
+    """
+    return exponential_backoff(func=post, url=url, headers=headers, data=data, retries=retries)
+
+def post_request_with_auth(url: str, headers: dict = None, data: dict = None, auth: 'tuple[str]' = None, retries: int = 10) -> dict:
+    """POST request with integrated exponential backoff retry strategy
+
+    Args:
+        url (str): Request URL
+        headers (dict, optional): Request headers. Defaults to None.
+        data (dict, optional): Request body. Defaults to None.
+        retries (int, optional): Number of retries. Defaults to 10.
+
+    Returns:
+        dict: Request response
+    """
+    return exponential_backoff(func=post, url=url, headers=headers, data=data, auth=auth, retries=retries)
 
 def put_request(url: str, headers: dict = None, data: dict = None, retries: int = 10) -> dict:
     """PUT request with integrated exponential backoff retry strategy
