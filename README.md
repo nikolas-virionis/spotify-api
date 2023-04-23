@@ -65,6 +65,7 @@ Firstly, it's necessary to import the method start_api from the package spotify_
   <img src='./readme-pictures/Playlist Configs.png' width='25%'><br>
   --- User ID: The user id is available when clicking the account, and accessing its information, on Spotify's website<br>
   <img src='./readme-pictures/Account.png' width='25%'><br>
+  --- Liked Songs: A flag to pass in case the playlist you want to use is your profile Liked Songs <br>
 
   - Calling the function:
 ~~~python
@@ -73,6 +74,10 @@ api = start_api(playlist_url='<PLAYLIST_URL>', user_id='<USER_ID>')
 Or
 ~~~python
 api = start_api(playlist_id='<PLAYLIST_ID>', user_id='<USER_ID>')
+~~~
+Or
+~~~python
+api = start_api(liked_songs=True, user_id='<USER_ID>')
 ~~~
 Though, to be honest, it is easier and more convenient to use the playlist URL
 
