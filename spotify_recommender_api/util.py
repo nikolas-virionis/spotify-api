@@ -30,8 +30,12 @@ def get_total_song_count(playlist_id: str, headers: dict) -> int:
     Returns:
         int: The total number of songs in the playlist
     """
-    playlist_res = requests.get_request(
-        url=f'https://api.spotify.com/v1/playlists/{playlist_id}', headers=headers)
+
+    if playlist_id == 'liked_songs':
+        return requests.get_request(headers=headers, url='https://api.spotify.com/v1/me/tracks').json()['total']
+
+
+    playlist_res = requests.get_request(url=f'https://api.spotify.com/v1/playlists/{playlist_id}', headers=headers)
 
     return playlist_res.json()["tracks"]["total"]
 
@@ -46,11 +50,9 @@ def song_data(song: dict, added_at: bool = True) -> 'tuple[str, str, float, list
         tuple[str, str, float, list[str], datetime.datetime]: A tuple containing the song's information
     """
     try:
-        data = [song["track"]['id'], song["track"]['name'], song["track"]['popularity'], [
-            artist["name"] for artist in song["track"]["artists"]]]
+        data = [song["track"]['id'], song["track"]['name'], song["track"]['popularity'], [artist["name"] for artist in song["track"]["artists"]]]
     except KeyError:
-        data = [song['id'], song['name'], song['popularity'],
-                [artist["name"] for artist in song["artists"]]]
+        data = [song['id'], song['name'], song['popularity'], [artist["name"] for artist in song["artists"]]]
 
     if added_at:
         data.append(song['added_at'])

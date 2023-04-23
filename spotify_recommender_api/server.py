@@ -133,7 +133,7 @@ async def auth():
         </head>
         <body>
             <header class="header">
-                <h1>Spotify</h1>
+                <h1>Spotify Recommender</h1>
             </header>
             <a href="{auth_url}">Authorize</a>
         </body>
@@ -203,7 +203,7 @@ async def callback(code: str):
         </head>
         <body>
             <header class="header">
-                <h1>Spotify</h1>
+                <h1>Spotify Recommender</h1>
             </header>
             <div class="message">
                 <p>You may close this window now and return to your script</p>

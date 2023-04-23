@@ -150,37 +150,93 @@ class SpotifyAPI:
         else:
             self.__all_genres = list(set(self.__all_genres))
 
+    def __get_liked_songs(self):
+        """
+        Function that gets the items (songs) inside the user's liked songs
+
+        # Note
+        Ran automatically but can last as long as 2.5 seconds for each song (can be worse depending on the network connection) inside of the playlist, not because it is compute demanding but because it needs to do a up to a handful of http requests per song, which can take a while
+
+        """
+        self.__all_genres = []
+        try:
+            total_song_count = requests.get_request(
+                headers=self.__headers, url='https://api.spotify.com/v1/me/tracks').json()['total']
+            for offset in range(0, total_song_count, 50):
+                print(f'Songs mapped: {offset}/{total_song_count}')
+                all_genres_res = requests.get_request(
+                    headers=self.__headers,
+                    url=f'https://api.spotify.com/v1/me/tracks?limit=50&{offset=!s}'
+                )
+                for song in all_genres_res.json()["items"]:
+                    (id, name, popularity, artist, added_at), song_genres = util.song_data(
+                        song=song), self.__get_song_genres(song)
+                    song['id'] = id
+                    danceability, energy, instrumentalness, tempo, valence = util.query_audio_features(
+                        song=song, headers=self.__headers)
+                    self.__songs.append({
+                        "id": id,
+                        "name": name,
+                        "artists": artist,
+                        "popularity": popularity,
+                        "genres": song_genres,
+                        "added_at": added_at,
+                        "danceability": danceability,
+                        "energy": energy,
+                        "instrumentalness": instrumentalness,
+                        "tempo": tempo,
+                        "valence": valence
+                    })
+                    self.__all_genres += song_genres
+
+            print(
+                f'Songs mapping complete: {total_song_count}/{total_song_count}')
+
+        except KeyError as e:
+            raise ValueError(
+                'Invalid Auth Token, try again with a valid one') from e
+
+        else:
+            self.__all_genres = list(set(self.__all_genres))
+
     def __playlist_adjustments(self):
         """
         Function that does a bunch of adjustments to the overall formatting of the playlist, before making it visible
 
         """
         try:
-            songs = self.__songs[-util.get_total_song_count(
-                playlist_id=self.__playlist_id, headers=self.__headers):]
+            songs = self.__songs[-util.get_total_song_count(playlist_id=self.__playlist_id, headers=self.__headers):]
         except KeyError as e:
-            raise ValueError(
-                'Invalid Auth Token, try again with a valid one') from e
+            raise ValueError('Invalid Auth Token, try again with a valid one') from e
+
         self.__all_artists = list(self.__artists.keys())
         playlist = pd.DataFrame(data=list(songs))
 
-        playlist["genres_indexed"] = [util.item_list_indexed(items=eval(playlist["genres"][x]) if type(
-            playlist["genres"][x]) == 'str' else playlist["genres"][x], all_items=self.__all_genres) for x in range(len(playlist["genres"]))]
-        playlist["artists_indexed"] = [util.item_list_indexed(items=eval(playlist["artists"][x]) if type(
-            playlist["artists"][x]) == 'str' else playlist["artists"][x], all_items=self.__all_artists) for x in range(len(playlist["artists"]))]
+        playlist["genres_indexed"] = [
+            util.item_list_indexed(
+                all_items=self.__all_genres,
+                items=eval(genre) if type(genre) == 'str' else genre,
+            ) for genre in playlist["genres"]
+        ]
+        playlist["artists_indexed"] = [
+            util.item_list_indexed(
+                all_items=self.__all_artists,
+                items=eval(artist) if type(
+                    artist) == 'str' else artist,
+            ) for artist in playlist["artists"]
+        ]
         playlist['id'] = playlist["id"].astype(str)
         playlist['name'] = playlist["name"].astype(str)
         playlist['popularity'] = playlist["popularity"].astype(int)
         playlist['added_at'] = pd.to_datetime(playlist["added_at"])
         playlist['danceability'] = playlist["danceability"].astype(float)
         playlist['energy'] = playlist["energy"].astype(float)
-        playlist['instrumentalness'] = playlist["instrumentalness"].astype(
-            float)
+        playlist['instrumentalness'] = playlist["instrumentalness"].astype(float)
         playlist['tempo'] = playlist["tempo"].astype(float)
         playlist['valence'] = playlist["valence"].astype(float)
         self.__playlist = playlist
 
-    def __init__(self, auth_token, user_id, playlist_id=None, playlist_url=None):
+    def __init__(self, auth_token: str, user_id: str, playlist_id: str = None, playlist_url: str = None, liked_songs: bool = False, prepare_favorites: bool = False):
         """Spotify API is the Class that provides access to the playlists recommendations
 
         Note:
@@ -210,28 +266,39 @@ class SpotifyAPI:
         self.__songs = []
         self.__deny_favorites = False
 
-        if playlist_id:
-            self.__playlist_id = playlist_id
-        else:
-            if not playlist_url:
-                raise ValueError(
-                    'Either the playlist url or its id must be specified')
-            self.__playlist_id = util.playlist_url_to_id(url=playlist_url)
-            self.__playlist_url = playlist_url
+        if liked_songs:
+            self.__playlist_id = 'liked_songs'
 
-        self.__base_playlist_name = util.get_base_playlist_name(playlist_id=self.__playlist_id, headers=self.__headers)
+            self.__base_playlist_name = f'{user_id} Liked Songs'
+
+        else:
+            if playlist_id:
+                self.__playlist_id = playlist_id
+            else:
+                if not playlist_url:
+                    raise ValueError(
+                        'Either the playlist url or its id must be specified')
+                self.__playlist_id = util.playlist_url_to_id(url=playlist_url)
+                self.__playlist_url = playlist_url
+
+            self.__base_playlist_name = util.get_base_playlist_name(
+                playlist_id=self.__playlist_id, headers=self.__headers)
 
         print('Mapping playlist items')
 
         if self.__get_playlist():
-            self.__get_playlist_items()
+            if liked_songs:
+                self.__get_liked_songs()
+            else:
+                self.__get_playlist_items()
 
-        print('Seting up some operations with the playlist')
+        print('Setting up some operations with the playlist')
 
         self.__playlist_adjustments()
 
         self.__song_dict = core.knn_prepared_data(playlist=self.__playlist)
-        self.__prepare_favorites_playlist()
+        if prepare_favorites:
+            self.__prepare_favorites_playlist()
 
         if self.__update_created_files:
             self.playlist_to_csv()
@@ -500,10 +567,9 @@ class SpotifyAPI:
                     if build_playlist:
                         self.__write_playlist('song', K, additional_info=song)
 
-
                 except AccessTokenExpiredError as e:
                     print('Error due to the access token expiration')
-                    auth_token = auth.refresh_token()
+                    auth_token = auth.get_auth()
 
                     self.__auth_token = auth_token
 
@@ -889,7 +955,7 @@ class SpotifyAPI:
 
             except AccessTokenExpiredError as e:
                 print('Error due to the access token expiration')
-                auth_token = auth.refresh_token()
+                auth_token = auth.get_auth()
 
                 self.__auth_token = auth_token
 
@@ -1551,7 +1617,7 @@ class SpotifyAPI:
 
             except AccessTokenExpiredError as e:
                 print('Error due to the access token expiration')
-                auth_token = auth.refresh_token()
+                auth_token = auth.get_auth()
 
                 self.__auth_token = auth_token
 
@@ -1687,7 +1753,7 @@ class SpotifyAPI:
 
             except AccessTokenExpiredError as e:
                 print('Error due to the access token expiration')
-                auth_token = auth.refresh_token()
+                auth_token = auth.get_auth()
 
                 self.__auth_token = auth_token
 
@@ -1887,7 +1953,7 @@ class SpotifyAPI:
                     )
             except AccessTokenExpiredError as e:
                 print('Error due to the access token expiration')
-                auth_token = auth.refresh_token()
+                auth_token = auth.get_auth()
 
                 self.__auth_token = auth_token
 
@@ -1898,7 +1964,7 @@ class SpotifyAPI:
         return recommendations_playlist
 
 
-def start_api(user_id, *, playlist_url=None, playlist_id=None):
+def start_api(user_id: str, *, playlist_url: str = False, playlist_id: str = False, liked_songs: bool = False, prepare_favorites: bool = False):
     """Function that prepares for and initializes the API
 
     Note:
@@ -1908,12 +1974,15 @@ def start_api(user_id, *, playlist_url=None, playlist_id=None):
         user_id(str): the id of user, present in the user account profile
 
     Keyword Arguments:
-        playlist_url(str, optional, keyword-argument only): the url for the playlist, which is visible when trying to share it. Defaults to None.
-        playlist_id (str, optional, keyword-argument only): the id of the playlist, an unique big hash which identifies the playlist. Defaults to None.
+        playlist_url(str, optional, keyword-argument only): the url for the playlist, which is visible when trying to share it. Defaults to False.
+        playlist_id (str, optional, keyword-argument only): the id of the playlist, an unique big hash which identifies the playlist. Defaults to False.
+        liked_songs (bool, optional, keyword-argument only): A flag to identify if the playlist to be mapped is the Liked Songs. Defaults to False.
+        prepare_favorites (bool, optional, keyword-argument only): A flag to identify if the Short and Medium term favorite playlists will be calculated. IMPORTANT to note that both are DEPRECATED. Defaults to False.
 
     Raises:
         ValueError: at least one of the playlist related arguments have to be specified
         ValueError: when asked to input the auth token, in case it is not valid, an error is raised
+        ValueError: when passing the arguments, there should be only one filled between playlist_url, playlist_id and liked_songs
 
     Returns:
         SpotifyAPI: The instance of the SpotifyAPI class
@@ -1922,16 +1991,15 @@ def start_api(user_id, *, playlist_url=None, playlist_id=None):
     Although both the playlist_url and playlist_id are optional, informing at least one of them is required, though the choice is up to you
     """
 
-    if not playlist_url and not playlist_id:
+    if not playlist_url and not playlist_id and not liked_songs:
         raise ValueError(
-            'It is necessary to specify a playlist either with playlist id or playlist url')
-    if not playlist_id:
-        playlist_id = False
-    else:
-        playlist_url = False
+            'It is necessary to specify a playlist either with playlist id or playlist url or flag the liked_songs as True')
+    if (playlist_url or playlist_id) and liked_songs:
+        raise ValueError(
+            'It is necessary to specify only one of the following parameters: playlist_id or playlist_url or liked_songs')
 
     print('Retrieving Authentication token')
 
     auth_token = f'Bearer {auth.get_auth()}'
 
-    return SpotifyAPI(auth_token=auth_token, playlist_id=playlist_id, user_id=user_id, playlist_url=playlist_url)
+    return SpotifyAPI(auth_token=auth_token, playlist_id=playlist_id, user_id=user_id, playlist_url=playlist_url, liked_songs=liked_songs, prepare_favorites=prepare_favorites)

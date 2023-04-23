@@ -19,32 +19,3 @@ def get_auth() -> str:
         os.remove("./.spotify-recommender-util/execution-status.txt")
 
     return auth_token
-
-
-def refresh_token() -> str:
-    """Function to refresh the auth token
-
-    Returns:
-        str: Refreshed auth token
-    """
-
-    print('Retrieving refresh token')
-
-    with open('./.spotify-recommender-util/execution.txt', 'r') as f:
-        refresh_token = f.readline()
-
-    req = post_request_with_auth(
-        url="https://accounts.spotify.com/api/token",
-        auth=(CLIENT_ID, CLIENT_SECRET),
-        data={
-            'grant_type': 'refresh_token',
-            'refresh_token': refresh_token
-        }
-    )
-
-    token = req['access_token']
-
-    with open('./.spotify-recommender-util/execution.txt', 'w') as f:
-        f.write(token)
-
-    return token
