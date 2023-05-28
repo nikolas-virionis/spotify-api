@@ -1,4 +1,5 @@
 import pytz
+import logging
 import datetime
 import pandas as pd
 import seaborn as sns
@@ -287,7 +288,7 @@ def plot_bar_chart(df: pd.DataFrame, chart_title: str = None, top: int = 10, plo
     if plot_max:
         df = df[df['name'] != ''][:top + 1]
     else:
-        print(f'Total number of songs: {df["number of songs"][0]}')
+        logging.info(f'Total number of songs: {df["number of songs"][0]}')
         df = df[df['name'] != ''][1:top + 1]
 
     plt.figure(figsize=(15, 10))

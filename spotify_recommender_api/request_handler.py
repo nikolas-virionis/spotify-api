@@ -1,5 +1,6 @@
 import json
 import time
+import logging
 from requests import get, post, delete, put
 from spotify_recommender_api.error import HTTPRequestError, TooManyRequestsError, AccessTokenExpiredError
 
@@ -20,6 +21,7 @@ def exponential_backoff(func, retries: int = 5, *args, **kwargs):
     """
     x = 0
     while x <= retries:
+        response = None
         try:
             response = func(*args, **kwargs)
             try:
@@ -35,14 +37,14 @@ def exponential_backoff(func, retries: int = 5, *args, **kwargs):
                 continue
 
             if '401' in f'{e}':
-                print('Access Token Expired')
+                logging.error('Access Token Expired')
                 raise AccessTokenExpiredError(func_name=func.__name__, err_code=f"{response.json()['error']['status']}: {response.json()['error']['message']}", message=None, *args, **kwargs) from e
 
             if '429' not in f'{e}':
                 raise HTTPRequestError(func_name=func.__name__, err_code=f"{response.json()['error']['status']}: {response.json()['error']['message']}", message=None, *args, **kwargs) from e
 
             if x == 0:
-                print('\nExponential backoff triggered: ')
+                logging.warning('\nExponential backoff triggered: ')
 
             x += 1
 
@@ -50,7 +52,7 @@ def exponential_backoff(func, retries: int = 5, *args, **kwargs):
                 raise TooManyRequestsError(func_name=func.__name__, message=f'After {retries} attempts, the execution of the function failed with the 429 exception', *args, **kwargs) from e
 
             sleep = 2 ** x
-            print(f'\tError raised: sleeping {sleep} seconds')
+            logging.warning(f'\tError raised: sleeping {sleep} seconds')
             time.sleep(sleep)
 
 

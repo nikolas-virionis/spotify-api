@@ -1,3 +1,4 @@
+import logging
 import warnings
 import datetime
 import functools
@@ -213,15 +214,15 @@ def print_base_caracteristics(*args):
     """
     name, genres, artists, popularity, danceability, energy, instrumentalness, tempo, valence = args
 
-    print(f'{name = }')
-    print(f'{artists = }')
-    print(f'{genres = }')
-    print(f'{popularity = }')
-    print(f'{danceability = }')
-    print(f'{energy = }')
-    print(f'{instrumentalness = }')
-    print(f'{tempo = }')
-    print(f'{valence = }')
+    logging.info(f'{name = }')
+    logging.info(f'{artists = }')
+    logging.info(f'{genres = }')
+    logging.info(f'{popularity = }')
+    logging.info(f'{danceability = }')
+    logging.info(f'{energy = }')
+    logging.info(f'{instrumentalness = }')
+    logging.info(f'{tempo = }')
+    logging.info(f'{valence = }')
 
 
 def get_base_playlist_name(playlist_id: str, headers: dict) -> str:

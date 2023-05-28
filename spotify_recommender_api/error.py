@@ -32,7 +32,7 @@ class TooManyRequestsError(HTTPRequestError):
         It can receive the function name and the function arguments, besides the message, to better help debugging the error
     """
     def __init__(self, func_name=None, message=None, *args, **kwargs):
-        super().__init__(err_code='429 Too Many Requests', func_name=func_name, message=message, *args, **kwargs)
+        super().__init__(*args, err_code='429 Too Many Requests', func_name=func_name, message=message, **kwargs)
 
 class AccessTokenExpiredError(HTTPRequestError):
     """Exception raised when the SpofifyAPI access token has expired
@@ -43,7 +43,7 @@ class AccessTokenExpiredError(HTTPRequestError):
     kwargs: 'dict[str,]'
 
     def __init__(self, func_name: str = None, func: Callable = None, message: str = None, *args, **kwargs):
-        super().__init__(err_code='401 Access Token Expired', func_name=func_name, message=message, *args, **kwargs)
+        super().__init__(*args, err_code='401 Access Token Expired', func_name=func_name, message=message, **kwargs)
         self.func = func
         self.args = args
         self.kwargs = kwargs
