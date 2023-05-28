@@ -79,7 +79,7 @@ Or
 ~~~python
 api = start_api(liked_songs=True, user_id='<USER_ID>')
 ~~~
-Though, to be honest, it is easier and more convenient to use the playlist URL
+Though, to be honest, it is easier and more convenient to use the playlist URL or the liked_songs flag
 
   - Getting the Auth Token:
   It is a hash token that expires 60 minutes after it is generated, and after April 22nd 2023 it has been fully refactored, due to a change in the Spotify API Authentication methods, which invalidated the previous way. Now As soon as you call the start_api function a fastapi server will be lauched in port 8000.<br>
