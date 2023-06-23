@@ -145,7 +145,7 @@ def create_playlist(
         str: The playlist id
     """
     if additional_info is None:
-        return 
+        return
 
     if type == 'song':
         playlist_name = f"{additional_info!r} Related"
@@ -200,8 +200,8 @@ def create_playlist(
         description = additional_info[0]
 
     elif type == 'mood':
-        playlist_name = f"{additional_info} Songs".capitalize()
-        description = f'Songs related to the mood "{additional_info}", within the playlist {base_playlist_name}'
+        playlist_name = f"{additional_info[0]} Songs".capitalize()
+        description = f'Songs related to the mood "{additional_info[0]}"{", excluding the mostly instrumental songs" if additional_info[1] else ""}, within the playlist {base_playlist_name}'
 
     else:
         raise ValueError('type not valid')

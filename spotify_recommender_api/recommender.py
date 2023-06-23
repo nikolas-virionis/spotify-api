@@ -10,7 +10,6 @@ import spotify_recommender_api.authentication as auth
 import spotify_recommender_api.request_handler as requests
 from functools import reduce
 from typing import Any, Union
-from spotify_recommender_api.sensitive import CLIENT_ID, CLIENT_SECRET
 from spotify_recommender_api.error import AccessTokenExpiredError
 warnings.filterwarnings('error')
 
@@ -458,7 +457,7 @@ class SpotifyAPI:
                 add_songs_req = requests.post_request(url=f'https://api.spotify.com/v1/playlists/{playlist_id}/tracks?{uris=!s}', headers=self.__headers)
 
 
-    def __build_playlist(self, type: str, uris: str, add_info=None):
+    def __build_playlist(self, type: str, uris: str):
         """Function that builds the contents of a playlist
 
         Note:
@@ -472,9 +471,12 @@ class SpotifyAPI:
             raise ValueError('Invalid value for the song uris')
 
         additional_information_by_type = {
-            'mood': add_info,
             'song': getattr(self, '_SpotifyAPI__song_name', None),
             'artist': getattr(self, '_SpotifyAPI__artist_name', None),
+            'mood': [
+                getattr(self, '_SpotifyAPI__mood', None),
+                getattr(self, '_SpotifyAPI__exclude_mostly_instrumental', None),
+            ],
             'profile-recommendation': [
                 getattr(self, '_SpotifyAPI__profile_recommendation_criteria', None),
                 getattr(self, '_SpotifyAPI__profile_recommendation_date', None)
@@ -548,7 +550,7 @@ class SpotifyAPI:
             uris = ''
             raise ValueError('Invalid type')
 
-        self.__build_playlist(type=type, uris=uris, add_info=getattr(self, '_SpotifyAPI__mood', None))
+        self.__build_playlist(type=type, uris=uris)
 
     def get_recommendations_for_song(
         self,
@@ -1019,18 +1021,52 @@ class SpotifyAPI:
             columns=['name', 'artists', 'genres', 'popularity']
         )
 
+    def __playlist_needs_update(self, playlist: 'tuple[str, str, str, str]', playlist_types_to_update: 'list[str]') -> bool:
+        """Function to determine if a playlist inside the user's library needs to be updated
+
+        Args:
+            playlist (tuple[str, str, str, str]): Playlist information
+            playlist_types_to_update (list[str]): Playlist types to be updated
+
+        Returns:
+            bool: The flag that indicates whether the playlist should be updated or not
+        """
+        _, name, description, _ = playlist
+
+        if name in {'Long Term Most-listened Tracks', 'Medium Term Most-listened Tracks', 'Short Term Most-listened Tracks'} and 'most-listened-tracks' in playlist_types_to_update:
+            return True
+
+        elif 'Profile Recommendation' in name and ' - 20' not in name and 'profile-recommendation' in playlist_types_to_update:
+            return True
+
+        elif f', within the playlist {self.__base_playlist_name}' in description or self.__update_created_files:
+            if (re.match(r"\'(.*?)\' Related", name) or re.match(r'\"(.*?)\" Related', name)) and 'song-related' in playlist_types_to_update:
+                return True
+
+            elif (re.match(r"\'(.*?)\' Mix", name) or re.match(r'\"(.*?)\" Mix', name)) and 'artist-mix' in playlist_types_to_update:
+                return True
+
+            elif (re.match(r"This once was \'(.*?)\'", name) or re.match(r'This once was \"(.*?)\"', name)) and 'artist-full' in playlist_types_to_update:
+                return True
+
+            elif 'Playlist Recommendation' in name and ' - 20' not in name and 'playlist-recommendation' in playlist_types_to_update:
+                return True
+
+            elif 'Songs related to the mood' in description and 'mood' in playlist_types_to_update:
+                return True
+
+        return False
+
     def update_all_generated_playlists(self, *, K: Union[int, None] = None, playlist_types_to_update: Union['list[str]', None] = None):
         """Update all package generated playlists in batch
 
         Note:
             It is NOT recommended to use the K parameter in this function, unless 100% on purpose, since it will make all the playlists have the same number of songs in them
-
-        Keyword Arguments:
             K (int, optional): Number of songs in the new playlists, if not set, defaults to the number of songs already in the playlist. Defaults to None.
-            playlist_types_to_update (list[str], optional): List of playlist types to update. For example, if you only want to update song-related playlists use this argument as ['song-related']. Defaults to all - ['most-listened-tracks', 'song-related', 'artist-mix', 'artist-full', 'playlist-recommendation', 'profile-recommendation'].
+            playlist_types_to_update (list[str], optional): List of playlist types to update. For example, if you only want to update song-related playlists use this argument as ['song-related']. Defaults to all - ['most-listened-tracks', 'song-related', 'artist-mix', 'artist-full', 'playlist-recommendation', 'profile-recommendation', 'mood'].
         """
         if playlist_types_to_update is None:
-            playlist_types_to_update = ['most-listened-tracks', 'song-related', 'artist-mix', 'artist-full', 'playlist-recommendation', 'profile-recommendation']
+            playlist_types_to_update = ['most-listened-tracks', 'song-related', 'artist-mix', 'artist-full', 'playlist-recommendation', 'profile-recommendation', 'mood']
 
         total_playlist_count = requests.get_request(url='https://api.spotify.com/v1/me/playlists?limit=0', headers=self.__headers).json()['total']
 
@@ -1041,10 +1077,27 @@ class SpotifyAPI:
 
             playlists += [(playlist['id'], playlist['name'], playlist['description'], playlist['tracks']['total']) for playlist in request['items']]
 
-        for _, name, description, total_tracks in playlists:
+        playlists = [
+                playlist
+                for playlist in playlists
+                if self.__playlist_needs_update(
+                        playlist=playlist,
+                        playlist_types_to_update=playlist_types_to_update
+                )
+            ]
+
+        last_printed_perc_update = 0
+
+        for index, (_, name, description, total_tracks) in enumerate(playlists):
             try:
+                logging.debug(f'Updating song {name} - {index}/{len(playlists)}')
+                if last_printed_perc_update + 10 <= (perc_update := next((perc for perc in range(100, 0, -10) if (100 * index) / len(playlists) >= perc), 100)) < 100:
+                    logging.info(f'Playlists update operation at {perc_update}%')
+                    last_printed_perc_update = perc_update
+
                 if K is not None:
                     total_tracks = K
+
                 if name in {'Long Term Most-listened Tracks', 'Medium Term Most-listened Tracks', 'Short Term Most-listened Tracks'} and 'most-listened-tracks' in playlist_types_to_update:
                     self.get_most_listened(time_range=name.split(" ")[0].lower(), K=total_tracks, build_playlist=True)
 
@@ -1077,25 +1130,30 @@ class SpotifyAPI:
                             _auto=True
                         )
 
-                    # elif name == 'Recent-ish Favorites':
-                    #     self.__write_playlist(type='medium', K=total_tracks)
-
-                    # elif name == 'Latest Favorites':
-                    #     self.__write_playlist(type='short', K=total_tracks)
-
                     elif 'Playlist Recommendation' in name and ' - 20' not in name and 'playlist-recommendation' in playlist_types_to_update:
                         criteria = name.split('(')[1].split(')')[0]
                         if ',' in criteria:
                             criteria = 'mixed'
 
-                        time_range = 'all_time' if 'for all_time' in name else name.split(
-                            'for the last')[-1].split('(')[0].strip()
+                        time_range = 'all_time' if 'for all_time' in name else name.split('for the last')[-1].split('(')[0].strip()
 
                         self.get_playlist_recommendation(
                             K=total_tracks,
                             build_playlist=True,
                             time_range=time_range,
                             main_criteria=criteria,
+                        )
+
+                    elif 'Songs related to the mood' in description and 'mood' in playlist_types_to_update:
+                        mood = ' '.join(name.split(' ')[:-1]).lower()
+
+                        exclude_mostly_instrumental = 'excluding the mostly instrumental songs' in description
+
+                        self.get_songs_by_mood(
+                            mood=mood,
+                            K=total_tracks,
+                            build_playlist=True,
+                            exclude_mostly_instrumental=exclude_mostly_instrumental,
                         )
 
                 elif 'Profile Recommendation' in name and ' - 20' not in name and 'profile-recommendation' in playlist_types_to_update:
@@ -1108,6 +1166,8 @@ class SpotifyAPI:
                         build_playlist=True,
                         main_criteria=criteria,
                     )
+
+                logging.info('Playlists update operation at 100%')
 
             except ValueError as e:
                 logging.error(f"Unfortunately we couldn't update a playlist because\n {e}")
@@ -1870,18 +1930,16 @@ class SpotifyAPI:
                     url += f'&seed_tracks={",".join(tracks[:1])}&seed_artists={",".join(artists[:2])}&seed_genres={",".join(genres[:2])}'
                 elif main_criteria == 'tracks':
                     url += f'&seed_tracks={",".join(tracks[:2])}&seed_genres={",".join(genres[:3])}'
-                url += f'&{min_tempo=!s}&{max_tempo=!s}&{target_tempo=!s}&{min_energy=!s}&{max_energy=!s}&{target_energy=!s}&{min_valence=!s}&{max_valence=!s}&{target_valence=!s}&{min_danceability=!s}&{max_danceability=!s}&{target_danceability=!s}&{min_loudness=!s}&{max_loudness=!s}&{target_loudness=!s}&{min_instrumentalness=!s}&{max_instrumentalness=!s}&{target_instrumentalness=!s}'
+                url += f'&{min_tempo=!s}&{max_tempo=!s}&{target_tempo=!s}&{min_energy=!s}&{max_energy=!s}&{target_energy=!s}&{min_valence=!s}&{max_valence=!s}&{target_valence=!s}&{min_danceability=!s}&{max_danceability=!s}&{target_danceability=!s}&{min_instrumentalness=!s}&{max_instrumentalness=!s}&{target_instrumentalness=!s}'
 
                 recommendations = requests.get_request(url=url, headers=self.__headers).json()
 
                 songs = []
 
                 for song in recommendations["tracks"]:
-                    (id, name, popularity, artist), song_genres = util.song_data(
-                        song=song, added_at=False), self.__get_song_genres(song)
+                    (id, name, popularity, artist), song_genres = util.song_data(song=song, added_at=False), self.__get_song_genres(song)
                     song['id'] = id
-                    danceability, loudness, energy, instrumentalness, tempo, valence = util.query_audio_features(
-                        song=song, headers=self.__headers)
+                    danceability, loudness, energy, instrumentalness, tempo, valence = util.query_audio_features(song=song, headers=self.__headers)
                     songs.append({
                         "id": id,
                         "name": name,
@@ -2036,8 +2094,13 @@ class SpotifyAPI:
                         for song, artist in tracks_info.items():
                             description += f'{song} by {artist}, '
 
-                        tracks = [requests.get_request(url=f'https://api.spotify.com/v1/search?q={song} {artist}&type=track&limit=1', headers=self.__headers).json()[
-                            'tracks']['items'][0]['id'] for song, artist in tracks_info.items()]
+                        tracks = [
+                            requests.get_request(
+                                headers=self.__headers,
+                                url=f'https://api.spotify.com/v1/search?q={song} {artist}&type=track&limit=1',
+                            ).json()['tracks']['items'][0]['id']
+                            for song, artist in tracks_info.items()
+                        ]
 
                     elif isinstance(tracks_info[0], tuple) or isinstance(tracks_info[0], list):
                         for song, artist in tracks_info: # type: ignore because of the strict typing not recognizing that the condition above makes this a safe operation
@@ -2053,15 +2116,18 @@ class SpotifyAPI:
                     elif isinstance(tracks_info[0], str):
                         for song in tracks_info:
                             description += f'{song}, '
-                        tracks = [requests.get_request(url=f'https://api.spotify.com/v1/search?q={song}&type=track&limit=1', headers=self.__headers).json()[
-                            'tracks']['items'][0]['id'] for song in tracks_info]
+                        tracks = [
+                            requests.get_request(
+                                headers=self.__headers,
+                                url=f'https://api.spotify.com/v1/search?q={song}&type=track&limit=1',
+                            ).json()['tracks']['items'][0]['id']
+                            for song in tracks_info
+                        ]
 
                     else:
-                        raise ValueError(
-                            'The argument tracks_info must be an instance of one of the following 4 types: list[str], list[tuple[str]], list[list[str]], dict[str, str]')
+                        raise ValueError('The argument tracks_info must be an instance of one of the following 4 types: list[str], list[tuple[str]], list[list[str]], dict[str, str]')
 
-                    description = ' and '.join(
-                        description[:-2].rsplit(', ', 1)) if len(artists_info) > 1 else description[:-2]
+                    description = ' and '.join(description[:-2].rsplit(', ', 1)) if len(artists_info) > 1 else description[:-2]
 
                     url += f'&seed_tracks={",".join(tracks)}'
 
@@ -2091,19 +2157,16 @@ class SpotifyAPI:
                     max_instrumentalness = audio_statistics['max_instrumentalness'] * 1.2
                     target_instrumentalness = audio_statistics['mean_instrumentalness']
 
-                    url += f'&{min_tempo=!s}&{max_tempo=!s}&{target_tempo=!s}&{min_energy=!s}&{max_energy=!s}&{target_energy=!s}&{min_valence=!s}&{max_valence=!s}&{target_valence=!s}&{min_loudness=!s}&{max_loudness=!s}&{target_loudness=!s}&{min_danceability=!s}&{max_danceability=!s}&{target_danceability=!s}&{min_instrumentalness=!s}&{max_instrumentalness=!s}&{target_instrumentalness=!s}'
+                    url += f'&{min_tempo=!s}&{max_tempo=!s}&{target_tempo=!s}&{min_energy=!s}&{max_energy=!s}&{target_energy=!s}&{min_valence=!s}&{max_valence=!s}&{target_valence=!s}&{min_danceability=!s}&{max_danceability=!s}&{target_danceability=!s}&{min_instrumentalness=!s}&{max_instrumentalness=!s}&{target_instrumentalness=!s}'
 
-                recommendations = requests.get_request(
-                    url=url, headers=self.__headers).json()
+                recommendations = requests.get_request(url=url, headers=self.__headers).json()
 
                 songs = []
 
                 for song in recommendations["tracks"]:
-                    (id, name, popularity, artist), song_genres = util.song_data(
-                        song=song, added_at=False), self.__get_song_genres(song)
+                    (id, name, popularity, artist), song_genres = util.song_data(song=song, added_at=False), self.__get_song_genres(song)
                     song['id'] = id
-                    danceability, loudness, energy, instrumentalness, tempo, valence = util.query_audio_features(
-                        song=song, headers=self.__headers)
+                    danceability, loudness, energy, instrumentalness, tempo, valence = util.query_audio_features(song=song, headers=self.__headers)
                     songs.append({
                         "id": id,
                         "name": name,
@@ -2220,6 +2283,7 @@ class SpotifyAPI:
             for _ in range(2):
                 try:
                     self.__mood = mood
+                    self.__exclude_mostly_instrumental = exclude_mostly_instrumental
                     ids = playlist['id'].tolist()
 
                     self.__write_playlist(
@@ -2239,6 +2303,7 @@ class SpotifyAPI:
                     break
 
         return playlist
+
 
 
 def start_api(user_id: str, *, playlist_url: Union[str, None] = None, playlist_id: Union[str, None] = None, liked_songs: bool = False, log_level: str = 'INFO', prepare_favorites: bool = False):

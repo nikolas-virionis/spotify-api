@@ -1,7 +1,7 @@
 import os
-from spotify_recommender_api.sensitive import *
+import logging
+import spotify_recommender_api.request_handler as requests
 from spotify_recommender_api.server import up_server
-from spotify_recommender_api.request_handler import post_request_with_auth
 
 
 def get_auth() -> str:
@@ -10,12 +10,30 @@ def get_auth() -> str:
     Returns:
         str: Auth Token
     """
-    up_server()
 
     with open('./.spotify-recommender-util/execution.txt', 'r') as f:
-        auth_token = f.readline()
+        try:
+            auth_token = f.readline()
 
-    if os.path.exists("./.spotify-recommender-util/execution-status.txt"):
-        os.remove("./.spotify-recommender-util/execution-status.txt")
+            requests.get_request(
+                headers={
+                    "Accept": "application/json",
+                    "Content-Type": "application/json",
+                    "Authorization": f'Bearer {auth_token}'
+                },
+                url='https://api.spotify.com/v1/search?q=NF&type=artist&limit=1'
+            ).json()['artists']
 
-    return auth_token
+        except Exception as e:
+            logging.debug('Error while trying the existant auth token. Executing server to retrieve a new one.', e)
+
+            up_server()
+
+            with open('./.spotify-recommender-util/execution.txt', 'r') as f:
+                auth_token = f.readline()
+
+            if os.path.exists("./.spotify-recommender-util/execution-status.txt"):
+                os.remove("./.spotify-recommender-util/execution-status.txt")
+
+        return auth_token
+
