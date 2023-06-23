@@ -5,6 +5,7 @@ import functools
 import pandas as pd
 import spotify_recommender_api.request_handler as requests
 from dateutil import tz
+from typing import Union, Any
 
 
 def playlist_url_to_id(url: str) -> str:
@@ -41,14 +42,14 @@ def get_total_song_count(playlist_id: str, headers: dict) -> int:
     return playlist_res.json()["tracks"]["total"]
 
 
-def song_data(song: dict, added_at: bool = True) -> 'tuple[str, str, float, list[str], datetime.datetime]':
+def song_data(song: 'dict[str, Any]', added_at: bool = True) -> 'list[Union[str, float, list[str], datetime.datetime]]':
     """Function that gets additional information about the song, like its name, artists, id, popularity, date when it was added to the playlist, etc.
 
     Args:
-        song (dict): The song dictionary fetched from the Spotify API
+        song (dict[str, dict[str, str]]): The song dictionary fetched from the Spotify API
 
     Returns:
-        tuple[str, str, float, list[str], datetime.datetime]: A tuple containing the song's information
+        list[str, str, float, list[str], datetime.datetime]: A list containing the song's information
     """
     try:
         data = [song["track"]['id'], song["track"]['name'], song["track"]['popularity'], [artist["name"] for artist in song["track"]["artists"]]]
@@ -61,7 +62,7 @@ def song_data(song: dict, added_at: bool = True) -> 'tuple[str, str, float, list
     return data
 
 
-def item_list_indexed(items: 'list[str]', all_items: 'list[str]') -> 'list[int]':
+def item_list_indexed(items: 'list[str]', all_items: 'list[str]') -> 'list[str]':
     """Function that returns the list of items, mapped to the overall list of items, in a binary format
     Useful for the overall execution of the algorithm which determines the distance between each song
 
@@ -73,7 +74,7 @@ def item_list_indexed(items: 'list[str]', all_items: 'list[str]') -> 'list[int]'
         list[int]: indexed list of items in binary format in comparison to all the items inside the playlist
     """
 
-    return [int(all_genres_x in items) for all_genres_x in all_items]
+    return [str(int(all_genres_x in items)) for all_genres_x in all_items]
 
 
 def playlist_exists(name: str, base_playlist_name: str, headers: dict, _update_created_playlists: bool = False) -> 'str|bool':
@@ -131,7 +132,7 @@ def query_audio_features(song: pd.Series, headers: dict) -> 'list[float]':
         headers=headers
     ).json()
 
-    return [audio_features['danceability'], audio_features['energy'], audio_features['instrumentalness'], audio_features['tempo'], audio_features['valence']]
+    return [audio_features['danceability'], audio_features['loudness'] / -60, audio_features['energy'], audio_features['instrumentalness'], audio_features['tempo'], audio_features['valence']]
 
 
 def get_datetime_by_time_range(time_range: str = 'all_time') -> datetime.datetime:
@@ -190,10 +191,13 @@ def value_dict_to_value_and_percentage_dict(dictionary: 'dict[str, int]') -> 'di
     Returns:
         dict[str, dict[str, float]]: new dictionary with values and total percentages
     """
-    dictionary = {key: {'value': value, 'percentage': round(
-        value / dictionary['total'], 5)} for key, value in dictionary.items()}
-
-    return dictionary
+    return {
+        key: {
+            'value': value,
+            'percentage': round(value / dictionary['total'], 5)
+        }
+        for key, value in dictionary.items()
+    }
 
 
 def print_base_caracteristics(*args):
@@ -206,19 +210,21 @@ def print_base_caracteristics(*args):
         genres (list[str]): song's genres
         popularity (int): song's popularity
         danceability (float): song's danceability
+        loudness (float): song's loudness
         energy (float): song's energy
         instrumentalness (float): song's instrumentalness
         tempo (float): song's tempo
         valence (float): song's valence
 
     """
-    name, genres, artists, popularity, danceability, energy, instrumentalness, tempo, valence = args
+    name, genres, artists, popularity, danceability, loudness, energy, instrumentalness, tempo, valence = args
 
     logging.info(f'{name = }')
     logging.info(f'{artists = }')
     logging.info(f'{genres = }')
     logging.info(f'{popularity = }')
     logging.info(f'{danceability = }')
+    logging.info(f'{loudness = }')
     logging.info(f'{energy = }')
     logging.info(f'{instrumentalness = }')
     logging.info(f'{tempo = }')

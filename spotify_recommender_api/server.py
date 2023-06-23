@@ -6,8 +6,8 @@ import webbrowser
 import contextlib
 from fastapi import FastAPI, status
 from fastapi.responses import HTMLResponse
-from spotify_recommender_api.sensitive import *
-from spotify_recommender_api.request_handler import *
+from spotify_recommender_api.sensitive import CLIENT_ID, CLIENT_SECRET
+from spotify_recommender_api.request_handler import post_request_with_auth
 app = FastAPI()
 
 redirect_uri = 'http://localhost:8000/callback'
@@ -63,7 +63,7 @@ def get_access_token(auth_code: str) -> str:
     """
     response = post_request_with_auth(
         "https://accounts.spotify.com/api/token",
-        auth=(CLIENT_ID, CLIENT_SECRET),
+        auth=(CLIENT_ID, CLIENT_SECRET), # type: ignore
         data={
             "grant_type": "authorization_code",
             "code": auth_code,

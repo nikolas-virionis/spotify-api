@@ -1,11 +1,12 @@
 import json
 import time
 import logging
-from requests import get, post, delete, put
+import requests
+from typing import Union
 from spotify_recommender_api.error import HTTPRequestError, TooManyRequestsError, AccessTokenExpiredError
 
 
-def exponential_backoff(func, retries: int = 5, *args, **kwargs):
+def exponential_backoff(func, retries: int = 5, *args, **kwargs) -> requests.Response:
     """Exponential backoff strategy (https://en.wikipedia.org/wiki/Exponential_backoff)
     in order to retry certain function after exponetially increasing delay, to overcome "429: Too Many Requests" error
 
@@ -21,9 +22,9 @@ def exponential_backoff(func, retries: int = 5, *args, **kwargs):
     """
     x = 0
     while x <= retries:
-        response = None
+        response = requests.Response()
         try:
-            response = func(*args, **kwargs)
+            response: requests.Response = func(*args, **kwargs)
             try:
                 response.json()
             except Exception as e: # this error happens when there is a 204 response and the response.json() cannot be decoded properly regardless of the request being successful
@@ -55,8 +56,10 @@ def exponential_backoff(func, retries: int = 5, *args, **kwargs):
             logging.warning(f'\tError raised: sleeping {sleep} seconds')
             time.sleep(sleep)
 
+    return requests.Response()
 
-def get_request(url: str, headers: dict = None, retries: int = 10) -> dict:
+
+def get_request(url: str, headers: Union[dict, None] = None, retries: int = 10) -> requests.Response:
     """GET request with integrated exponential backoff retry strategy
 
     Args:
@@ -67,9 +70,9 @@ def get_request(url: str, headers: dict = None, retries: int = 10) -> dict:
     Returns:
         dict: Request response
     """
-    return exponential_backoff(func=get, url=url, headers=headers, retries=retries)
+    return exponential_backoff(func=requests.get, url=url, headers=headers, retries=retries)
 
-def post_request(url: str, headers: dict = None, data: dict = None, retries: int = 10) -> dict:
+def post_request(url: str, headers: Union[dict, None] = None, data: Union[dict, None] = None, retries: int = 10) -> requests.Response:
     """POST request with integrated exponential backoff retry strategy
 
     Args:
@@ -81,9 +84,9 @@ def post_request(url: str, headers: dict = None, data: dict = None, retries: int
     Returns:
         dict: Request response
     """
-    return exponential_backoff(func=post, url=url, headers=headers, data=json.dumps(data), retries=retries)
+    return exponential_backoff(func=requests.post, url=url, headers=headers, data=json.dumps(data), retries=retries)
 
-def post_request_dict(url: str, headers: dict = None, data: dict = None, retries: int = 10) -> dict:
+def post_request_dict(url: str, headers: Union[dict, None] = None, data: Union[dict, None] = None, retries: int = 10) -> requests.Response:
     """POST request with integrated exponential backoff retry strategy
 
     Args:
@@ -95,9 +98,9 @@ def post_request_dict(url: str, headers: dict = None, data: dict = None, retries
     Returns:
         dict: Request response
     """
-    return exponential_backoff(func=post, url=url, headers=headers, data=data, retries=retries)
+    return exponential_backoff(func=requests.post, url=url, headers=headers, data=data, retries=retries)
 
-def post_request_with_auth(url: str, headers: dict = None, data: dict = None, auth: 'tuple[str]' = None, retries: int = 10) -> dict:
+def post_request_with_auth(url: str, headers: Union[dict, None] = None, data: Union[dict, None] = None, auth: Union['tuple[str]', None] = None, retries: int = 10) -> requests.Response:
     """POST request with integrated exponential backoff retry strategy
 
     Args:
@@ -109,9 +112,9 @@ def post_request_with_auth(url: str, headers: dict = None, data: dict = None, au
     Returns:
         dict: Request response
     """
-    return exponential_backoff(func=post, url=url, headers=headers, data=data, auth=auth, retries=retries)
+    return exponential_backoff(func=requests.post, url=url, headers=headers, data=data, auth=auth, retries=retries)
 
-def put_request(url: str, headers: dict = None, data: dict = None, retries: int = 10) -> dict:
+def put_request(url: str, headers: Union[dict, None] = None, data: Union[dict, None] = None, retries: int = 10) -> requests.Response:
     """PUT request with integrated exponential backoff retry strategy
 
     Args:
@@ -123,9 +126,9 @@ def put_request(url: str, headers: dict = None, data: dict = None, retries: int 
     Returns:
         dict: Request response
     """
-    return exponential_backoff(func=put, url=url, headers=headers, data=json.dumps(data), retries=retries)
+    return exponential_backoff(func=requests.put, url=url, headers=headers, data=json.dumps(data), retries=retries)
 
-def delete_request(url: str, headers: dict = None, data: dict = None, retries: int = 10) -> dict:
+def delete_request(url: str, headers: Union[dict, None] = None, data: Union[dict, None] = None, retries: int = 10) -> requests.Response:
     """DELETE request with integrated exponential backoff retry strategy
 
     Args:
@@ -137,4 +140,4 @@ def delete_request(url: str, headers: dict = None, data: dict = None, retries: i
     Returns:
         dict: Request response
     """
-    return exponential_backoff(func=delete, url=url, headers=headers, data=json.dumps(data), retries=retries)
+    return exponential_backoff(func=requests.delete, url=url, headers=headers, data=json.dumps(data), retries=retries)
