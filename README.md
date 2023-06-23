@@ -239,7 +239,7 @@ api.select_playlist(user_id='USER_ID', liked_songs=True)
 # Function to select a playlist to be mapped and be available on all the playlist-related recommendation
 # functions on an already existing authorization context
 ~~~~~~
- - select_playlist
+ - get_songs_by_mood
 ~~~python
 # Parameters
 get_songs_by_mood(mood: str, K: int = 50, build_playlist: bool = False, exclude_mostly_instrumental: bool = False)
