@@ -134,7 +134,7 @@ api.get_most_listened(time_range='short', K=53)
 ### WILL CHANGE THE USER'S LIBRARY DRASTICALLY
 ~~~python
 # Parameters
-update_all_generated_playlists(K: int = None, playlist_types_to_update: list[str] = ['most-listened-tracks', 'song-related', 'artist-mix', 'artist-full', 'playlist-recommendation', 'profile-recommendation'])
+update_all_generated_playlists(K: int = None, playlist_types_to_update: list[str] = ['most-listened-tracks', 'song-related', 'artist-mix', 'artist-full', 'playlist-recommendation', 'profile-short-term-recommendation', 'profile-medium-term-recommendation', 'profile-long-term-recommendation'], playlist_types_not_to_update: list[str] = [])
 # Method Use Example
 api.update_all_generated_playlists()
 # or for example api.update_all_generated_playlists(playlist_types_to_update=['playlist-recommendation'])
@@ -198,7 +198,7 @@ api.audio_features_extraordinary_songs()
 ~~~python
 # Parameters
 get_profile_recommendation(K: int = 50, main_criteria: str = 'mixed', save_with_date: bool = False,
-build_playlist: bool = False)
+build_playlist: bool = False, time_range: str = 'short_term')
 # Method Use Example
 api.get_profile_recommendation(build_playlist=True)
 # Function that returns a pandas DataFrame with profile-based recommendations, and creates it in the user account
