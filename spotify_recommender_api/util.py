@@ -78,7 +78,7 @@ def item_list_indexed(items: 'list[str]', all_items: 'list[str]') -> 'list[str]'
     return [str(int(all_genres_x in items)) for all_genres_x in all_items]
 
 
-def playlist_exists(name: str, base_playlist_name: str, headers: dict, _update_created_playlists: bool = False) -> 'str|bool':
+def playlist_exists(name: str, base_playlist_name: str, headers: dict, _update_created_playlists: bool = False) -> Union['tuple[str, str, str]', 'tuple[()]']:
     """Function used to check if a playlist exists inside the user's library
     Used before the creation of a new playlist
 
@@ -90,20 +90,23 @@ def playlist_exists(name: str, base_playlist_name: str, headers: dict, _update_c
     Returns:
         str|bool: If the playlist already exists, returns the id of the playlist, otherwise returns False
     """
-    total_playlist_count = requests.get_request(
-        url='https://api.spotify.com/v1/me/playlists?limit=1', headers=headers).json()['total']
+    total_playlist_count = requests.get_request(url='https://api.spotify.com/v1/me/playlists?limit=1', headers=headers).json()['total']
     playlists = []
     for offset in range(0, total_playlist_count, 50):
-        request = requests.get_request(
-            url=f'https://api.spotify.com/v1/me/playlists?limit=50&{offset=!s}',  headers=headers).json()
+        request = requests.get_request(url=f'https://api.spotify.com/v1/me/playlists?limit=50&{offset=!s}',  headers=headers).json()
 
-        playlists += list(map(lambda playlist: (
-            playlist['id'], playlist['name'], playlist['description']), request['items']))
+        playlists += list(map(lambda playlist: (playlist['id'], playlist['name'], playlist['description']), request['items']))
 
     return next(
         (
-            playlist[0] for playlist in playlists
-            if playlist[1] == name and
+            playlist for playlist in playlists
+            if (
+                playlist[1] == name or
+                (
+                    name.lower().startswith('profile short term recommendation') and
+                    playlist[1] == name.replace('Short term ', '')
+                )
+            ) and
             (
                 ' Term Most-listened Tracks' in name or
                 f', within the playlist {base_playlist_name}' in playlist[2] or
@@ -111,8 +114,9 @@ def playlist_exists(name: str, base_playlist_name: str, headers: dict, _update_c
                 'Recommendation (' in name
             )
         ),
-        False
+        ()
     )
+
 
 
 def query_audio_features(song: pd.Series, headers: dict) -> 'list[float]':

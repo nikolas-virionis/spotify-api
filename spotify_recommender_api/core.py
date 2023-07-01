@@ -208,8 +208,8 @@ def create_playlist(
     else:
         raise ValueError('type not valid')
 
-    if playlist_id_found := util.playlist_exists(name=playlist_name, base_playlist_name=base_playlist_name, headers=headers, _update_created_playlists=_update_created_playlists):
-        new_id = playlist_id_found
+    if playlist_found := util.playlist_exists(name=playlist_name, base_playlist_name=base_playlist_name, headers=headers, _update_created_playlists=_update_created_playlists):
+        new_id = playlist_found[0]
 
         playlist_tracks = list(map(lambda track: {'uri': track['track']['uri']}, requests.get_request(
             url=f'https://api.spotify.com/v1/playlists/{new_id}/tracks', headers=headers).json()['items']))
@@ -217,12 +217,20 @@ def create_playlist(
         delete_json = requests.delete_request(
             url=f'https://api.spotify.com/v1/playlists/{new_id}/tracks', headers=headers, data={"tracks": playlist_tracks}).json()
 
-        if _update_created_playlists:
+        if (
+            _update_created_playlists or
+            (
+                playlist_name.lower().startswith('profile short term recommendation') and
+                playlist_found[1] == playlist_name.replace('Short term ', '')
+            )
+        ):
             data = {
                 "name": playlist_name,
                 "description": description,
                 "public": False
             }
+
+            logging.info(f'Updating playlist {playlist_found[1]} details')
 
             update_playlist_details = requests.put_request(url=f'https://api.spotify.com/v1/playlists/{new_id}', headers=headers, data=data)
 
