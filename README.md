@@ -134,7 +134,7 @@ api.get_most_listened(time_range='short', K=53)
 ### WILL CHANGE THE USER'S LIBRARY DRASTICALLY
 ~~~python
 # Parameters
-update_all_generated_playlists(K: int = None, playlist_types_to_update: list[str] = ['most-listened-tracks', 'song-related', 'artist-mix', 'artist-full', 'playlist-recommendation', 'profile-short-term-recommendation', 'profile-medium-term-recommendation', 'profile-long-term-recommendation'], playlist_types_not_to_update: list[str] = [])
+update_all_generated_playlists(K: int = None, playlist_types_to_update: list[str] = ['most-listened-tracks', 'song-related', 'artist-mix', 'artist-full', 'playlist-recommendation', 'short-term-profile-recommendation', 'medium-term-profile-recommendation', 'long-term-profile-recommendation'], playlist_types_not_to_update: list[str] = [])
 # Method Use Example
 api.update_all_generated_playlists()
 # or for example api.update_all_generated_playlists(playlist_types_to_update=['playlist-recommendation'])
