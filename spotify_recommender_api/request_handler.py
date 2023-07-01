@@ -40,7 +40,7 @@ def exponential_backoff(func, retries: int = 5, *args, **kwargs) -> requests.Res
 
             if '401' in f'{e}':
                 logging.error('Access Token Expired')
-                raise AccessTokenExpiredError(func_name=func.__name__, err_code=f"{response.json()['error']['status']}: {response.json()['error']['message']}", message=None, *args, **kwargs) from e
+                raise AccessTokenExpiredError(func_name=func.__name__, message=None, *args, **kwargs) from e
 
             if '429' not in f'{e}':
                 raise HTTPRequestError(func_name=func.__name__, err_code=f"{response.json()['error']['status']}: {response.json()['error']['message']}", message=None, *args, **kwargs) from e

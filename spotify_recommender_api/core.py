@@ -156,7 +156,7 @@ def create_playlist(
         playlist_name = "Recent-ish Favorites" if type == 'medium' else "Latest Favorites"
         description = f"Songs related to your {type} term top 5, within the playlist {base_playlist_name}"
 
-    elif 'most-listened' in type:
+    elif 'most-listened' in type and 'recommendation' not in type:
         playlist_name = f"{type.replace('most-listened-', '').capitalize()} Term Most-listened Tracks"
         description = f"The most listened tracks in a {type.replace('most-listened-', '')} period of time"
 
@@ -205,17 +205,31 @@ def create_playlist(
         playlist_name = f"{additional_info[0]} Songs".capitalize()
         description = f'Songs related to the mood "{additional_info[0]}"{", excluding the mostly instrumental songs" if additional_info[1] else ""}, within the playlist {base_playlist_name}'
 
+    elif type == 'most-listened-recommendation':
+        playlist_name = f"{additional_info.replace('_', ' ')} most listened recommendations".capitalize() # type: ignore
+        description = f"Songs related to the {additional_info.replace('_', ' ')} most listened tracks, within the playlist {base_playlist_name}" # type: ignore
+
     else:
         raise ValueError('type not valid')
 
     if playlist_found := util.playlist_exists(name=playlist_name, base_playlist_name=base_playlist_name, headers=headers, _update_created_playlists=_update_created_playlists):
         new_id = playlist_found[0]
 
-        playlist_tracks = list(map(lambda track: {'uri': track['track']['uri']}, requests.get_request(
-            url=f'https://api.spotify.com/v1/playlists/{new_id}/tracks', headers=headers).json()['items']))
+        playlist_tracks = [
+            {
+                'uri': track['track']['uri']
+            }
+            for track in requests.get_request(
+                headers=headers,
+                url=f'https://api.spotify.com/v1/playlists/{new_id}/tracks',
+            ).json()['items']
+        ]
 
         delete_json = requests.delete_request(
-            url=f'https://api.spotify.com/v1/playlists/{new_id}/tracks', headers=headers, data={"tracks": playlist_tracks}).json()
+            headers=headers,
+            data={"tracks": playlist_tracks},
+            url=f'https://api.spotify.com/v1/playlists/{new_id}/tracks',
+        ).json()
 
         if (
             _update_created_playlists or
@@ -240,6 +254,7 @@ def create_playlist(
             "description": description,
             "public": False
         }
+
         playlist_creation = requests.post_request(url=f'https://api.spotify.com/v1/users/{user_id}/playlists', headers=headers, data=data)
         new_id = playlist_creation.json()['id']
 

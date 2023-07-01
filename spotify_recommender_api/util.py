@@ -95,7 +95,7 @@ def playlist_exists(name: str, base_playlist_name: str, headers: dict, _update_c
     for offset in range(0, total_playlist_count, 50):
         request = requests.get_request(url=f'https://api.spotify.com/v1/me/playlists?limit=50&{offset=!s}',  headers=headers).json()
 
-        playlists += list(map(lambda playlist: (playlist['id'], playlist['name'], playlist['description']), request['items']))
+        playlists += [(playlist['id'], playlist['name'], playlist['description']) for playlist in request['items']]
 
     return next(
         (
@@ -119,11 +119,11 @@ def playlist_exists(name: str, base_playlist_name: str, headers: dict, _update_c
 
 
 
-def query_audio_features(song: pd.Series, headers: dict) -> 'list[float]':
+def query_audio_features(song: Union[pd.Series, 'dict[str, Any]'], headers: dict) -> 'list[float]':
     """Queries the audio features for a given song and returns the ones that match the recommendations within this package
 
     Args:
-        song (pd.Series): song containing its base information
+        song (pd.Series | dict[str, Any]): song containing its base information
         headers (dict): Request headers
 
     Returns:
