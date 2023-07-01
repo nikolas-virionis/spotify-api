@@ -1041,10 +1041,10 @@ class SpotifyAPI:
 
         elif (
             ' - 20' not in name and
-            all(word in name for word in {'Profile', 'Recommendation'}) and
+            'Profile Recommendation' in name and
             any(
                 playlist_type in playlist_types_to_update
-                for playlist_type in {'profile-short-term-recommendation', 'profile-medium-term-recommendation', 'profile-long-term-recommendation'}
+                for playlist_type in {'short-term-profile-recommendation', 'medium-term-profile-recommendation', 'long-term-profile-recommendation'}
             )
         ):
             return True
@@ -1080,11 +1080,11 @@ class SpotifyAPI:
 
         Arguments:
             K (int, optional): Number of songs in the new playlists, if not set, defaults to the number of songs already in the playlist. Defaults to None.
-            playlist_types_to_update (list[str], optional): List of playlist types to update. For example, if you only want to update song-related playlists use this argument as ['song-related']. Defaults to all == ['most-listened-tracks', 'song-related', 'artist-mix', 'artist-full', 'playlist-recommendation', 'profile-short-term-recommendation', 'profile-medium-term-recommendation', 'profile-long-term-recommendation', 'mood'].
+            playlist_types_to_update (list[str], optional): List of playlist types to update. For example, if you only want to update song-related playlists use this argument as ['song-related']. Defaults to all == ['most-listened-tracks', 'song-related', 'artist-mix', 'artist-full', 'playlist-recommendation', 'short-term-profile-recommendation', 'medium-term-profile-recommendation', 'long-term-profile-recommendation', 'mood'].
             playlist_types_not_to_update (list[str], optional): List of playlist types not to update. For example, if you want to update all playlists but song-related playlists use this argument as ['song-related']. it can be used alongside with the playlist_types_to_update but it can become confusing or redundant. Defaults to none == [].
         """
         if playlist_types_to_update is None:
-            playlist_types_to_update = ['most-listened-tracks', 'song-related', 'artist-mix', 'artist-full', 'playlist-recommendation', 'profile-short-term-recommendation', 'profile-medium-term-recommendation', 'profile-long-term-recommendation', 'mood']
+            playlist_types_to_update = ['most-listened-tracks', 'song-related', 'artist-mix', 'artist-full', 'playlist-recommendation', 'short-term-profile-recommendation', 'medium-term-profile-recommendation', 'long-term-profile-recommendation', 'mood']
 
         if playlist_types_not_to_update is None:
             playlist_types_not_to_update = []
@@ -1094,12 +1094,12 @@ class SpotifyAPI:
         if 'profile-recommendation' in playlist_types_to_update:
             logging.info('After version 4.4.0, the profile-recommendation playlists are separated in short, medium and long term. See the update_all_created_playlists docstring or the documentation at: https://github.com/nikolas-virionis/spotify-api')
             playlist_types_to_update.remove('profile-recommendation')
-            for playlist_type in {'profile-short-term-recommendation', 'profile-medium-term-recommendation', 'profile-long-term-recommendation'}:
+            for playlist_type in {'short-term-profile-recommendation', 'medium-term-profile-recommendation', 'long-term-profile-recommendation'}:
                 if playlist_type not in playlist_types_to_update:
                     playlist_types_to_update.append(playlist_type)
 
         if 'profile-recommendation' in playlist_types_not_to_update:
-            for playlist_type in {'profile-recommendation', 'profile-short-term-recommendation', 'profile-medium-term-recommendation', 'profile-long-term-recommendation'}:
+            for playlist_type in {'profile-recommendation', 'short-term-profile-recommendation', 'medium-term-profile-recommendation', 'long-term-profile-recommendation'}:
                 if playlist_type in playlist_types_to_update:
                     playlist_types_to_update.remove(playlist_type)
 
@@ -1199,10 +1199,10 @@ class SpotifyAPI:
 
                 elif (
                     ' - 20' not in name and
-                    all(word in name for word in {'Profile', 'Recommendation'}) and
+                    'Profile Recommendation' in name and
                     any(
                         playlist_type in playlist_types_to_update
-                        for playlist_type in {'profile-short-term-recommendation', 'profile-medium-term-recommendation', 'profile-long-term-recommendation'}
+                        for playlist_type in {'short-term-profile-recommendation', 'medium-term-profile-recommendation', 'long-term-profile-recommendation'}
                     )
                 ):
                     criteria = name.split('(')[1].split(')')[0]
@@ -1215,8 +1215,8 @@ class SpotifyAPI:
                         time_range = '_'.join(name.split(' ')[1:3]).lower()
                     else:
                         time_range = 'short_term'
-                        playlist_name = f"Profile {time_range.replace('_', ' ').capitalize()} Recommendation ({criteria_name})"
-                        description = f'''Profile-based {time_range.replace('_', ' ')} recommendations based on favorite {criteria_name}'''
+                        playlist_name = f"{time_range.replace('_', ' ').capitalize()} Profile Recommendation ({criteria_name})"
+                        description = f'''{time_range.replace('_', ' ').capitalize()} Profile-based recommendations based on favorite {criteria_name}'''
 
                         data = {
                             "name": playlist_name,
@@ -1229,7 +1229,7 @@ class SpotifyAPI:
 
                         update_playlist_details = requests.put_request(url=f'https://api.spotify.com/v1/playlists/{playlist_id}', headers=self.__headers, data=data)
 
-                    if f"profile-{time_range.replace('_', '-')}-recommendation" not in playlist_types_to_update:
+                    if f"{time_range.replace('_', '-')}-profile-recommendation" not in playlist_types_to_update:
                         continue
 
                     self.get_profile_recommendation(
@@ -2190,8 +2190,8 @@ class SpotifyAPI:
                                 headers=self.__headers,
                                 url=f'https://api.spotify.com/v1/search?q={song} {artist}&type=track&limit=1',
                             ).json()['tracks']['items'][0]['id']
-                        for song, artist in tracks_info # type: ignore because of the strict typing not recognizing that the condition above makes this a safe operation
-                    ]
+                            for song, artist in tracks_info # type: ignore because of the strict typing not recognizing that the condition above makes this a safe operation
+                        ]
 
                     elif isinstance(tracks_info[0], str):
                         for song in tracks_info:

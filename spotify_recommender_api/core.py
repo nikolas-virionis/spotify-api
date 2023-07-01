@@ -174,8 +174,8 @@ def create_playlist(
 
     elif type == 'profile-recommendation':
         criteria = additional_info[0] if additional_info[0] != 'mixed' else 'genres, tracks and artists'
-        playlist_name = f"Profile {additional_info[2].replace('_', ' ').capitalize()} Recommendation"
-        description = f'''Profile-based {additional_info[2].replace('_', ' ')} recommendations based on favorite {criteria}'''
+        playlist_name = f"{additional_info[2].replace('_', ' ').capitalize()} Profile Recommendation"
+        description = f'''{additional_info[2].replace('_', ' ').capitalize()} profile-based recommendations based on favorite {criteria}'''
 
         if additional_info[1]:
             now = datetime.datetime.now(tz=pytz.timezone('UTC'))
@@ -220,7 +220,7 @@ def create_playlist(
         if (
             _update_created_playlists or
             (
-                playlist_name.lower().startswith('profile short term recommendation') and
+                playlist_name.lower().startswith('short term profile recommendation') and
                 playlist_found[1] == playlist_name.replace('Short term ', '')
             )
         ):
