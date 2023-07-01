@@ -6,7 +6,9 @@ import seaborn as sns
 import matplotlib.pyplot as plt
 import spotify_recommender_api.util as util
 import spotify_recommender_api.request_handler as requests
+
 from typing import Union, Any
+
 sns.set()
 
 
@@ -172,8 +174,8 @@ def create_playlist(
 
     elif type == 'profile-recommendation':
         criteria = additional_info[0] if additional_info[0] != 'mixed' else 'genres, tracks and artists'
-        playlist_name = "Profile Recommendation"
-        description = f'''Profile-based recommendations based on favorite {criteria}'''
+        playlist_name = f"Profile {additional_info[2].replace('_', ' ').capitalize()} Recommendation"
+        description = f'''Profile-based {additional_info[2].replace('_', ' ')} recommendations based on favorite {criteria}'''
 
         if additional_info[1]:
             now = datetime.datetime.now(tz=pytz.timezone('UTC'))
@@ -222,8 +224,7 @@ def create_playlist(
                 "public": False
             }
 
-            update_playlist_details = requests.put_request(
-                url=f'https://api.spotify.com/v1/playlists/{new_id}', headers=headers, data=data)
+            update_playlist_details = requests.put_request(url=f'https://api.spotify.com/v1/playlists/{new_id}', headers=headers, data=data)
 
     else:
         data = {
@@ -231,8 +232,7 @@ def create_playlist(
             "description": description,
             "public": False
         }
-        playlist_creation = requests.post_request(
-            url=f'https://api.spotify.com/v1/users/{user_id}/playlists', headers=headers, data=data)
+        playlist_creation = requests.post_request(url=f'https://api.spotify.com/v1/users/{user_id}/playlists', headers=headers, data=data)
         new_id = playlist_creation.json()['id']
 
     return new_id

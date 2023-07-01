@@ -2,6 +2,7 @@ import json
 import time
 import logging
 import requests
+
 from typing import Union
 from spotify_recommender_api.error import HTTPRequestError, TooManyRequestsError, AccessTokenExpiredError
 

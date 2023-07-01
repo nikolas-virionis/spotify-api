@@ -8,9 +8,11 @@ import spotify_recommender_api.util as util
 import spotify_recommender_api.core as core
 import spotify_recommender_api.authentication as auth
 import spotify_recommender_api.request_handler as requests
+
 from functools import reduce
 from typing import Any, Union
 from spotify_recommender_api.error import AccessTokenExpiredError
+
 warnings.filterwarnings('error')
 
 
@@ -479,7 +481,8 @@ class SpotifyAPI:
             ],
             'profile-recommendation': [
                 getattr(self, '_SpotifyAPI__profile_recommendation_criteria', None),
-                getattr(self, '_SpotifyAPI__profile_recommendation_date', None)
+                getattr(self, '_SpotifyAPI__profile_recommendation_date', None),
+                getattr(self, '_SpotifyAPI__profile_recommendation_time_range', None)
             ],
             'playlist-recommendation': [
                 getattr(self, '_SpotifyAPI__playlist_recommendation_criteria', None),
@@ -1036,7 +1039,14 @@ class SpotifyAPI:
         if name in {'Long Term Most-listened Tracks', 'Medium Term Most-listened Tracks', 'Short Term Most-listened Tracks'} and 'most-listened-tracks' in playlist_types_to_update:
             return True
 
-        elif 'Profile Recommendation' in name and ' - 20' not in name and 'profile-recommendation' in playlist_types_to_update:
+        elif (
+            ' - 20' not in name and
+            all(word in name for word in {'Profile', 'Recommendation'}) and
+            any(
+                playlist_type in playlist_types_to_update
+                for playlist_type in {'profile-short-term-recommendation', 'profile-medium-term-recommendation', 'profile-long-term-recommendation'}
+            )
+        ):
             return True
 
         elif f', within the playlist {self.__base_playlist_name}' in description or self.__update_created_files:
@@ -1057,16 +1067,36 @@ class SpotifyAPI:
 
         return False
 
-    def update_all_generated_playlists(self, *, K: Union[int, None] = None, playlist_types_to_update: Union['list[str]', None] = None):
+    def update_all_generated_playlists(
+            self, *,
+            K: Union[int, None] = None,
+            playlist_types_to_update: Union['list[str]', None] = None,
+            playlist_types_not_to_update: Union['list[str]', None] = None
+        ) -> None:
         """Update all package generated playlists in batch
 
         Note:
             It is NOT recommended to use the K parameter in this function, unless 100% on purpose, since it will make all the playlists have the same number of songs in them
+
+        Arguments:
             K (int, optional): Number of songs in the new playlists, if not set, defaults to the number of songs already in the playlist. Defaults to None.
-            playlist_types_to_update (list[str], optional): List of playlist types to update. For example, if you only want to update song-related playlists use this argument as ['song-related']. Defaults to all - ['most-listened-tracks', 'song-related', 'artist-mix', 'artist-full', 'playlist-recommendation', 'profile-recommendation', 'mood'].
+            playlist_types_to_update (list[str], optional): List of playlist types to update. For example, if you only want to update song-related playlists use this argument as ['song-related']. Defaults to all == ['most-listened-tracks', 'song-related', 'artist-mix', 'artist-full', 'playlist-recommendation', 'profile-short-term-recommendation', 'profile-medium-term-recommendation', 'profile-long-term-recommendation', 'mood'].
+            playlist_types_not_to_update (list[str], optional): List of playlist types not to update. For example, if you want to update all playlists but song-related playlists use this argument as ['song-related']. it can be used alongside with the playlist_types_to_update but it can become confusing or redundant. Defaults to none == [].
         """
         if playlist_types_to_update is None:
-            playlist_types_to_update = ['most-listened-tracks', 'song-related', 'artist-mix', 'artist-full', 'playlist-recommendation', 'profile-recommendation', 'mood']
+            playlist_types_to_update = ['most-listened-tracks', 'song-related', 'artist-mix', 'artist-full', 'playlist-recommendation', 'profile-short-term-recommendation', 'profile-medium-term-recommendation', 'profile-long-term-recommendation', 'mood']
+
+        if playlist_types_not_to_update is None:
+            playlist_types_not_to_update = []
+
+        playlist_types_to_update = [playlist_type for playlist_type in playlist_types_to_update if playlist_type not in playlist_types_not_to_update]
+
+        if 'profile-recommendation' in playlist_types_to_update:
+            logging.info('After version 4.4.0, the profile-recommendation playlists are separated in short, medium and long term. See the update_all_created_playlists docstring or the documentation at: https://github.com/nikolas-virionis/spotify-api')
+            playlist_types_to_update.remove('profile-recommendation')
+            for playlist_type in {'profile-short-term-recommendation', 'profile-medium-term-recommendation', 'profile-long-term-recommendation'}:
+                if playlist_type not in playlist_types_to_update:
+                    playlist_types_to_update.append(playlist_type)
 
         total_playlist_count = requests.get_request(url='https://api.spotify.com/v1/me/playlists?limit=0', headers=self.__headers).json()['total']
 
@@ -1088,7 +1118,7 @@ class SpotifyAPI:
 
         last_printed_perc_update = 0
 
-        for index, (_, name, description, total_tracks) in enumerate(playlists):
+        for index, (playlist_id, name, description, total_tracks) in enumerate(playlists):
             try:
                 logging.debug(f'Updating song {name} - {index}/{len(playlists)}')
                 if last_printed_perc_update + 10 <= (perc_update := next((perc for perc in range(100, 0, -10) if (100 * index) / len(playlists) >= perc), 100)) < 100:
@@ -1130,6 +1160,12 @@ class SpotifyAPI:
                             _auto=True
                         )
 
+                    # elif name == 'Recent-ish Favorites':
+                    #     self.__write_playlist(type='medium', K=total_tracks)
+
+                    # elif name == 'Latest Favorites':
+                    #     self.__write_playlist(type='short', K=total_tracks)
+
                     elif 'Playlist Recommendation' in name and ' - 20' not in name and 'playlist-recommendation' in playlist_types_to_update:
                         criteria = name.split('(')[1].split(')')[0]
                         if ',' in criteria:
@@ -1156,21 +1192,52 @@ class SpotifyAPI:
                             exclude_mostly_instrumental=exclude_mostly_instrumental,
                         )
 
-                elif 'Profile Recommendation' in name and ' - 20' not in name and 'profile-recommendation' in playlist_types_to_update:
+                elif (
+                    ' - 20' not in name and
+                    all(word in name for word in {'Profile', 'Recommendation'}) and
+                    any(
+                        playlist_type in playlist_types_to_update
+                        for playlist_type in {'profile-short-term-recommendation', 'profile-medium-term-recommendation', 'profile-long-term-recommendation'}
+                    )
+                ):
                     criteria = name.split('(')[1].split(')')[0]
+                    criteria_name = criteria
+
                     if ',' in criteria:
                         criteria = 'mixed'
+
+                    if 'term' in name.lower():
+                        time_range = '_'.join(name.split(' ')[1:3]).lower()
+                    else:
+                        time_range = 'short_term'
+                        playlist_name = f"Profile {time_range.replace('_', ' ').capitalize()} Recommendation ({criteria_name})"
+                        description = f'''Profile-based {time_range.replace('_', ' ')} recommendations based on favorite {criteria_name}'''
+
+                        data = {
+                            "name": playlist_name,
+                            "description": description,
+                            "public": False
+                        }
+
+                        logging.info(f'Updating the name and description of the playlist {name} because of new time range specifications added to the profile_recommendation function in version 4.4.0')
+                        logging.info('In case of any problems with the feature, submit an issue at: https://github.com/nikolas-virionis/spotify-api/issues')
+
+                        update_playlist_details = requests.put_request(url=f'https://api.spotify.com/v1/playlists/{playlist_id}', headers=self.__headers, data=data)
+
+                    if f"profile-{time_range.replace('_', '-')}-recommendation" not in playlist_types_to_update:
+                        continue
 
                     self.get_profile_recommendation(
                         K=total_tracks,
                         build_playlist=True,
+                        time_range=time_range,
                         main_criteria=criteria,
                     )
 
-                logging.info('Playlists update operation at 100%')
-
             except ValueError as e:
                 logging.error(f"Unfortunately we couldn't update a playlist because\n {e}")
+
+        logging.info('Playlists update operation at 100%')
 
     def get_playlist_trending_genres(self, time_range: str = 'all_time', plot_top: 'int|bool' = False) -> Union[pd.DataFrame, None]:
         """Calculates the amount of times each genre was spotted in the playlist, and can plot a bar chart to represent this information
@@ -1697,12 +1764,13 @@ class SpotifyAPI:
         }
 
     def get_profile_recommendation(
-        self,
-        K: int = 50,
-        main_criteria: str = 'mixed',
-        save_with_date: bool = False,
-        build_playlist: bool = False,
-    ) -> Union[pd.DataFrame, None]:
+            self,
+            K: int = 50,
+            main_criteria: str = 'mixed',
+            save_with_date: bool = False,
+            build_playlist: bool = False,
+            time_range: str = 'short_term'
+        ) -> Union[pd.DataFrame, None]:
         """Builds a Profile based recommendation
 
         Args:
@@ -1710,10 +1778,12 @@ class SpotifyAPI:
             main_criteria (str, optional): Main criteria for the recommendations playlist. Can be one of the following: 'mixed', 'artists', 'tracks', 'genres'. Defaults to 'mixed'.
             save_with_date (bool, optional): Flag to save the recommendations playlist as a Point in Time Snapshot. Defaults to False.
             build_playlist (bool, optional): Flag to build the recommendations playlist in the users library. Defaults to False.
+            time_range (str, optional): The time range to get the profile most listened information from. Can be one of the following: 'short_term', 'medium_term', 'long_term'. Defaults to 'short_term'
 
         Raises:
             ValueError: K must be between 1 and 100
             ValueError: 'mixed', 'artists', 'tracks', 'genres'
+            ValueError: time_range needs to be one of the following: 'short_term', 'medium_term', 'long_term'
 
         Returns:
             pd.DataFrame: Recommendations playlist
@@ -1721,9 +1791,11 @@ class SpotifyAPI:
         if not (1 < K <= 100):
             raise ValueError('K must be between 1 and 100')
 
-        if main_criteria not in ['mixed', 'artists', 'tracks', 'genres']:
-            raise ValueError(
-                "main_criteria must be one of the following: 'mixed', 'artists', 'tracks', 'genres'")
+        if main_criteria not in {'mixed', 'artists', 'tracks', 'genres'}:
+            raise ValueError("main_criteria must be one of the following: 'mixed', 'artists', 'tracks', 'genres'")
+
+        if time_range not in {'short_term', 'medium_term', 'long_term'}:
+            raise ValueError("time_range needs to be one of the following: 'short_term', 'medium_term', 'long_term'")
 
         tracks = []
         genres = []
@@ -1739,7 +1811,9 @@ class SpotifyAPI:
 
                     else:
                         top_artists_req = requests.get_request(
-                            url='https://api.spotify.com/v1/me/top/artists?time_range=short_term&limit=5', headers=self.__headers).json()['items']
+                            headers=self.__headers,
+                            url=f'https://api.spotify.com/v1/me/top/artists?time_range={time_range}&limit=5',
+                        ).json()['items']
 
                         artists = [artist['id'] for artist in top_artists_req]
                         genres = list(set(reduce(lambda x, y: x + y, [artist['genres'] for artist in top_artists_req], [])))[:5]
@@ -1755,7 +1829,7 @@ class SpotifyAPI:
                             track['id']
                             for track in requests.get_request(
                                 headers=self.__headers,
-                                url='https://api.spotify.com/v1/me/top/tracks?time_range=short_term&limit=5'
+                                url=f'https://api.spotify.com/v1/me/top/tracks?time_range={time_range}&limit=5'
                             ).json()['items']
                         ]
 
@@ -1804,6 +1878,7 @@ class SpotifyAPI:
 
                 if build_playlist:
                     self.__profile_recommendation_date = save_with_date
+                    self.__profile_recommendation_time_range = time_range
                     self.__profile_recommendation_criteria = main_criteria
 
                     self.__write_playlist(

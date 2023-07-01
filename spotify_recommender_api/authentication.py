@@ -1,6 +1,7 @@
 import os
 import logging
 import spotify_recommender_api.request_handler as requests
+
 from spotify_recommender_api.server import up_server
 
 

@@ -4,10 +4,12 @@ import uvicorn
 import threading
 import webbrowser
 import contextlib
+
 from fastapi import FastAPI, status
 from fastapi.responses import HTMLResponse
 from spotify_recommender_api.sensitive import CLIENT_ID, CLIENT_SECRET
 from spotify_recommender_api.request_handler import post_request_with_auth
+
 app = FastAPI()
 
 redirect_uri = 'http://localhost:8000/callback'
