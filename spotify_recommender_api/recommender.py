@@ -1098,6 +1098,11 @@ class SpotifyAPI:
                 if playlist_type not in playlist_types_to_update:
                     playlist_types_to_update.append(playlist_type)
 
+        if 'profile-recommendation' in playlist_types_not_to_update:
+            for playlist_type in {'profile-recommendation', 'profile-short-term-recommendation', 'profile-medium-term-recommendation', 'profile-long-term-recommendation'}:
+                if playlist_type in playlist_types_to_update:
+                    playlist_types_to_update.remove(playlist_type)
+
         total_playlist_count = requests.get_request(url='https://api.spotify.com/v1/me/playlists?limit=0', headers=self.__headers).json()['total']
 
         playlists = []
