@@ -2393,7 +2393,19 @@ class SpotifyAPI:
             build_playlist: bool = False,
             time_range: str = 'short_term',
         ) -> Union[pd.DataFrame, None]:
+        """Function to create a playlist with songs from the base playlist that are the closest to the user's most listened songs
 
+        Args:
+            K (int, optional): Number of songs. Defaults to 50.
+            build_playlist (bool, optional): Flag to create the playlist in the user's library. Defaults to False.
+            time_range (str, optional): String to identify which is the time range, could be one of the following: {'short_term', 'medium_term', 'long_term'}. Defaults to 'short_term'.
+
+        Raises:
+            ValueError: time_range needs to be one of the following: 'short_term', 'medium_term', 'long_term'
+
+        Returns:
+            Union[pd.DataFrame, None]: DataFrame that contains the information of all songs in the new playlist
+        """
         if time_range not in {'short_term', 'medium_term', 'long_term'}:
             raise ValueError("time_range needs to be one of the following: 'short_term', 'medium_term', 'long_term'")
 
