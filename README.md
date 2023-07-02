@@ -248,6 +248,15 @@ api.get_songs_by_mood(mood='happy', build_playlist=True)
 # Function to create a playlist based on the general mood of its songs
 # BUILD_PLAYLIST WILL CHANGE THE USER'S LIBRARY IF SET TO TRUE
 ~~~~~~
+ - playlist_songs_based_on_most_listened_tracks
+~~~python
+# Parameters
+playlist_songs_based_on_most_listened_tracks(K: int = 50, build_playlist: bool = False, time_range: str = 'short_term')
+# Method Use Example
+api.playlist_songs_based_on_most_listened_tracks(time_range='medium_term', build_playlist=True)
+# Function to create a playlist with songs from the base playlist that are the closest to the user's most listened songs
+# BUILD_PLAYLIST WILL CHANGE THE USER'S LIBRARY IF SET TO TRUE
+~~~~~~
  - get_medium_term_favorites_playlist - DEPRECATED
 ~~~python
 # Parameters
