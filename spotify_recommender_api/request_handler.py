@@ -2,143 +2,216 @@ import json
 import time
 import logging
 import requests
+import functools
 
-from typing import Union
+from typing import Union, Callable, Any
+from spotify_recommender_api.authentication import AuthenticationHandler
 from spotify_recommender_api.error import HTTPRequestError, TooManyRequestsError, AccessTokenExpiredError
 
+BASE_URL = 'https://api.spotify.com/v1'
 
-def exponential_backoff(func, retries: int = 5, *args, **kwargs) -> requests.Response:
-    """Exponential backoff strategy (https://en.wikipedia.org/wiki/Exponential_backoff)
-    in order to retry certain function after exponetially increasing delay, to overcome "429: Too Many Requests" error
-
-    Args:
-        func (function): function to be executed with exponential backoff
-        retries (int, optional): Number of maximum retries before raising an exception. Defaults to 5.
-
-    Raises:
-        Exception: Error raised in the function after {retries} attempts
-
-    Returns:
-        Any: specified function return
-    """
-    x = 0
-    while x <= retries:
-        response = requests.Response()
-        try:
-            response: requests.Response = func(*args, **kwargs)
+def access_token_retry(func: Callable[..., Any]) -> Callable[..., Any]:
+    @functools.wraps(func)
+    def wrapper(*args: Any, **kwargs: Any) -> Any:
+        value = None
+        for error_count in range(3):
             try:
-                response.json()
-            except Exception as e: # this error happens when there is a 204 response and the response.json() cannot be decoded properly regardless of the request being successful
-                pass
+                value = func(*args, **kwargs)
+
+            except AccessTokenExpiredError as e:
+                logging.warning('Error due to the access token expiration')
+                RequestHandler.get_auth()
+
+                if error_count >= 2:
+                    raise
+
             else:
-                if response.status_code != 204 and 'error' in response.json():
-                    raise HTTPRequestError(func_name=func.__name__, err_code=f"{response.json()['error']['status']}: {response.json()['error']['message']}", message=None, *args, **kwargs)
-            return response
+                break
+
+        return value
+
+    return wrapper
+
+class RequestHandler:
+    # TODO: docstring
+
+
+    @classmethod
+    def _validate_token(cls) -> bool:
+        try:
+            cls.get_request(url='https://api.spotify.com/v1/search?q=NF&type=artist&limit=1').json()['artists']
+            # If the access token is not valid the AccessTokenExpiredError exception will be raised, thereby invalidating it
+
+            logging.debug('Access token validation successful')
+
+            return True
+
+        except AccessTokenExpiredError as access_token_error:
+            logging.debug('Access token expired. Error: ', access_token_error)
+
+            raise
+
         except Exception as e:
-            if any(errorCode in f'{e}' for errorCode in ['404', '50']):
-                continue
-
-            if '401' in f'{e}':
-                logging.error('Access Token Expired')
-                raise AccessTokenExpiredError(func_name=func.__name__, message=None, *args, **kwargs) from e
-
-            if '429' not in f'{e}':
-                raise HTTPRequestError(func_name=func.__name__, err_code=f"{response.json()['error']['status']}: {response.json()['error']['message']}", message=None, *args, **kwargs) from e
-
-            if x == 0:
-                logging.warning('\nExponential backoff triggered: ')
-
-            x += 1
-
-            if x >= retries:
-                raise TooManyRequestsError(func_name=func.__name__, message=f'After {retries} attempts, the execution of the function failed with the 429 exception', *args, **kwargs) from e
-
-            sleep = 2 ** x
-            logging.warning(f'\tError raised: sleeping {sleep} seconds')
-            time.sleep(sleep)
-
-    return requests.Response()
+            logging.error('There was an error while validating the access token', e)
+            raise
 
 
-def get_request(url: str, headers: Union[dict, None] = None, retries: int = 10) -> requests.Response:
-    """GET request with integrated exponential backoff retry strategy
+    @classmethod
+    def get_auth(cls) -> None:
+        """Function to retrieve the authentication token
+        """
+        try:
 
-    Args:
-        url (str): Request URL
-        headers (dict, optional): Request headers. Defaults to None.
-        retries (int, optional): Number of retries. Defaults to 10.
+            if auth_token := AuthenticationHandler._retrieve_local_access_token():
+                cls._validate_token()
 
-    Returns:
-        dict: Request response
-    """
-    return exponential_backoff(func=requests.get, url=url, headers=headers, retries=retries)
+                logging.debug("Token is valid")
 
-def post_request(url: str, headers: Union[dict, None] = None, data: Union[dict, None] = None, retries: int = 10) -> requests.Response:
-    """POST request with integrated exponential backoff retry strategy
+        except FileNotFoundError as file_not_found_error:
+            logging.debug("File with auth token not found locally", file_not_found_error)
 
-    Args:
-        url (str): Request URL
-        headers (dict, optional): Request headers. Defaults to None.
-        data (dict, optional): Request body. Defaults to None.
-        retries (int, optional): Number of retries. Defaults to 10.
+            auth_token = AuthenticationHandler._retrive_new_token()
 
-    Returns:
-        dict: Request response
-    """
-    return exponential_backoff(func=requests.post, url=url, headers=headers, data=json.dumps(data), retries=retries)
+        except AccessTokenExpiredError as access_token_expired_error:
+            logging.debug("Access token expired", access_token_expired_error)
 
-def post_request_dict(url: str, headers: Union[dict, None] = None, data: Union[dict, None] = None, retries: int = 10) -> requests.Response:
-    """POST request with integrated exponential backoff retry strategy
+            auth_token = AuthenticationHandler._retrive_new_token()
 
-    Args:
-        url (str): Request URL
-        headers (dict, optional): Request headers. Defaults to None.
-        data (dict, optional): Request body. Defaults to None.
-        retries (int, optional): Number of retries. Defaults to 10.
+        except Exception as e:
+            logging.error('There was an error while validating the access token', e)
+            raise
 
-    Returns:
-        dict: Request response
-    """
-    return exponential_backoff(func=requests.post, url=url, headers=headers, data=data, retries=retries)
+        AuthenticationHandler._headers['Authorization'] = f'Bearer {auth_token}'
 
-def post_request_with_auth(url: str, headers: Union[dict, None] = None, data: Union[dict, None] = None, auth: Union['tuple[str]', None] = None, retries: int = 10) -> requests.Response:
-    """POST request with integrated exponential backoff retry strategy
 
-    Args:
-        url (str): Request URL
-        headers (dict, optional): Request headers. Defaults to None.
-        data (dict, optional): Request body. Defaults to None.
-        retries (int, optional): Number of retries. Defaults to 10.
 
-    Returns:
-        dict: Request response
-    """
-    return exponential_backoff(func=requests.post, url=url, headers=headers, data=data, auth=auth, retries=retries)
+    @classmethod
+    @access_token_retry
+    def exponential_backoff(cls, func: Callable[..., Any], retries: int = 5, *args, **kwargs) -> requests.Response:
+        """Exponential backoff strategy (https://en.wikipedia.org/wiki/Exponential_backoff)
+        in order to retry certain function after exponetially increasing delay, to overcome "429: Too Many Requests" error
 
-def put_request(url: str, headers: Union[dict, None] = None, data: Union[dict, None] = None, retries: int = 10) -> requests.Response:
-    """PUT request with integrated exponential backoff retry strategy
+        Args:
+            func (function): function to be executed with exponential backoff
+            retries (int, optional): Number of maximum retries before raising an exception. Defaults to 5.
 
-    Args:
-        url (str): Request URL
-        headers (dict, optional): Request headers. Defaults to None.
-        data (dict, optional): Request body. Defaults to None.
-        retries (int, optional): Number of retries. Defaults to 10.
+        Raises:
+            Exception: Error raised in the function after {retries} attempts
 
-    Returns:
-        dict: Request response
-    """
-    return exponential_backoff(func=requests.put, url=url, headers=headers, data=json.dumps(data), retries=retries)
+        Returns:
+            Any: specified function return
+        """
+        x = 0
+        while x <= retries:
+            response = requests.Response()
+            try:
+                response: requests.Response = func(*args, **kwargs)
 
-def delete_request(url: str, headers: Union[dict, None] = None, data: Union[dict, None] = None, retries: int = 10) -> requests.Response:
-    """DELETE request with integrated exponential backoff retry strategy
+                if response.status_code != 204 and 'error' in response.json():
+                    raise HTTPRequestError(func_name=func.__name__, err_code=f"{response.status_code}: {response.json()['error']['message']}", message=None, *args, **kwargs)
 
-    Args:
-        url (str): Request URL
-        headers (dict, optional): Request headers. Defaults to None.
-        data (dict, optional): Request body. Defaults to None.
-        retries (int, optional): Number of retries. Defaults to 10.
+                return response
+            except Exception as e:
+                if '401' in f'{e}':
+                    logging.error('Access Token Expired')
+                    raise AccessTokenExpiredError(func_name=func.__name__, message=None, *args, **kwargs) from e
 
-    Returns:
-        dict: Request response
-    """
-    return exponential_backoff(func=requests.delete, url=url, headers=headers, data=json.dumps(data), retries=retries)
+                if '429' not in f'{e}':
+                    raise HTTPRequestError(func_name=func.__name__, err_code=f"{response.status_code}: {response.json()['error']['message']}", message=None, *args, **kwargs) from e
+
+                if x == 0:
+                    logging.warning('\nExponential backoff triggered: ')
+
+                x += 1
+
+                if x >= retries:
+                    raise TooManyRequestsError(func_name=func.__name__, message=f'After {retries} attempts, the execution of the function failed with the 429 exception', *args, **kwargs) from e
+
+                sleep = 2 ** x
+                logging.warning(f'\tError raised: sleeping {sleep} seconds')
+                time.sleep(sleep)
+
+        return requests.Response()
+
+    @classmethod
+    def get_request(cls, url: str, retries: int = 10) -> requests.Response:
+        """GET request with integrated exponential backoff retry strategy
+
+        Args:
+            url (str): Request URL
+            retries (int, optional): Number of retries. Defaults to 10.
+
+        Returns:
+            dict: Request response
+        """
+        return cls.exponential_backoff(func=requests.get, url=url, headers=AuthenticationHandler._headers, retries=retries)
+
+    @classmethod
+    def post_request(cls, url: str, data: Union[dict, None] = None, retries: int = 10) -> requests.Response:
+        """POST request with integrated exponential backoff retry strategy
+
+        Args:
+            url (str): Request URL
+            data (dict, optional): Request body. Defaults to None.
+            retries (int, optional): Number of retries. Defaults to 10.
+
+        Returns:
+            dict: Request response
+        """
+        return cls.exponential_backoff(func=requests.post, url=url, headers=AuthenticationHandler._headers, data=json.dumps(data), retries=retries)
+
+    @classmethod
+    def post_request_dict(cls, url: str, data: Union[dict, None] = None, retries: int = 10) -> requests.Response:
+        """POST request with integrated exponential backoff retry strategy
+
+        Args:
+            url (str): Request URL
+            data (dict, optional): Request body. Defaults to None.
+            retries (int, optional): Number of retries. Defaults to 10.
+
+        Returns:
+            dict: Request response
+        """
+        return cls.exponential_backoff(func=requests.post, url=url, headers=AuthenticationHandler._headers, data=data, retries=retries)
+
+    @classmethod
+    def post_request_with_auth(cls, url: str, data: Union[dict, None] = None, auth: Union['tuple[str]', None] = None, retries: int = 10) -> requests.Response:
+        """POST request with integrated exponential backoff retry strategy
+
+        Args:
+            url (str): Request URL
+            data (dict, optional): Request body. Defaults to None.
+            retries (int, optional): Number of retries. Defaults to 10.
+
+        Returns:
+            dict: Request response
+        """
+        return cls.exponential_backoff(func=requests.post, url=url, headers=AuthenticationHandler._headers, data=data, auth=auth, retries=retries)
+
+    @classmethod
+    def put_request(cls, url: str, data: Union[dict, None] = None, retries: int = 10) -> requests.Response:
+        """PUT request with integrated exponential backoff retry strategy
+
+        Args:
+            url (str): Request URL
+            data (dict, optional): Request body. Defaults to None.
+            retries (int, optional): Number of retries. Defaults to 10.
+
+        Returns:
+            dict: Request response
+        """
+        return cls.exponential_backoff(func=requests.put, url=url, headers=AuthenticationHandler._headers, data=json.dumps(data), retries=retries)
+
+    @classmethod
+    def delete_request(cls, url: str, data: Union[dict, None] = None, retries: int = 10) -> requests.Response:
+        """DELETE request with integrated exponential backoff retry strategy
+
+        Args:
+            url (str): Request URL
+            data (dict, optional): Request body. Defaults to None.
+            retries (int, optional): Number of retries. Defaults to 10.
+
+        Returns:
+            dict: Request response
+        """
+        return cls.exponential_backoff(func=requests.delete, url=url, headers=AuthenticationHandler._headers, data=json.dumps(data), retries=retries)

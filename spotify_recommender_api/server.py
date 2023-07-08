@@ -8,12 +8,12 @@ import contextlib
 from fastapi import FastAPI, status
 from fastapi.responses import HTMLResponse
 from spotify_recommender_api.sensitive import CLIENT_ID, CLIENT_SECRET
-from spotify_recommender_api.request_handler import post_request_with_auth
 
 app = FastAPI()
 
 redirect_uri = 'http://localhost:8000/callback'
 scope = ["playlist-modify-private", "playlist-read-private", "user-library-read", "user-library-modify", "user-top-read"]
+
 
 class Server(uvicorn.Server):
     """Subclass of uvicorn.Server so that the run and shutdown methods can be done while running in a separate thread
@@ -35,7 +35,6 @@ class Server(uvicorn.Server):
         finally:
             self.should_exit = True
             thread.join()
-
 
 def up_server():
     """Function to start the fastapi server and wait for the callback request from spotify to complete, to get the access token the shutdown the server
@@ -63,7 +62,13 @@ def get_access_token(auth_code: str) -> str:
     Returns:
         str: Access token
     """
-    response = post_request_with_auth(
+    # It is necessary to import only inside the function to avoid circular imports.
+    # It happens since the Auth class needs to make requests to validate and
+    # retrieve the token and the requests class needs authentication information
+    # to make API calls
+    from spotify_recommender_api.request_handler import RequestHandler
+
+    response = RequestHandler.post_request_with_auth(
         "https://accounts.spotify.com/api/token",
         auth=(CLIENT_ID, CLIENT_SECRET), # type: ignore
         data={

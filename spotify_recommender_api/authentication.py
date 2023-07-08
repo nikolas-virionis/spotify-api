@@ -1,40 +1,53 @@
 import os
 import logging
-import spotify_recommender_api.request_handler as requests
+
 
 from spotify_recommender_api.server import up_server
+from spotify_recommender_api.error import AccessTokenExpiredError
+
+class AuthenticationHandler:
+    # TODO: docstring
+
+    _headers: 'dict[str, str]' = {
+        "Accept": "application/json",
+        "Content-Type": "application/json"
+    }
 
 
-def get_auth() -> str:
-    """Function to retrieve the authentication token for the first time in the execution
-
-    Returns:
-        str: Auth Token
-    """
-
-    with open('./.spotify-recommender-util/execution.txt', 'r') as f:
+    @classmethod
+    def _retrieve_local_access_token(cls) -> None:
         try:
-            auth_token = f.readline()
-
-            requests.get_request(
-                headers={
-                    "Accept": "application/json",
-                    "Content-Type": "application/json",
-                    "Authorization": f'Bearer {auth_token}'
-                },
-                url='https://api.spotify.com/v1/search?q=NF&type=artist&limit=1'
-            ).json()['artists']
-
-        except Exception as e:
-            logging.debug('Error while trying the existant auth token. Executing server to retrieve a new one.', e)
-
-            up_server()
 
             with open('./.spotify-recommender-util/execution.txt', 'r') as f:
-                auth_token = f.readline()
+                cls._headers['Authorization'] = f'Bearer {f.readline()}'
 
-            if os.path.exists("./.spotify-recommender-util/execution-status.txt"):
-                os.remove("./.spotify-recommender-util/execution-status.txt")
+        except FileNotFoundError as file_not_found:
+            logging.debug('File not found: ', file_not_found)
+
+            raise
+
+        except Exception as e:
+            logging.error('There was an error while validating the access token', e)
+            raise
+
+
+    @staticmethod
+    def _cleanup_aux_files() -> None:
+        logging.debug('Cleaning up txt file used temporarily for retrieving the auth token')
+
+        if os.path.exists("./.spotify-recommender-util/execution-status.txt"):
+            os.remove("./.spotify-recommender-util/execution-status.txt")
+
+
+    @classmethod
+    def _retrive_new_token(cls) -> str:
+        logging.debug('Error while trying the existant auth token. Executing server to retrieve a new one.')
+
+        up_server()
+
+        with open('./.spotify-recommender-util/execution.txt', 'r') as f:
+            auth_token = f.readline()
+
+        cls._cleanup_aux_files()
 
         return auth_token
-

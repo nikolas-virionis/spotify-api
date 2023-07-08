@@ -114,7 +114,6 @@ def compute_distance(song_a: 'dict[str, Any]', song_b: 'dict[str, Any]', artist_
 def create_playlist(
         type: str,
         user_id: str,
-        headers: dict,
         base_playlist_name: str,
         additional_info: Union[str, 'list[Any]', None] = None,
         _update_created_playlists: bool = False
@@ -212,21 +211,17 @@ def create_playlist(
     else:
         raise ValueError('type not valid')
 
-    if playlist_found := util.playlist_exists(name=playlist_name, base_playlist_name=base_playlist_name, headers=headers, _update_created_playlists=_update_created_playlists):
+    if playlist_found := util.playlist_exists(name=playlist_name, base_playlist_name=base_playlist_name, _update_created_playlists=_update_created_playlists):
         new_id = playlist_found[0]
 
         playlist_tracks = [
             {
                 'uri': track['track']['uri']
             }
-            for track in requests.get_request(
-                headers=headers,
-                url=f'https://api.spotify.com/v1/playlists/{new_id}/tracks',
-            ).json()['items']
+            for track in requests.RequestHandler.get_request(url=f'https://api.spotify.com/v1/playlists/{new_id}/tracks').json()['items']
         ]
 
-        delete_json = requests.delete_request(
-            headers=headers,
+        delete_json = requests.RequestHandler.delete_request(
             data={"tracks": playlist_tracks},
             url=f'https://api.spotify.com/v1/playlists/{new_id}/tracks',
         ).json()
@@ -246,7 +241,7 @@ def create_playlist(
 
             logging.info(f'Updating playlist {playlist_found[1]} details')
 
-            update_playlist_details = requests.put_request(url=f'https://api.spotify.com/v1/playlists/{new_id}', headers=headers, data=data)
+            update_playlist_details = requests.RequestHandler.put_request(url=f'https://api.spotify.com/v1/playlists/{new_id}', data=data)
 
     else:
         data = {
@@ -255,7 +250,7 @@ def create_playlist(
             "public": False
         }
 
-        playlist_creation = requests.post_request(url=f'https://api.spotify.com/v1/users/{user_id}/playlists', headers=headers, data=data)
+        playlist_creation = requests.RequestHandler.post_request(url=f'https://api.spotify.com/v1/users/{user_id}/playlists', data=data)
         new_id = playlist_creation.json()['id']
 
     return new_id

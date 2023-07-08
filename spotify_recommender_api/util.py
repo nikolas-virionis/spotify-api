@@ -23,7 +23,7 @@ def playlist_url_to_id(url: str) -> str:
     return uri.split('open.spotify.com/playlist/')[1]
 
 
-def get_total_song_count(playlist_id: str, headers: dict) -> int:
+def get_total_song_count(playlist_id: str) -> int:
     """Function returns the total number of songs in the playlist
 
     Args:
@@ -35,10 +35,10 @@ def get_total_song_count(playlist_id: str, headers: dict) -> int:
     """
 
     if playlist_id == 'liked_songs':
-        return requests.get_request(headers=headers, url='https://api.spotify.com/v1/me/tracks').json()['total']
+        return requests.RequestHandler.get_request(url='https://api.spotify.com/v1/me/tracks').json()['total']
 
 
-    playlist_res = requests.get_request(url=f'https://api.spotify.com/v1/playlists/{playlist_id}', headers=headers)
+    playlist_res = requests.RequestHandler.get_request(url=f'https://api.spotify.com/v1/playlists/{playlist_id}')
 
     return playlist_res.json()["tracks"]["total"]
 
@@ -78,7 +78,7 @@ def item_list_indexed(items: 'list[str]', all_items: 'list[str]') -> 'list[str]'
     return [str(int(all_genres_x in items)) for all_genres_x in all_items]
 
 
-def playlist_exists(name: str, base_playlist_name: str, headers: dict, _update_created_playlists: bool = False) -> Union['tuple[str, str, str]', 'tuple[()]']:
+def playlist_exists(name: str, base_playlist_name: str, _update_created_playlists: bool = False) -> Union['tuple[str, str, str]', 'tuple[()]']:
     """Function used to check if a playlist exists inside the user's library
     Used before the creation of a new playlist
 
@@ -90,10 +90,10 @@ def playlist_exists(name: str, base_playlist_name: str, headers: dict, _update_c
     Returns:
         str|bool: If the playlist already exists, returns the id of the playlist, otherwise returns False
     """
-    total_playlist_count = requests.get_request(url='https://api.spotify.com/v1/me/playlists?limit=1', headers=headers).json()['total']
+    total_playlist_count = requests.RequestHandler.get_request(url='https://api.spotify.com/v1/me/playlists?limit=1').json()['total']
     playlists = []
     for offset in range(0, total_playlist_count, 50):
-        request = requests.get_request(url=f'https://api.spotify.com/v1/me/playlists?limit=50&{offset=!s}',  headers=headers).json()
+        request = requests.RequestHandler.get_request(url=f'https://api.spotify.com/v1/me/playlists?limit=50&{offset=!s}').json()
 
         playlists += [(playlist['id'], playlist['name'], playlist['description']) for playlist in request['items']]
 
@@ -119,7 +119,7 @@ def playlist_exists(name: str, base_playlist_name: str, headers: dict, _update_c
 
 
 
-def query_audio_features(song: Union[pd.Series, 'dict[str, Any]'], headers: dict) -> 'list[float]':
+def query_audio_features(song: Union[pd.Series, 'dict[str, Any]']) -> 'list[float]':
     """Queries the audio features for a given song and returns the ones that match the recommendations within this package
 
     Args:
@@ -132,10 +132,7 @@ def query_audio_features(song: Union[pd.Series, 'dict[str, Any]'], headers: dict
 
     song_id = song['id']
 
-    audio_features = requests.get_request(
-        url=f'https://api.spotify.com/v1/audio-features/{song_id}',
-        headers=headers
-    ).json()
+    audio_features = requests.RequestHandler.get_request(url=f'https://api.spotify.com/v1/audio-features/{song_id}').json()
 
     return [audio_features['danceability'], audio_features['loudness'] / -60, audio_features['energy'], audio_features['instrumentalness'], audio_features['tempo'], audio_features['valence']]
 
@@ -236,7 +233,7 @@ def print_base_caracteristics(*args):
     logging.info(f'{valence = }')
 
 
-def get_base_playlist_name(playlist_id: str, headers: dict) -> str:
+def get_base_playlist_name(playlist_id: str) -> str:
     """Returns the base playlist name given the playlist id
 
     Args:
@@ -247,10 +244,7 @@ def get_base_playlist_name(playlist_id: str, headers: dict) -> str:
         str: The base playlist name
     """
 
-    playlist = requests.get_request(
-        url=f'https://api.spotify.com/v1/playlists/{playlist_id}',
-        headers=headers
-    ).json()
+    playlist = requests.RequestHandler.get_request(url=f'https://api.spotify.com/v1/playlists/{playlist_id}').json()
 
     return playlist['name']
 
