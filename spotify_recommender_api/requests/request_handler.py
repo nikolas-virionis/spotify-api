@@ -5,7 +5,7 @@ import requests
 import functools
 
 from typing import Union, Callable, Any
-from spotify_recommender_api.authentication import AuthenticationHandler
+from spotify_recommender_api.auth.authentication import AuthenticationHandler
 from spotify_recommender_api.error import HTTPRequestError, TooManyRequestsError, AccessTokenExpiredError
 
 BASE_URL = 'https://api.spotify.com/v1'

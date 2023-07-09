@@ -3,7 +3,7 @@ import warnings
 import datetime
 import functools
 import pandas as pd
-import spotify_recommender_api.request_handler as requests
+import spotify_recommender_api.requests.request_handler as requests
 
 from dateutil import tz
 from typing import Union, Any

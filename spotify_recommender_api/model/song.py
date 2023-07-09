@@ -4,24 +4,24 @@ import functools
 from dataclasses import dataclass, field
 from typing import Any, Union
 from spotify_recommender_api.model.artist import Artist
-from spotify_recommender_api.request_handler import RequestHandler
+from spotify_recommender_api.requests.request_handler import RequestHandler
 
 @dataclass(frozen=True)
 class Song:
     id: str
     name: str
     popularity: int
-    added_at: datetime.datetime
     danceability: float
     loudness: float
     energy: float
     instrumentalness: float
     tempo: float
     valence: float
-    artists: 'list[str]' = field(default_factory=list)
     genres: 'list[str]' = field(default_factory=list)
-    artists_indexed: 'list[int]' = field(default_factory=list)
-    genres_indexed: 'list[int]' = field(default_factory=list)
+    artists: 'list[str]' = field(default_factory=list)
+    added_at: datetime.datetime = datetime.datetime.now()
+    genres_indexed: 'list[int]' = field(default_factory=list, repr=False)
+    artists_indexed: 'list[int]' = field(default_factory=list, repr=False)
 
 
     @staticmethod
@@ -44,7 +44,7 @@ class Song:
         )
 
     @staticmethod
-    def song_data(song: 'dict[str, Any]', added_at: bool = True) -> 'tuple[str, str, int, list[Artist], datetime.datetime]':
+    def song_data(song: 'dict[str, Any]') -> 'tuple[str, str, int, list[Artist], datetime.datetime]':
         if "track" in song:
             song = song['track']
 

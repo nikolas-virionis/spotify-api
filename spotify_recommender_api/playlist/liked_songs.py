@@ -1,32 +1,37 @@
 import logging
 
+from typing import Union
 from spotify_recommender_api.model.song import Song
-from spotify_recommender_api.request_handler import RequestHandler, BASE_URL
-from spotify_recommender_api.model.playlist.base_playlist import BasePlaylist
+from spotify_recommender_api.playlist.base_playlist import BasePlaylist
+from spotify_recommender_api.requests.request_handler import RequestHandler, BASE_URL
 
-class Playlist(BasePlaylist):
+class LikedSongs(BasePlaylist):
+
+    def __init__(self, user_id: str) -> None:
+        super().__init__(f"{self.user_id}'s Liked Songs")
+        self.user_id = user_id
+
+    def __post_init__(self) -> None:
+        super().__post_init__()
+        self.playlist_name = f"{self.user_id}'s Liked Songs"
 
     @staticmethod
-    def get_song_count(playlist_id: str) -> int:
-        playlist_res = RequestHandler.get_request(url=f'{BASE_URL}/playlists/{playlist_id}')
-
-        return playlist_res.json()["tracks"]["total"]
+    def get_song_count(playlist_id: Union[str, None] = None) -> int:
+        return RequestHandler.get_request(url=f'{BASE_URL}/me/tracks').json()['total']
 
     @staticmethod
-    def get_playlist_name(playlist_id: str) -> str:
-        playlist = RequestHandler.get_request(url=f'{BASE_URL}/playlists/{playlist_id}').json()
-
-        return playlist['name']
+    def get_playlist_name(playlist_id: Union[str, None] = None) -> str:
+        return "User's Liked Songs"
 
 
     def get_playlist_from_web(self) -> 'list[Song]':
         songs = []
-        total_song_count = self.get_song_count(playlist_id=self.playlist_id)
+        total_song_count = self.get_song_count()
 
-        for offset in range(0, total_song_count, 100):
+        for offset in range(0, total_song_count, 50):
             logging.info(f'Songs mapped: {offset}/{total_song_count}')
 
-            playlist_songs = RequestHandler.get_request(url=f'{BASE_URL}/playlists/{self.playlist_id}/tracks?limit=100&{offset=!s}')
+            playlist_songs = RequestHandler.get_request(url=f'{BASE_URL}/me/tracks?limit=50&{offset=!s}')
 
             for song in playlist_songs.json()["items"]:
                 song_id, name, popularity, artists, added_at = Song.song_data(song=song)
@@ -55,4 +60,3 @@ class Playlist(BasePlaylist):
         logging.info(f'Songs mapping complete: {total_song_count}/{total_song_count}')
 
         return songs
-

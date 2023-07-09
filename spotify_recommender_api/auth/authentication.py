@@ -3,7 +3,6 @@ import logging
 
 
 from spotify_recommender_api.server import up_server
-from spotify_recommender_api.error import AccessTokenExpiredError
 
 class AuthenticationHandler:
     # TODO: docstring
