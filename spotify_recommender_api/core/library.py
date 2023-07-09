@@ -185,8 +185,8 @@ class Library:
 
         elif 'most-listened' in playlist_type and 'recommendation' not in playlist_type:
             term = playlist_type.replace('most-listened-', '')
-            playlist_name = f"{term.capitalize()} Term Most-listened Tracks"
-            description = f"The most listened tracks in a {term} period of time"
+            playlist_name = f"{term.replace('_', ' ').capitalize()} Most-listened Tracks"
+            description = f"The most listened tracks in a {term.replace('_', ' ')} period"
 
         elif playlist_type == 'artist-related':
             playlist_name = f"{kwargs['artist_name']!r} Mix"

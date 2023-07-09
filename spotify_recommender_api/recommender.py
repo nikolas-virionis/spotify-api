@@ -86,56 +86,109 @@ class SpotifyAPI:
 
             self.playlist = Playlist(user_id=self.user.user_id, playlist_id=playlist_id)
 
-    def get_most_listened(self, time_range: str = 'long', K: int = 50, build_playlist: bool = False) -> pd.DataFrame:
+    def get_most_listened(self, time_range: str = 'long', number_of_songs: int = 50, build_playlist: bool = False) -> pd.DataFrame:
         """Function that creates the most-listened songs playlist for a given period of time in the users profile
 
         Args:
-            time_range (str, optional): time range ('long', 'medium', 'short'). Defaults to 'long'.
+            time_range (str, optional): time range ('long_term', 'medium_term', 'short_term'). Defaults to 'long'.
             K (int, optional): Number of the most listened songs to return. Defaults to 50.
 
         Raises:
-            ValueError: time range does not correspond to a valid time range ('long', 'medium', 'short')
+            ValueError: time range does not correspond to a valid time range ('long_term', 'medium_term', 'short_term')
             ValueError: Value for K must be between 1 and 1500
 
 
         Returns:
             pd.DataFrame: pandas DataFrame containing the top K songs in the time range
         """
-        if time_range not in ['long', 'medium', 'short']:
-            raise ValueError('time_range must be long, medium or short')
+        if time_range not in ['long_term', 'medium_term', 'short_term']:
+            raise ValueError('time_range must be long_term, medium_term or short_term')
 
-        if not (1 < K <= 1500):
+        if not (1 < number_of_songs <= 1500):
             raise ValueError(f'Value for K must be between 1 and 1500: {time_range} term most listened')
 
-        top = requests.RequestHandler.get_request(url=f'https://api.spotify.com/v1/me/top/tracks?{time_range=!s}_term&limit={K}').json()
-
-        top_songs = [
-            {
-                'id': song['id'],
-                'name': song['name'],
-                'popularity': song['popularity'],
-                'genres': self.__get_song_genres(song),
-                'artists': [artist['name'] for artist in song['artists']]
-            }
-            for song in top['items']
-        ]
-
-        if build_playlist:
-            self.__write_playlist(f'most-listened-{time_range}', K, additional_info=[x['id'] for x in top_songs])
-
-
-        return pd.DataFrame(
-            data=[
-                {
-                    'name': x['name'],
-                    'genres': x['genres'],
-                    'artists': x['artists'],
-                    'popularity': x['popularity']
-                }
-                for x in top_songs
-            ],
-            columns=['name', 'artists', 'genres', 'popularity']
+        return self.user.get_most_listened(
+            time_range=time_range,
+            build_playlist=build_playlist,
+            number_of_songs=number_of_songs,
         )
+
+    def get_profile_recommendation(
+            self,
+            number_of_songs: int = 50,
+            main_criteria: str = 'mixed',
+            save_with_date: bool = False,
+            build_playlist: bool = False,
+            time_range: str = 'short_term'
+        ) -> Union[pd.DataFrame, None]:
+        """Builds a Profile based recommendation
+
+        Args:
+            K (int, optional): Number of songs in the recommendations playlist. Defaults to 50.
+            main_criteria (str, optional): Main criteria for the recommendations playlist. Can be one of the following: 'mixed', 'artists', 'tracks', 'genres'. Defaults to 'mixed'.
+            save_with_date (bool, optional): Flag to save the recommendations playlist as a Point in Time Snapshot. Defaults to False.
+            build_playlist (bool, optional): Flag to build the recommendations playlist in the users library. Defaults to False.
+            time_range (str, optional): The time range to get the profile most listened information from. Can be one of the following: 'short_term', 'medium_term', 'long_term'. Defaults to 'short_term'
+
+        Raises:
+            ValueError: K must be between 1 and 100
+            ValueError: 'mixed', 'artists', 'tracks', 'genres'
+            ValueError: time_range needs to be one of the following: 'short_term', 'medium_term', 'long_term'
+
+        Returns:
+            pd.DataFrame: Recommendations playlist
+        """
+
+        return self.user.get_profile_recommendation(
+            time_range=time_range,
+            main_criteria=main_criteria,
+            save_with_date=save_with_date,
+            build_playlist=build_playlist,
+            number_of_songs=number_of_songs,
+        )
+
+    def get_general_recommendation(
+        self,
+        number_of_songs: int = 50,
+        build_playlist: bool = False,
+        genres_info: Union['list[str]', None] = None,
+        artists_info: Union['list[str]', None] = None,
+        use_main_playlist_audio_features: bool = False,
+        tracks_info: 'Union[list[str], list[tuple[str, str]], list[list[str]], dict[str, str], None]' = None,
+    ) -> pd.DataFrame:
+        """Builds a general recommendation based on up to 5 items spread across artists, genres, and tracks.
+
+        Args:
+            K (int, optional): Number of songs in the recommendations playlist. Defaults to 50.
+            genres_info (list[str], optional): list of the genre names to be used in the recommendation. Defaults to [].
+            artists_info (list[str], optional): list of the artist names to be used in the recommendation. Defaults to [].
+            build_playlist (bool, optional): Flag to build the recommendations playlist in the users library. Defaults to False.
+            use_main_playlist_audio_features (bool, optional): Flag to use the audio features of the main playlist to target better recommendations. Defaults to False.
+            tracks_info (list[str] | list[tuple[str]] | list[list[str]] | dict[str, str]], optional): List of the song names to be used in the recommendations. They can be only the song names, but since there are a lot of songs with the same name i recommend using also the artist name in a key-value format using either a tuple, or list, or dict. Defaults to [].
+
+        Raises:
+            ValueError: K must be between 1 and 100
+            ValueError: At least one of the three args must be provided: genres_info, artists_info, tracks_info
+            ValueError: The sum of the number of items in each of the three args mustn't exceed 5
+            ValueError: The argument tracks_info must be an instance of one of the following 4 types: list[str], list[tuple[str]], list[list[str]], dict[str, str]
+
+        Returns:
+            pd.DataFrame: Recommendations playlist
+        """
+        if use_main_playlist_audio_features:
+            audio_statistics = self.audio_features_statistics()
+        else:
+            audio_statistics = None
+
+        return self.user.get_general_recommendation(
+            genres_info=genres_info,
+            tracks_info=tracks_info,
+            artists_info=artists_info,
+            build_playlist=build_playlist,
+            number_of_songs=number_of_songs,
+            audio_statistics=audio_statistics,
+        )
+
 
     def update_all_generated_playlists(
             self, *,
@@ -322,49 +375,6 @@ class SpotifyAPI:
                 logging.error(f"Unfortunately we couldn't update a playlist because\n {e}")
 
         logging.info('Playlists update operation at 100%')
-
-    def get_profile_recommendation(
-            self,
-            number_of_songs: int = 50,
-            main_criteria: str = 'mixed',
-            save_with_date: bool = False,
-            build_playlist: bool = False,
-            time_range: str = 'short_term'
-        ) -> Union[pd.DataFrame, None]:
-        """Builds a Profile based recommendation
-
-        Args:
-            K (int, optional): Number of songs in the recommendations playlist. Defaults to 50.
-            main_criteria (str, optional): Main criteria for the recommendations playlist. Can be one of the following: 'mixed', 'artists', 'tracks', 'genres'. Defaults to 'mixed'.
-            save_with_date (bool, optional): Flag to save the recommendations playlist as a Point in Time Snapshot. Defaults to False.
-            build_playlist (bool, optional): Flag to build the recommendations playlist in the users library. Defaults to False.
-            time_range (str, optional): The time range to get the profile most listened information from. Can be one of the following: 'short_term', 'medium_term', 'long_term'. Defaults to 'short_term'
-
-        Raises:
-            ValueError: K must be between 1 and 100
-            ValueError: 'mixed', 'artists', 'tracks', 'genres'
-            ValueError: time_range needs to be one of the following: 'short_term', 'medium_term', 'long_term'
-
-        Returns:
-            pd.DataFrame: Recommendations playlist
-        """
-        if not (1 < K <= 100):
-            raise ValueError('K must be between 1 and 100')
-
-        if main_criteria not in {'mixed', 'artists', 'tracks', 'genres'}:
-            raise ValueError("main_criteria must be one of the following: 'mixed', 'artists', 'tracks', 'genres'")
-
-        if time_range not in {'short_term', 'medium_term', 'long_term'}:
-            raise ValueError("time_range needs to be one of the following: 'short_term', 'medium_term', 'long_term'")
-
-
-        return self.user.get_profile_recommendation(
-            time_range=time_range,
-            main_criteria=main_criteria,
-            save_with_date=save_with_date,
-            build_playlist=build_playlist,
-            number_of_songs=number_of_songs,
-        )
 
     @needs_playlist # type: ignore
     def playlist_to_csv(self):
@@ -1103,216 +1113,6 @@ class SpotifyAPI:
             self.__write_playlist(
                 K=K,
                 type='playlist-recommendation',
-                additional_info=ids
-            )
-
-        return recommendations_playlist
-
-    def get_general_recommendation(
-        self,
-        K: int = 50,
-        genres_info: Union['list[str]', None] = None,
-        artists_info: Union['list[str]', None] = None,
-        build_playlist: bool = False,
-        use_main_playlist_audio_features: bool = False,
-        tracks_info: Union['list[str]', 'list[tuple[str]]', 'list[list[str]]', 'dict[str, str]', None] = None,
-    ) -> Union[pd.DataFrame, None]:
-        """Builds a general recommendation based on up to 5 items spread across artists, genres, and tracks.
-
-        Args:
-            K (int, optional): Number of songs in the recommendations playlist. Defaults to 50.
-            genres_info (list[str], optional): list of the genre names to be used in the recommendation. Defaults to [].
-            artists_info (list[str], optional): list of the artist names to be used in the recommendation. Defaults to [].
-            build_playlist (bool, optional): Flag to build the recommendations playlist in the users library. Defaults to False.
-            use_main_playlist_audio_features (bool, optional): Flag to use the audio features of the main playlist to target better recommendations. Defaults to False.
-            tracks_info (list[str] | list[tuple[str]] | list[list[str]] | dict[str, str]], optional): List of the song names to be used in the recommendations. They can be only the song names, but since there are a lot of songs with the same name i recommend using also the artist name in a key-value format using either a tuple, or list, or dict. Defaults to [].
-
-        Raises:
-            ValueError: K must be between 1 and 100
-            ValueError: At least one of the three args must be provided: genres_info, artists_info, tracks_info
-            ValueError: The sum of the number of items in each of the three args mustn't exceed 5
-            ValueError: The argument tracks_info must be an instance of one of the following 4 types: list[str], list[tuple[str]], list[list[str]], dict[str, str]
-
-        Returns:
-            pd.DataFrame: Recommendations playlist
-        """
-
-        if not (1 < K <= 100):
-            raise ValueError('K must be between 1 and 100')
-
-        if not (genres_info or artists_info or tracks_info):
-            raise ValueError('At least one of the three args must be provided: genres_info, artists_info, tracks_info')
-
-        if genres_info is None:
-            genres_info = []
-
-        if artists_info is None:
-            artists_info = []
-
-        if tracks_info is None:
-            tracks_info = []
-
-        if len(genres_info) + len(artists_info) + len(tracks_info) > 5:
-            raise ValueError('The sum of the number of items in each of the three args mustn\'t exceed 5')
-
-        url = f'https://api.spotify.com/v1/recommendations?limit={K}'
-
-        description = 'General Recommendation based on '
-
-        types = []
-
-        if artists_info:
-            types.append('artists')
-            description += 'the artists '
-            for artist in artists_info:
-                description += f'{artist}, '
-
-            description = ' and '.join(description[:-2].rsplit(', ', 1))
-
-            artists = [
-                requests.RequestHandler.get_request(
-                    url=f'https://api.spotify.com/v1/search?q={artist}&type=artist&limit=1',
-                ).json()['artists']['items'][0]['id']
-                for artist in artists_info
-            ]
-
-            url += f'&seed_artists={",".join(artists)}'
-
-            if len(artists_info) == 1:
-                description = description.replace('artists', 'artist')
-
-        if genres_info:
-            types.append('genres')
-            url += f'&seed_genres={",".join(genres_info)}'
-
-            if artists_info and not tracks_info:
-                description += ', and the genres '
-                final_sep = ''
-            elif not artists_info and tracks_info:
-                description += 'the genres '
-                final_sep = ', and the tracks '
-            elif not (artists_info or tracks_info):
-                description += 'the genres '
-                final_sep = ''
-            else:  # both artists and tracks exist
-                description += ', the genres '
-                final_sep = ', and the tracks '
-
-            for genre in genres_info:
-                description += f'{genre}, '
-
-            description = f"{' and '.join(description[:-2].rsplit(', ', 1)) if len(genres_info) > 1 else description[:-2]}{final_sep}"
-
-            if len(genres_info) == 1:
-                description = description.replace('genres', 'genre')
-
-        if tracks_info:
-            types.append('tracks')
-            if artists_info and not genres_info:
-                description += ', and the tracks '
-            elif not artists_info and not genres_info:
-                description += 'the tracks '
-
-            if isinstance(tracks_info, dict):
-                for song, artist in tracks_info.items():
-                    description += f'{song} by {artist}, '
-
-                tracks = [
-                    requests.RequestHandler.get_request(
-                        url=f'https://api.spotify.com/v1/search?q={song} {artist}&type=track&limit=1',
-                    ).json()['tracks']['items'][0]['id']
-                    for song, artist in tracks_info.items()
-                ]
-
-            elif isinstance(tracks_info[0], tuple) or isinstance(tracks_info[0], list):
-                for song, artist in tracks_info: # type: ignore because of the strict typing not recognizing that the condition above makes this a safe operation
-                    description += f'{song} by {artist}, '
-                tracks = [
-                    requests.RequestHandler.get_request(
-                        url=f'https://api.spotify.com/v1/search?q={song} {artist}&type=track&limit=1',
-                    ).json()['tracks']['items'][0]['id']
-                    for song, artist in tracks_info # type: ignore because of the strict typing not recognizing that the condition above makes this a safe operation
-                ]
-
-            elif isinstance(tracks_info[0], str):
-                for song in tracks_info:
-                    description += f'{song}, '
-                tracks = [
-                    requests.RequestHandler.get_request(
-                        url=f'https://api.spotify.com/v1/search?q={song}&type=track&limit=1',
-                    ).json()['tracks']['items'][0]['id']
-                    for song in tracks_info
-                ]
-
-            else:
-                raise ValueError('The argument tracks_info must be an instance of one of the following 4 types: list[str], list[tuple[str]], list[list[str]], dict[str, str]')
-
-            description = ' and '.join(description[:-2].rsplit(', ', 1)) if len(artists_info) > 1 else description[:-2]
-
-            url += f'&seed_tracks={",".join(tracks)}'
-
-            if len(tracks_info) == 1:
-                description = description.replace('tracks', 'track')
-
-        if use_main_playlist_audio_features:
-
-            audio_statistics = self.audio_features_statistics()
-
-            min_tempo = audio_statistics['min_tempo'] * 0.8
-            max_tempo = audio_statistics['max_tempo'] * 1.2
-            target_tempo = audio_statistics['mean_tempo']
-            min_energy = audio_statistics['min_energy'] * 0.8
-            max_energy = audio_statistics['max_energy'] * 1.2
-            target_energy = audio_statistics['mean_energy']
-            min_valence = audio_statistics['min_valence'] * 0.8
-            max_valence = audio_statistics['max_valence'] * 1.2
-            target_valence = audio_statistics['mean_valence']
-            min_danceability = audio_statistics['min_danceability'] * 0.8
-            max_danceability = audio_statistics['max_danceability'] * 1.2
-            target_danceability = audio_statistics['mean_danceability']
-            min_loudness = audio_statistics['min_loudness'] * 0.8
-            max_loudness = audio_statistics['max_loudness'] * 1.2
-            target_loudness = audio_statistics['mean_loudness']
-            min_instrumentalness = audio_statistics['min_instrumentalness'] * 0.8
-            max_instrumentalness = audio_statistics['max_instrumentalness'] * 1.2
-            target_instrumentalness = audio_statistics['mean_instrumentalness']
-
-            url += f'&{min_tempo=!s}&{max_tempo=!s}&{target_tempo=!s}&{min_energy=!s}&{max_energy=!s}&{target_energy=!s}&{min_valence=!s}&{max_valence=!s}&{target_valence=!s}&{min_danceability=!s}&{max_danceability=!s}&{target_danceability=!s}&{min_instrumentalness=!s}&{max_instrumentalness=!s}&{target_instrumentalness=!s}'
-
-        recommendations = requests.RequestHandler.get_request(url=url).json()
-
-        songs = []
-
-        for song in recommendations["tracks"]:
-            (id, name, popularity, artist), song_genres = util.song_data(song=song, added_at=False), self.__get_song_genres(song)
-            song['id'] = id
-            danceability, loudness, energy, instrumentalness, tempo, valence = util.query_audio_features(song=song)
-            songs.append({
-                "id": id,
-                "name": name,
-                "artists": artist,
-                "popularity": popularity,
-                "genres": song_genres,
-                "danceability": danceability,
-                "loudness": loudness,
-                "energy": energy,
-                "instrumentalness": instrumentalness,
-                "tempo": tempo,
-                "valence": valence
-            })
-
-        recommendations_playlist = pd.DataFrame(data=songs)
-
-        if build_playlist:
-            ids = recommendations_playlist['id'].tolist()
-            types = ' and '.join(', '.join(types).rsplit(
-                ', ', 1)) if len(types) > 1 else types[0]
-            self.__general_recommendation_description = description
-            self.__general_recommendation_description_types = types
-
-            self.__write_playlist(
-                K=K,
-                type='general-recommendation',
                 additional_info=ids
             )
 
