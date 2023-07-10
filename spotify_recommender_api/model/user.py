@@ -1,3 +1,5 @@
+import logging
+import re
 import pandas as pd
 
 from typing import Union
@@ -5,7 +7,8 @@ from functools import reduce
 from dataclasses import dataclass
 from spotify_recommender_api.model.song import Song
 from spotify_recommender_api.core.library import Library
-from spotify_recommender_api.request_handler import RequestHandler, BASE_URL
+from spotify_recommender_api.playlist.base_playlist import BasePlaylist
+from spotify_recommender_api.requests.request_handler import RequestHandler, BASE_URL
 
 @dataclass
 class User:
@@ -26,7 +29,7 @@ class User:
         Returns:
             pd.DataFrame: pandas DataFrame containing the top K songs in the time range
         """
-        top = RequestHandler.get_request(url=f'https://api.spotify.com/v1/me/top/tracks?{time_range=!s}&limit={number_of_songs}').json()
+        top = RequestHandler.get_request(url=f'{BASE_URL}/me/top/tracks?{time_range=!s}&limit={number_of_songs}').json()
 
         top_songs = self._build_song_objects(
             dict_key='items',
@@ -144,7 +147,7 @@ class User:
         if len(genres_info) + len(artists_info) + len(tracks_info) > 5:
             raise ValueError('The sum of the number of items in each of the three args mustn\'t exceed 5')
 
-        url = f'https://api.spotify.com/v1/recommendations?limit={number_of_songs}'
+        url = f'{BASE_URL}/recommendations?limit={number_of_songs}'
 
         description = 'General Recommendation based on '
 
@@ -160,7 +163,7 @@ class User:
 
             artists = [
                 RequestHandler.get_request(
-                    url=f'https://api.spotify.com/v1/search?q={artist}&type=artist&limit=1',
+                    url=f'{BASE_URL}/search?q={artist}&type=artist&limit=1',
                 ).json()['artists']['items'][0]['id']
                 for artist in artists_info
             ]
@@ -208,7 +211,7 @@ class User:
 
                 tracks = [
                     RequestHandler.get_request(
-                        url=f'https://api.spotify.com/v1/search?q={song} {artist}&type=track&limit=1',
+                        url=f'{BASE_URL}/search?q={song} {artist}&type=track&limit=1',
                     ).json()['tracks']['items'][0]['id']
                     for song, artist in tracks_info.items()
                 ]
@@ -218,7 +221,7 @@ class User:
                     description += f'{song} by {artist}, '
                 tracks = [
                     RequestHandler.get_request(
-                        url=f'https://api.spotify.com/v1/search?q={song} {artist}&type=track&limit=1',
+                        url=f'{BASE_URL}/search?q={song} {artist}&type=track&limit=1',
                     ).json()['tracks']['items'][0]['id']
                     for song, artist in tracks_info # type: ignore because of the strict typing not recognizing that the condition above makes this a safe operation
                 ]
@@ -228,7 +231,7 @@ class User:
                     description += f'{song}, '
                 tracks = [
                     RequestHandler.get_request(
-                        url=f'https://api.spotify.com/v1/search?q={song}&type=track&limit=1',
+                        url=f'{BASE_URL}/search?q={song}&type=track&limit=1',
                     ).json()['tracks']['items'][0]['id']
                     for song in tracks_info
                 ]
@@ -368,7 +371,7 @@ class User:
         tracks_info: 'Union[list[str], list[tuple[str, str]], list[list[str]], dict[str, str]]',
         audio_statistics: 'Union[dict[str, float], None]' = None
     ) -> str:
-        url = f'https://api.spotify.com/v1/recommendations?limit={number_of_songs}'
+        url = f'{BASE_URL}/recommendations?limit={number_of_songs}'
 
         if artists_info:
             url = self._add_seed_artists(url, artists_info)
@@ -418,7 +421,7 @@ class User:
 
     def _get_artist_id(self, artist: str) -> str:
         response = RequestHandler.get_request(
-            url=f'https://api.spotify.com/v1/search?q={artist}&type=artist&limit=1',
+            url=f'{BASE_URL}/search?q={artist}&type=artist&limit=1',
         ).json()
 
         return response['artists']['items'][0]['id']
@@ -441,7 +444,7 @@ class User:
 
     def _get_track_id(self, song: str, artist: str) -> str:
         response = RequestHandler.get_request(
-            url=f'https://api.spotify.com/v1/search?q={song} {artist}&type=track&limit=1',
+            url=f'{BASE_URL}/search?q={song} {artist}&type=track&limit=1',
         ).json()
         return response['tracks']['items'][0]['id']
 
@@ -601,3 +604,302 @@ class User:
             )
 
         return songs
+
+    def update_all_generated_playlists(
+            self,
+            base_playlist: Union[BasePlaylist, None] = None,
+            *,
+            playlist_types_to_update: 'Union[list[str], None]' = None,
+            playlist_types_not_to_update: 'Union[list[str], None]' = None
+        ) -> None:
+        """Update all package generated playlists in batch
+
+        Arguments:
+            playlist_types_to_update (list[str], optional): List of playlist types to update. For example, if you only want to update song-related playlists use this argument as ['song-related']. Defaults to all == ['most-listened-tracks', 'song-related', 'artist-mix', 'artist-full', 'playlist-recommendation', 'short-term-profile-recommendation', 'medium-term-profile-recommendation', 'long-term-profile-recommendation', 'mood', 'most-listened-recommendation'].
+            playlist_types_not_to_update (list[str], optional): List of playlist types not to update. For example, if you want to update all playlists but song-related playlists use this argument as ['song-related']. it can be used alongside with the playlist_types_to_update but it can become confusing or redundant. Defaults to none == [].
+        """
+        playlist_types_to_update = self._get_playlist_types_to_update(playlist_types_to_update, playlist_types_not_to_update)
+
+        playlists = self._get_playlists_to_update(base_playlist=base_playlist, playlist_types_to_update=playlist_types_to_update)
+
+        last_printed_perc_update = 0
+
+        for index, (playlist_id, name, description, total_tracks) in enumerate(playlists):
+            try:
+                logging.debug(f'Updating song {name} - {index}/{len(playlists)}')
+
+                perc_update = self._get_percentage_update(index, len(playlists))
+                if last_printed_perc_update + 10 <= perc_update < 100:
+                    logging.info(f'Playlists update operation at {perc_update}%')
+                    last_printed_perc_update = perc_update
+
+                if self._should_update_most_listened(name, playlist_types_to_update):
+                    self.get_most_listened(
+                        build_playlist=True,
+                        number_of_songs=total_tracks,
+                        time_range='_'.join(name.split(" ")[:2]).lower(),
+                    )
+
+                elif self._should_update_profile_recommendation(name, playlist_types_to_update):
+                    criteria, time_range, playlist_name, description = self._prepare_profile_recommendation(name)
+
+                    if 'term' in name.lower():
+                        data = {
+                            "name": playlist_name,
+                            "description": description,
+                            "public": False
+                        }
+
+                        logging.info(f'Updating the name and description of the playlist {name} because of new time range specifications added to the profile_recommendation function in version 4.4.0')
+                        logging.info('In case of any problems with the feature, submit an issue at: https://github.com/nikolas-virionis/spotify-api/issues')
+
+                        RequestHandler.put_request(url=f'{BASE_URL}/playlists/{playlist_id}', data=data)
+
+                    if f"{time_range.replace('_', '-')}-profile-recommendation" in playlist_types_to_update:
+                        self.get_profile_recommendation(
+                            build_playlist=True,
+                            time_range=time_range,
+                            main_criteria=criteria,
+                            number_of_songs=total_tracks,
+                        )
+
+                elif base_playlist is not None and self._should_update_base_playlist(name, description, base_playlist.playlist_name):
+                    if self._should_update_song_related(name, playlist_types_to_update):
+                        song_name = name.replace(" Related", '')[1:-1]
+                        self._update_song_related(base_playlist, song_name, total_tracks)
+
+                    elif self._should_update_artist_mix(name, playlist_types_to_update):
+                        artist_name = name.replace(" Mix", '')[1:-1]
+                        self._update_artist_mix(base_playlist, artist_name, total_tracks)
+
+                    elif self._should_update_artist_full(name, playlist_types_to_update):
+                        artist_name = name.replace("This once was ", '')[1:-1]
+                        ensure_all_artist_songs = f'All {artist_name}' in description
+                        self._update_artist_full(base_playlist, artist_name, total_tracks, ensure_all_artist_songs)
+
+                    elif self._should_update_playlist_recommendation(name, playlist_types_to_update):
+                        criteria, time_range = self._parse_playlist_recommendation(name)
+                        self._update_playlist_recommendation(base_playlist, time_range, criteria, total_tracks)
+
+                    elif self._should_update_songs_by_mood(description, playlist_types_to_update):
+                        mood = ' '.join(name.split(' ')[:-1]).lower()
+                        exclude_mostly_instrumental = 'excluding the mostly instrumental songs' in description
+                        self._update_songs_by_mood(base_playlist, mood, total_tracks, exclude_mostly_instrumental)
+
+                    elif self._should_update_most_listened_recommendation(name, playlist_types_to_update):
+                        time_range = '_'.join(name.split(' ')[:2]).lower()
+                        self._update_most_listened_recommendation(base_playlist, time_range, total_tracks)
+
+            except ValueError as e:
+                logging.error(f"Unfortunately we couldn't update a playlist because\n {e}")
+
+        logging.info('Playlists update operation at 100%')
+
+    def _get_playlist_types_to_update(
+        self,
+        playlist_types_to_update: 'Union[list[str], None]',
+        playlist_types_not_to_update: 'Union[list[str], None]'
+    ) -> 'list[str]':
+        if playlist_types_to_update is None:
+            playlist_types_to_update = [
+                'most-listened-tracks', 'song-related', 'artist-mix', 'artist-full', 'playlist-recommendation',
+                'short-term-profile-recommendation', 'medium-term-profile-recommendation',
+                'long-term-profile-recommendation', 'mood', 'most-listened-recommendation'
+            ]
+
+        if playlist_types_not_to_update is None:
+            playlist_types_not_to_update = []
+
+        playlist_types_to_update = [playlist_type for playlist_type in playlist_types_to_update if playlist_type not in playlist_types_not_to_update]
+
+        if 'profile-recommendation' in playlist_types_to_update:
+            logging.warning('After version 4.4.0, the profile-recommendation playlists are separated in short, medium and long term. See the update_all_created_playlists docstring or the documentation at: https://github.com/nikolas-virionis/spotify-api')
+            playlist_types_to_update.remove('profile-recommendation')
+            for playlist_type in {'short-term-profile-recommendation', 'medium-term-profile-recommendation', 'long-term-profile-recommendation'}:
+                if playlist_type not in playlist_types_to_update:
+                    playlist_types_to_update.append(playlist_type)
+
+        if 'profile-recommendation' in playlist_types_not_to_update:
+            for playlist_type in {'profile-recommendation', 'short-term-profile-recommendation', 'medium-term-profile-recommendation', 'long-term-profile-recommendation'}:
+                if playlist_type in playlist_types_to_update:
+                    playlist_types_to_update.remove(playlist_type)
+
+        return playlist_types_to_update
+
+    def _get_playlists_to_update(self, playlist_types_to_update: 'list[str]', base_playlist: Union[BasePlaylist, None]) -> 'list[tuple[str, str, str, int]]':
+        total_playlist_count = RequestHandler.get_request(url=f'{BASE_URL}/me/playlists?limit=0').json()['total']
+        playlists = []
+
+        for offset in range(0, total_playlist_count, 50):
+            request = RequestHandler.get_request(url=f'{BASE_URL}/me/playlists?limit=50&offset={offset}').json()
+            playlists += [(playlist['id'], playlist['name'], playlist['description'], playlist['tracks']['total']) for playlist in request['items']]
+
+        playlists = [
+            playlist
+            for playlist in playlists
+            if self._playlist_needs_update(
+                playlist=playlist,
+                playlist_types_to_update=playlist_types_to_update,
+                base_playlist_name=None if base_playlist is None else base_playlist.playlist_name
+            )
+        ]
+
+        return playlists
+
+    def _get_percentage_update(self, index: int, total_playlists: int) -> int:
+        return next((perc for perc in range(100, 0, -10) if (100 * index) / total_playlists >= perc), 100)
+
+    def _should_update_most_listened(self, name: str, playlist_types_to_update: 'list[str]') -> bool:
+        return name in {'Long Term Most-listened Tracks', 'Medium Term Most-listened Tracks', 'Short Term Most-listened Tracks'} and 'most-listened-tracks' in playlist_types_to_update
+
+    def _prepare_profile_recommendation(self, name: str) -> 'tuple[str, str, str, str]':
+        criteria = name.split('(')[1].split(')')[0]
+        criteria_name = criteria
+
+        if ',' in criteria:
+            criteria = 'mixed'
+
+        if 'term' in name.lower():
+            time_range = '_'.join(name.split(' ')[1:3]).lower()
+        else:
+            time_range = 'short_term'
+        playlist_name = f"{time_range.replace('_', ' ').capitalize()} Profile Recommendation ({criteria_name})"
+        description = f'''{time_range.replace('_', ' ').capitalize()} Profile-based recommendations based on favorite {criteria_name}'''
+
+        return criteria, time_range, playlist_name, description
+
+    def _should_update_profile_recommendation(self, name: str, playlist_types_to_update: 'list[str]') -> bool:
+        return (
+            'Profile Recommendation' in name and
+            ' - 20' not in name and
+            any(
+                playlist_type in playlist_types_to_update
+                for playlist_type in {'short-term-profile-recommendation', 'medium-term-profile-recommendation', 'long-term-profile-recommendation'}
+            )
+        )
+    def _should_update_base_playlist(self, name: str, description: str, base_playlist_name: str) -> bool:
+        return (
+            base_playlist_name is not None and
+            f", within the playlist {base_playlist_name}" in description and
+            ('Related' in name or 'Mix' in name or 'This once was' in name or 'Playlist Recommendation' in name or 'Songs related to the mood' in description or 'most listened recommendations' in name)
+        )
+
+    def _should_update_song_related(self, name: str, playlist_types_to_update: 'list[str]') -> bool:
+        return (re.match(r"\'(.*?)\' Related", name) or re.match(r'\"(.*?)\" Related', name)) and 'song-related' in playlist_types_to_update # type: ignore
+
+    def _update_song_related(self, base_playlist: BasePlaylist, song_name: str, total_tracks: int) -> None:
+        base_playlist.get_recommendations_for_song(
+            song_name=song_name,
+            artist_name='',  # TODO: artist name
+            build_playlist=True,
+            number_of_songs=total_tracks - 1,
+        )
+
+    def _should_update_artist_mix(self, name: str, playlist_types_to_update: 'list[str]') -> bool:
+        return (re.match(r"\'(.*?)\' Mix", name) or re.match(r'\"(.*?)\" Mix', name)) and 'artist-mix' in playlist_types_to_update # type: ignore
+
+    def _update_artist_mix(self, base_playlist: BasePlaylist, artist_name: str, total_tracks: int) -> None:
+        base_playlist.artist_and_related_playlist(
+            build_playlist=True,
+            artist_name=artist_name,
+            number_of_songs=total_tracks,
+        )
+
+    def _should_update_artist_full(self, name: str, playlist_types_to_update: 'list[str]') -> bool:
+        return (re.match(r"This once was \'(.*?)\'", name) or re.match(r'This once was \"(.*?)\"', name)) and 'artist-full' in playlist_types_to_update # type: ignore
+
+    def _update_artist_full(self, base_playlist: BasePlaylist, artist_name: str, total_tracks: int, ensure_all_artist_songs: bool) -> None:
+        base_playlist.artist_only_playlist(
+            build_playlist=True,
+            artist_name=artist_name,
+            number_of_songs=total_tracks,
+            ensure_all_artist_songs=ensure_all_artist_songs,
+        )
+
+    def _should_update_playlist_recommendation(self, name: str, playlist_types_to_update: 'list[str]') -> bool:
+        return 'Playlist Recommendation' in name and ' - 20' not in name and 'playlist-recommendation' in playlist_types_to_update
+
+    def _parse_playlist_recommendation(self, name: str) -> 'tuple[str, str]':
+        criteria = name.split('(')[1].split(')')[0]
+        if ',' in criteria:
+            criteria = 'mixed'
+
+        time_range = 'all_time' if 'for all_time' in name else name.split('for the last')[-1].split('(')[0].strip()
+
+        return criteria, time_range
+
+    def _update_playlist_recommendation(self, base_playlist: BasePlaylist, time_range: str, criteria: str, total_tracks: int) -> None:
+        base_playlist.get_playlist_recommendation(
+            build_playlist=True,
+            time_range=time_range,
+            main_criteria=criteria,
+            number_of_songs=total_tracks,
+        )
+
+    def _should_update_songs_by_mood(self, description: str, playlist_types_to_update: 'list[str]') -> bool:
+        return 'Songs related to the mood' in description and 'mood' in playlist_types_to_update
+
+    def _update_songs_by_mood(self, base_playlist: BasePlaylist, mood: str, total_tracks: int, exclude_mostly_instrumental: bool) -> None:
+        base_playlist.get_songs_by_mood(
+            mood=mood,
+            build_playlist=True,
+            number_of_songs=total_tracks,
+            exclude_mostly_instrumental=exclude_mostly_instrumental,
+        )
+
+    def _should_update_most_listened_recommendation(self, name: str, playlist_types_to_update: 'list[str]') -> bool:
+        return 'most listened recommendations' in name and 'most-listened-recommendation' in playlist_types_to_update
+
+    def _update_most_listened_recommendation(self, base_playlist: BasePlaylist, time_range: str, total_tracks: int) -> None:
+        base_playlist.playlist_songs_based_on_most_listened_tracks(
+            build_playlist=True,
+            time_range=time_range,
+            number_of_songs=total_tracks,
+        )
+
+    @staticmethod
+    def _playlist_needs_update(playlist: 'tuple[str, str, str, int]', playlist_types_to_update: 'list[str]', base_playlist_name: Union[str, None] = None) -> bool:
+        """Function to determine if a playlist inside the user's library needs to be updated
+
+        Args:
+            playlist (tuple[str, str, str, str]): Playlist information
+            playlist_types_to_update (list[str]): Playlist types to be updated
+
+        Returns:
+            bool: The flag that indicates whether the playlist should be updated or not
+        """
+        _, name, description, _ = playlist
+
+        if name in {'Long Term Most-listened Tracks', 'Medium Term Most-listened Tracks', 'Short Term Most-listened Tracks'} and 'most-listened-tracks' in playlist_types_to_update:
+            return True
+
+        elif (
+            ' - 20' not in name and
+            'Profile Recommendation' in name and
+            any(
+                playlist_type in playlist_types_to_update
+                for playlist_type in {'short-term-profile-recommendation', 'medium-term-profile-recommendation', 'long-term-profile-recommendation'}
+            )
+        ):
+            return True
+
+        elif f', within the playlist {base_playlist_name}' in description and base_playlist_name is not None:
+            if (re.match(r"\'(.*?)\' Related", name) or re.match(r'\"(.*?)\" Related', name)) and 'song-related' in playlist_types_to_update:
+                return True
+
+            elif (re.match(r"\'(.*?)\' Mix", name) or re.match(r'\"(.*?)\" Mix', name)) and 'artist-mix' in playlist_types_to_update:
+                return True
+
+            elif (re.match(r"This once was \'(.*?)\'", name) or re.match(r'This once was \"(.*?)\"', name)) and 'artist-full' in playlist_types_to_update:
+                return True
+
+            elif 'Playlist Recommendation' in name and ' - 20' not in name and 'playlist-recommendation' in playlist_types_to_update:
+                return True
+
+            elif 'Songs related to the mood' in description and 'mood' in playlist_types_to_update:
+                return True
+
+            elif 'most listened recommendations' in name and 'most-listened-recommendation' in playlist_types_to_update:
+                return True
+
+        return False

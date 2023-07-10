@@ -494,7 +494,6 @@ class SpotifyAPI:
 
     def update_all_generated_playlists(
             self, *,
-            K: Union[int, None] = None,
             playlist_types_to_update: Union['list[str]', None] = None,
             playlist_types_not_to_update: Union['list[str]', None] = None
         ) -> None:
@@ -508,176 +507,11 @@ class SpotifyAPI:
             playlist_types_to_update (list[str], optional): List of playlist types to update. For example, if you only want to update song-related playlists use this argument as ['song-related']. Defaults to all == ['most-listened-tracks', 'song-related', 'artist-mix', 'artist-full', 'playlist-recommendation', 'short-term-profile-recommendation', 'medium-term-profile-recommendation', 'long-term-profile-recommendation', 'mood', 'most-listened-recommendation'].
             playlist_types_not_to_update (list[str], optional): List of playlist types not to update. For example, if you want to update all playlists but song-related playlists use this argument as ['song-related']. it can be used alongside with the playlist_types_to_update but it can become confusing or redundant. Defaults to none == [].
         """
-        if playlist_types_to_update is None:
-            playlist_types_to_update = ['most-listened-tracks', 'song-related', 'artist-mix', 'artist-full', 'playlist-recommendation', 'short-term-profile-recommendation', 'medium-term-profile-recommendation', 'long-term-profile-recommendation', 'mood', 'most-listened-recommendation']
-
-        if playlist_types_not_to_update is None:
-            playlist_types_not_to_update = []
-
-        playlist_types_to_update = [playlist_type for playlist_type in playlist_types_to_update if playlist_type not in playlist_types_not_to_update]
-
-        if 'profile-recommendation' in playlist_types_to_update:
-            logging.info('After version 4.4.0, the profile-recommendation playlists are separated in short, medium and long term. See the update_all_created_playlists docstring or the documentation at: https://github.com/nikolas-virionis/spotify-api')
-            playlist_types_to_update.remove('profile-recommendation')
-            for playlist_type in {'short-term-profile-recommendation', 'medium-term-profile-recommendation', 'long-term-profile-recommendation'}:
-                if playlist_type not in playlist_types_to_update:
-                    playlist_types_to_update.append(playlist_type)
-
-        if 'profile-recommendation' in playlist_types_not_to_update:
-            for playlist_type in {'profile-recommendation', 'short-term-profile-recommendation', 'medium-term-profile-recommendation', 'long-term-profile-recommendation'}:
-                if playlist_type in playlist_types_to_update:
-                    playlist_types_to_update.remove(playlist_type)
-
-        total_playlist_count = requests.RequestHandler.get_request(url='https://api.spotify.com/v1/me/playlists?limit=0').json()['total']
-
-        playlists = []
-
-        for offset in range(0, total_playlist_count, 50):
-            request = requests.RequestHandler.get_request(url=f'https://api.spotify.com/v1/me/playlists?limit=50&{offset=!s}').json()
-
-            playlists += [(playlist['id'], playlist['name'], playlist['description'], playlist['tracks']['total']) for playlist in request['items']]
-
-        playlists = [
-                playlist
-                for playlist in playlists
-                if self.__playlist_needs_update(
-                        playlist=playlist,
-                        playlist_types_to_update=playlist_types_to_update
-                )
-            ]
-
-        last_printed_perc_update = 0
-
-        for index, (playlist_id, name, description, total_tracks) in enumerate(playlists):
-            try:
-                logging.debug(f'Updating song {name} - {index}/{len(playlists)}')
-                if last_printed_perc_update + 10 <= (perc_update := next((perc for perc in range(100, 0, -10) if (100 * index) / len(playlists) >= perc), 100)) < 100:
-                    logging.info(f'Playlists update operation at {perc_update}%')
-                    last_printed_perc_update = perc_update
-
-                if K is not None:
-                    total_tracks = K
-
-                if name in {'Long Term Most-listened Tracks', 'Medium Term Most-listened Tracks', 'Short Term Most-listened Tracks'} and 'most-listened-tracks' in playlist_types_to_update:
-                    self.get_most_listened(time_range=name.split(" ")[0].lower(), K=total_tracks, build_playlist=True)
-
-                elif f', within the playlist {self.__base_playlist_name}' in description or self.__update_created_files:
-                    if (re.match(r"\'(.*?)\' Related", name) or re.match(r'\"(.*?)\" Related', name)) and 'song-related' in playlist_types_to_update:
-                        song_name = name.replace(" Related", '')[1:-1]
-                        self.__song_name = song_name
-                        self.__write_playlist(type='song', K=total_tracks - 1, additional_info=song_name)
-
-                    elif (re.match(r"\'(.*?)\' Mix", name) or re.match(r'\"(.*?)\" Mix', name)) and 'artist-mix' in playlist_types_to_update:
-                        artist_name = name.replace(" Mix", '')[1:-1]
-                        self.__artist_name = artist_name
-                        self.artist_specific_playlist(
-                            K=total_tracks,
-                            build_playlist=True,
-                            artist_name=artist_name,
-                            complete_with_similar=True,
-                            _auto=True
-                        )
-
-                    elif (re.match(r"This once was \'(.*?)\'", name) or re.match(r'This once was \"(.*?)\"', name)) and 'artist-full' in playlist_types_to_update:
-                        artist_name = name.replace("This once was ", '')[1:-1]
-                        self.__artist_name = artist_name
-                        self.artist_specific_playlist(
-                            K=total_tracks,
-                            build_playlist=True,
-                            artist_name=artist_name,
-                            complete_with_similar=False,
-                            ensure_all_artist_songs=f'All {artist_name}' in description,
-                            _auto=True
-                        )
-
-                    # elif name == 'Recent-ish Favorites':
-                    #     self.__write_playlist(type='medium', K=total_tracks)
-
-                    # elif name == 'Latest Favorites':
-                    #     self.__write_playlist(type='short', K=total_tracks)
-
-                    elif 'Playlist Recommendation' in name and ' - 20' not in name and 'playlist-recommendation' in playlist_types_to_update:
-                        criteria = name.split('(')[1].split(')')[0]
-                        if ',' in criteria:
-                            criteria = 'mixed'
-
-                        time_range = 'all_time' if 'for all_time' in name else name.split('for the last')[-1].split('(')[0].strip()
-
-                        self.get_playlist_recommendation(
-                            K=total_tracks,
-                            build_playlist=True,
-                            time_range=time_range,
-                            main_criteria=criteria,
-                        )
-
-                    elif 'Songs related to the mood' in description and 'mood' in playlist_types_to_update:
-                        mood = ' '.join(name.split(' ')[:-1]).lower()
-
-                        exclude_mostly_instrumental = 'excluding the mostly instrumental songs' in description
-
-                        self.get_songs_by_mood(
-                            mood=mood,
-                            K=total_tracks,
-                            build_playlist=True,
-                            exclude_mostly_instrumental=exclude_mostly_instrumental,
-                        )
-
-                    elif 'most listened recommendations' in name and 'most-listened-recommendation' in playlist_types_to_update:
-                        time_range = '_'.join(name.split(' ')[:2]).lower()
-
-                        self.playlist_songs_based_on_most_listened_tracks(
-                            K=total_tracks,
-                            build_playlist=True,
-                            time_range=time_range,
-                        )
-
-                elif (
-                    ' - 20' not in name and
-                    'Profile Recommendation' in name and
-                    any(
-                        playlist_type in playlist_types_to_update
-                        for playlist_type in {'short-term-profile-recommendation', 'medium-term-profile-recommendation', 'long-term-profile-recommendation'}
-                    )
-                ):
-                    criteria = name.split('(')[1].split(')')[0]
-                    criteria_name = criteria
-
-                    if ',' in criteria:
-                        criteria = 'mixed'
-
-                    if 'term' in name.lower():
-                        time_range = '_'.join(name.split(' ')[1:3]).lower()
-                    else:
-                        time_range = 'short_term'
-                        playlist_name = f"{time_range.replace('_', ' ').capitalize()} Profile Recommendation ({criteria_name})"
-                        description = f'''{time_range.replace('_', ' ').capitalize()} Profile-based recommendations based on favorite {criteria_name}'''
-
-                        data = {
-                            "name": playlist_name,
-                            "description": description,
-                            "public": False
-                        }
-
-                        logging.info(f'Updating the name and description of the playlist {name} because of new time range specifications added to the profile_recommendation function in version 4.4.0')
-                        logging.info('In case of any problems with the feature, submit an issue at: https://github.com/nikolas-virionis/spotify-api/issues')
-
-                        update_playlist_details = requests.RequestHandler.put_request(url=f'https://api.spotify.com/v1/playlists/{playlist_id}', data=data)
-
-                    if f"{time_range.replace('_', '-')}-profile-recommendation" not in playlist_types_to_update:
-                        continue
-
-                    self.get_profile_recommendation(
-                        K=total_tracks,
-                        build_playlist=True,
-                        time_range=time_range,
-                        main_criteria=criteria,
-                    )
-
-            except ValueError as e:
-                logging.error(f"Unfortunately we couldn't update a playlist because\n {e}")
-
-        logging.info('Playlists update operation at 100%')
-
+        self.user.update_all_generated_playlists(
+            base_playlist=getattr(self, 'playlist', None),
+            playlist_types_to_update=playlist_types_to_update,
+            playlist_types_not_to_update=playlist_types_not_to_update,
+        )
 
 def start_api(
     user_id: str, *,

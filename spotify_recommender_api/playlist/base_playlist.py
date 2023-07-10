@@ -103,8 +103,8 @@ class BasePlaylist(ABC):
         self,
         song_name: str,
         artist_name: str,
-        with_distance: bool,
         number_of_songs: int,
+        with_distance: bool = False,
         build_playlist: bool = False,
         print_base_caracteristics: bool = False
     ) -> pd.DataFrame:
