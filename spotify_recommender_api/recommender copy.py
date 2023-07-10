@@ -673,8 +673,7 @@ class SpotifyAPI:
             all_genres = genres[0][:]
         except IndexError as e:
             self.__deny_favorites = True
-            raise ValueError(
-                'Playlist chosen does not correspond to any of the users favorite songs') from e
+            raise ValueError('Playlist chosen does not correspond to any of the users favorite songs') from e
 
         for index in range(1, len(genres)):
             for i in range(len(all_genres)):

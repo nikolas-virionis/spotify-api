@@ -10,30 +10,31 @@ from spotify_recommender_api.error import HTTPRequestError, TooManyRequestsError
 
 BASE_URL = 'https://api.spotify.com/v1'
 
-def access_token_retry(func: Callable[..., Any]) -> Callable[..., Any]:
-    @functools.wraps(func)
-    def wrapper(*args: Any, **kwargs: Any) -> Any:
-        value = None
-        for error_count in range(3):
-            try:
-                value = func(*args, **kwargs)
-
-            except AccessTokenExpiredError as e:
-                logging.warning('Error due to the access token expiration')
-                RequestHandler.get_auth()
-
-                if error_count >= 2:
-                    raise
-
-            else:
-                break
-
-        return value
-
-    return wrapper
-
 class RequestHandler:
     # TODO: docstring
+
+    @classmethod
+    def access_token_retry(func: Callable[..., Any]) -> Callable[..., Any]: # type: ignore
+        @functools.wraps(func)
+        def wrapper(cls, *args: Any, **kwargs: Any) -> Any:
+            value = None
+            for error_count in range(3):
+                try:
+                    value = func(cls, *args, **kwargs)
+
+                except AccessTokenExpiredError as e:
+                    logging.warning('Error due to the access token expiration')
+                    RequestHandler.get_auth()
+
+                    if error_count >= 2:
+                        raise
+
+                else:
+                    break
+
+            return value
+
+        return wrapper
 
 
     @classmethod

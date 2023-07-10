@@ -8,7 +8,7 @@ from typing import Union
 sns.set()
 
 
-def plot_bar_chart(df: pd.DataFrame, chart_title: Union[str, None] = None, top: int = 10, plot_max: bool = True):
+def plot_bar_chart(df: pd.DataFrame, chart_title: Union[str, None] = None, top: int = 10, plot_max: bool = True) -> None:
     """Plot a bar Chart with the top values from the dictionary
 
     Args:
