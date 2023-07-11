@@ -1,8 +1,9 @@
 import logging
+import spotify_recommender_api.util as util
 
 from spotify_recommender_api.model.song import Song
+from spotify_recommender_api.requests.api_handler import APIHandler
 from spotify_recommender_api.playlist.base_playlist import BasePlaylist
-from spotify_recommender_api.requests.request_handler import RequestHandler, BASE_URL
 
 class Playlist(BasePlaylist):
 
@@ -14,16 +15,11 @@ class Playlist(BasePlaylist):
 
     @staticmethod
     def get_song_count(playlist_id: str) -> int:
-        playlist_res = RequestHandler.get_request(url=f'{BASE_URL}/playlists/{playlist_id}')
-
-        return playlist_res.json()["tracks"]["total"]
+        return APIHandler.get_playlist_total_song_count(playlist_id=playlist_id)
 
     @staticmethod
     def get_playlist_name(playlist_id: str) -> str:
-        playlist = RequestHandler.get_request(url=f'{BASE_URL}/playlists/{playlist_id}').json()
-
-        return playlist['name']
-
+        return util.get_base_playlist_name(playlist_id=playlist_id)
 
     def get_playlist_from_web(self) -> 'list[Song]':
         songs = []
@@ -32,7 +28,7 @@ class Playlist(BasePlaylist):
         for offset in range(0, total_song_count, 100):
             logging.info(f'Songs mapped: {offset}/{total_song_count}')
 
-            playlist_songs = RequestHandler.get_request(url=f'{BASE_URL}/playlists/{self.playlist_id}/tracks?limit=100&{offset=!s}')
+            playlist_songs = APIHandler.playlist_songs(playlist_id=self.playlist_id, limit=100, offset=offset)
 
             for song in playlist_songs.json()["items"]:
                 song_id, name, popularity, artists, added_at = Song.song_data(song=song)

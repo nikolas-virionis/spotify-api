@@ -7,6 +7,7 @@ from functools import reduce
 from dataclasses import dataclass
 from spotify_recommender_api.model.song import Song
 from spotify_recommender_api.core.library import Library
+from spotify_recommender_api.requests.api_handler import APIHandler
 from spotify_recommender_api.playlist.base_playlist import BasePlaylist
 from spotify_recommender_api.requests.request_handler import RequestHandler, BASE_URL
 

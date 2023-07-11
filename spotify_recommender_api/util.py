@@ -2,11 +2,10 @@ import logging
 import warnings
 import datetime
 import functools
-import pandas as pd
-import spotify_recommender_api.requests.request_handler as requests
 
 from dateutil import tz
-from typing import Union, Any
+from typing import Any, Callable
+from spotify_recommender_api.requests.api_handler import APIHandler
 
 
 def playlist_url_to_id(url: str) -> str:
@@ -22,47 +21,6 @@ def playlist_url_to_id(url: str) -> str:
 
     return uri.split('open.spotify.com/playlist/')[1]
 
-
-def get_total_song_count(playlist_id: str) -> int:
-    """Function returns the total number of songs in the playlist
-
-    Args:
-        playlist_id (str): The Spotify playlist Id
-        headers (dict): The request headers, containing the auth information
-
-    Returns:
-        int: The total number of songs in the playlist
-    """
-
-    if playlist_id == 'liked_songs':
-        return requests.RequestHandler.get_request(url='https://api.spotify.com/v1/me/tracks').json()['total']
-
-
-    playlist_res = requests.RequestHandler.get_request(url=f'https://api.spotify.com/v1/playlists/{playlist_id}')
-
-    return playlist_res.json()["tracks"]["total"]
-
-
-def song_data(song: 'dict[str, Any]', added_at: bool = True) -> 'list[Union[str, float, list[str], datetime.datetime]]':
-    """Function that gets additional information about the song, like its name, artists, id, popularity, date when it was added to the playlist, etc.
-
-    Args:
-        song (dict[str, dict[str, str]]): The song dictionary fetched from the Spotify API
-
-    Returns:
-        list[str, str, float, list[str], datetime.datetime]: A list containing the song's information
-    """
-    try:
-        data = [song["track"]['id'], song["track"]['name'], song["track"]['popularity'], [artist["name"] for artist in song["track"]["artists"]]]
-    except KeyError:
-        data = [song['id'], song['name'], song['popularity'], [artist["name"] for artist in song["artists"]]]
-
-    if added_at:
-        data.append(song['added_at'])
-
-    return data
-
-
 def item_list_indexed(items: 'list[str]', all_items: 'list[str]') -> 'list[str]':
     """Function that returns the list of items, mapped to the overall list of items, in a binary format
     Useful for the overall execution of the algorithm which determines the distance between each song
@@ -76,67 +34,6 @@ def item_list_indexed(items: 'list[str]', all_items: 'list[str]') -> 'list[str]'
     """
 
     return [str(int(all_genres_x in items)) for all_genres_x in all_items]
-
-
-def playlist_exists(name: str, base_playlist_name: str, _update_created_playlists: bool = False) -> Union['tuple[str, str, str]', 'tuple[()]']:
-    """Function used to check if a playlist exists inside the user's library
-    Used before the creation of a new playlist
-
-    Args:
-        name (str): name of the playlist being created, which could easily be bypassed, if the playlist names were not made automatically
-        base_playlist_name (str): name of the base playlist
-        headers (dict): Request headers
-
-    Returns:
-        str|bool: If the playlist already exists, returns the id of the playlist, otherwise returns False
-    """
-    total_playlist_count = requests.RequestHandler.get_request(url='https://api.spotify.com/v1/me/playlists?limit=1').json()['total']
-    playlists = []
-    for offset in range(0, total_playlist_count, 50):
-        request = requests.RequestHandler.get_request(url=f'https://api.spotify.com/v1/me/playlists?limit=50&{offset=!s}').json()
-
-        playlists += [(playlist['id'], playlist['name'], playlist['description']) for playlist in request['items']]
-
-    return next(
-        (
-            playlist for playlist in playlists
-            if (
-                playlist[1] == name or
-                (
-                    name.lower().startswith('profile short term recommendation') and
-                    playlist[1] == name.replace('Short term ', '')
-                )
-            ) and
-            (
-                ' Term Most-listened Tracks' in name or
-                f', within the playlist {base_playlist_name}' in playlist[2] or
-                _update_created_playlists or
-                'Recommendation (' in name
-            )
-        ),
-        ()
-    )
-
-
-
-def query_audio_features(song: Union[pd.Series, 'dict[str, Any]']) -> 'list[float]':
-    """Queries the audio features for a given song and returns the ones that match the recommendations within this package
-
-    Args:
-        song (pd.Series | dict[str, Any]): song containing its base information
-        headers (dict): Request headers
-
-    Returns:
-        list[float]: list with the audio features for the given song
-    """
-
-    song_id = song['id']
-
-    audio_features = requests.RequestHandler.get_request(url=f'https://api.spotify.com/v1/audio-features/{song_id}').json()
-
-    return [audio_features['danceability'], audio_features['loudness'] / -60, audio_features['energy'], audio_features['instrumentalness'], audio_features['tempo'], audio_features['valence']]
-
-
 def get_datetime_by_time_range(time_range: str = 'all_time') -> datetime.datetime:
     """Calculates the datetime that corresponds to the given time range before the current date
 
@@ -201,7 +98,6 @@ def value_dict_to_value_and_percentage_dict(dictionary: 'dict[str, int]') -> 'di
         for key, value in dictionary.items()
     }
 
-
 def print_base_caracteristics(*args):
     """
     Function that receives a list of values and print them
@@ -244,12 +140,12 @@ def get_base_playlist_name(playlist_id: str) -> str:
         str: The base playlist name
     """
 
-    playlist = requests.RequestHandler.get_request(url=f'https://api.spotify.com/v1/playlists/{playlist_id}').json()
+    playlist = APIHandler.playlist_details(playlist_id)
 
-    return playlist['name']
+    return playlist.json()['name']
 
 
-def deprecated(func):
+def deprecated(func: Callable[..., Any]) -> Callable[..., Any]:
     """This is a decorator which can be used to mark functions
     as deprecated. It will result in a warning being emitted
     when the function is used."""

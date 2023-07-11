@@ -66,16 +66,13 @@ def get_access_token(auth_code: str) -> str:
     # It happens since the Auth class needs to make requests to validate and
     # retrieve the token and the requests class needs authentication information
     # to make API calls
-    from spotify_recommender_api.requests.request_handler import RequestHandler
+    from spotify_recommender_api.requests.api_handler import APIHandler
 
-    response = RequestHandler.post_request_with_auth(
-        "https://accounts.spotify.com/api/token",
-        auth=(CLIENT_ID, CLIENT_SECRET), # type: ignore
-        data={
-            "grant_type": "authorization_code",
-            "code": auth_code,
-            "redirect_uri": redirect_uri,
-        },
+    response = APIHandler.authorization_token(
+        auth_code=auth_code,
+        client_id=CLIENT_ID,
+        redirect_uri=redirect_uri,
+        client_secret=CLIENT_SECRET
     )
 
     return response.json()["access_token"]

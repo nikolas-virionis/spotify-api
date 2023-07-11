@@ -9,6 +9,7 @@ from typing import Union, Any
 from spotify_recommender_api.model.user import User
 from spotify_recommender_api.model.song import Song
 from spotify_recommender_api.core.library import Library
+from spotify_recommender_api.requests.api_handler import APIHandler
 from spotify_recommender_api.core.knn_algorithm import KNNAlgorithm
 from spotify_recommender_api.requests.request_handler import RequestHandler, BASE_URL
 
@@ -634,9 +635,7 @@ class PlaylistFeatures:
             top_artists_names = top_artists['name'][1:6].tolist()
 
             return [
-                RequestHandler.get_request(
-                    url=f'{BASE_URL}/search?q={x}&type=artist&limit=1'
-                ).json()['artists']['items'][0]['id']
+                APIHandler.search(search_type='artist', limit=1, query=x).json()['artists']['items'][0]['id']
                 for x in top_artists_names
             ]
 
@@ -647,9 +646,7 @@ class PlaylistFeatures:
         if main_criteria not in ['artists']:
             return [
                 track['id']
-                for track in RequestHandler.get_request(
-                    url=f'{BASE_URL}/me/top/tracks?time_range=short_term&limit=5',
-                ).json()['items']
+                for track in APIHandler.top_tracks(time_range='short_term', limit=5).json()['items']
             ]
 
         return []
@@ -854,7 +851,7 @@ class PlaylistFeatures:
         if time_range not in {'short_term', 'medium_term', 'long_term'}:
             raise ValueError("time_range needs to be one of the following: 'short_term', 'medium_term', 'long_term'")
 
-        top_50 = RequestHandler.get_request(url=f'{BASE_URL}/me/top/tracks?{time_range=!s}&limit=50').json()
+        top_50 = APIHandler.top_tracks(time_range=time_range, limit=50).json()
 
         songs = User._build_song_objects(recommendations=top_50, dict_key='items')
 

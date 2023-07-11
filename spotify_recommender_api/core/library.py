@@ -3,7 +3,7 @@ import datetime
 import pytz
 from typing import Union, Any
 
-from spotify_recommender_api.requests.request_handler import RequestHandler, BASE_URL
+from spotify_recommender_api.requests.api_handler import APIHandler
 
 class Library:
 
@@ -295,10 +295,11 @@ class Library:
         Returns:
             tuple[str, str, str] | tuple[()]: If the playlist already exists, returns the id of the playlist, otherwise returns False
         """
-        total_playlist_count = RequestHandler.get_request(url='https://api.spotify.com/v1/me/playlists?limit=1').json()['total']
+        total_playlist_count = APIHandler.get_total_playlist_count()
+
         playlists = []
         for offset in range(0, total_playlist_count, 50):
-            request = RequestHandler.get_request(url=f'https://api.spotify.com/v1/me/playlists?limit=50&{offset=!s}').json()
+            request = APIHandler.library_playlists(limit=50, offset=offset).json()
 
             playlists += [(playlist['id'], playlist['name'], playlist['description']) for playlist in request['items']]
 
@@ -334,7 +335,7 @@ class Library:
         """
         return [
             {'uri': track['track']['uri']}
-            for track in RequestHandler.get_request(url=f'{BASE_URL}/playlists/{playlist_id}/tracks').json()['items']
+            for track in APIHandler.playlist_songs(playlist_id=playlist_id).json()['items']
         ]
 
 
@@ -346,9 +347,9 @@ class Library:
             playlist_id (str): The ID of the playlist.
             playlist_tracks (list[dict[str, str]]): The tracks in the playlist.
         """
-        RequestHandler.delete_request(
-            data={"tracks": playlist_tracks},
-            url=f'{BASE_URL}/playlists/{playlist_id}/tracks',
+        APIHandler.delete_playlist_songs(
+            playlist_id=playlist_id,
+            playlist_tracks=playlist_tracks
         )
 
 
@@ -382,7 +383,7 @@ class Library:
         }
 
         logging.info(f'Updating playlist {playlist_name} details')
-        RequestHandler.put_request(url=f'{BASE_URL}/playlists/{playlist_id}', data=data)
+        APIHandler.update_playlist_details(playlist_id=playlist_id, data=data)
 
     @staticmethod
     def _create_new_playlist(user_id: str, data: 'dict[str, Any]') -> str:
@@ -395,7 +396,7 @@ class Library:
         Returns:
             str: The ID of the newly created playlist.
         """
-        playlist_creation = RequestHandler.post_request(url=f'{BASE_URL}/users/{user_id}/playlists', data=data)
+        playlist_creation = APIHandler.create_playlist(user_id=user_id, data=data)
         return playlist_creation.json()['id']
 
     @classmethod
@@ -411,11 +412,11 @@ class Library:
         if len(full_uris_list) <= 100:
             uris = ','.join(full_uris_list)
 
-            RequestHandler.post_request(url=f'https://api.spotify.com/v1/playlists/{playlist_id}/tracks?{uris=!s}')
+            APIHandler.insert_songs_in_playlist(playlist_id=playlist_id, uris=uris)
 
         else:
 
             for offset in range(0, len(full_uris_list), 100):
                 uris = ','.join(full_uris_list[offset:offset + min(len(full_uris_list) - offset, 100)])
 
-                RequestHandler.post_request(url=f'https://api.spotify.com/v1/playlists/{playlist_id}/tracks?{uris=!s}')
+                APIHandler.insert_songs_in_playlist(playlist_id=playlist_id, uris=uris)

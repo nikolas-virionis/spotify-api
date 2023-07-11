@@ -176,7 +176,7 @@ class RequestHandler:
         return cls.exponential_backoff(func=requests.post, url=url, headers=AuthenticationHandler._headers, data=data, retries=retries)
 
     @classmethod
-    def post_request_with_auth(cls, url: str, data: Union[dict, None] = None, auth: Union['tuple[str]', None] = None, retries: int = 10) -> requests.Response:
+    def post_request_with_auth(cls, url: str, data: Union[dict, None] = None, auth: Union['tuple[str, ...]', None] = None, retries: int = 10) -> requests.Response:
         """POST request with integrated exponential backoff retry strategy
 
         Args:
