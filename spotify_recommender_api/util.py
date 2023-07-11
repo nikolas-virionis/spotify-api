@@ -115,8 +115,9 @@ def print_base_caracteristics(*args):
         valence (float): song's valence
 
     """
-    name, genres, artists, popularity, danceability, loudness, energy, instrumentalness, tempo, valence = args
+    id, name, genres, artists, popularity, danceability, loudness, energy, instrumentalness, tempo, valence = args
 
+    logging.info(f'{id = }')
     logging.info(f'{name = }')
     logging.info(f'{artists = }')
     logging.info(f'{genres = }')

@@ -3,20 +3,6 @@ import requests
 from typing import Any, Union
 from spotify_recommender_api.requests.request_handler import RequestHandler, BASE_URL
 
-class AuthHandler:
-
-    @staticmethod
-    def authorization_token(auth_code: str, redirect_uri: str, client_id: str, client_secret: str) -> requests.Response:
-        return RequestHandler.post_request_with_auth(
-            auth=(client_id, client_secret),
-            url="https://accounts.spotify.com/api/token",
-            data={
-                "grant_type": "authorization_code",
-                "code": auth_code,
-                "redirect_uri": redirect_uri,
-            },
-        )
-
 
 class PlaylistHandler:
 
@@ -95,7 +81,7 @@ class LibraryHandler:
             raise ValueError('Limit must be between 1 and 50')
 
 
-        url = f'{BASE_URL}/me/playlists?limit={limit=!s}'
+        url = f'{BASE_URL}/me/playlists?{limit=!s}'
 
         if offset is not None:
             url += f'&{offset=!s}'
@@ -130,5 +116,11 @@ class UserHandler:
     def top_artists(time_range: str = 'short_term', limit: int = 1) -> requests.Response:
         if time_range not in {'long_term', 'medium_term', 'short_term'}:
             raise ValueError("Time range must be one of 'long_term', 'medium_term', 'short_term'")
-               
+
         return RequestHandler.get_request(url=f'{BASE_URL}/me/top/artists?{time_range=!s}&{limit=!s}')
+
+class ArtistHandler:
+
+    @staticmethod
+    def get_artist(artist_id: str) -> requests.Response:
+        return RequestHandler.get_request(url=f'{BASE_URL}/artists/{artist_id}')

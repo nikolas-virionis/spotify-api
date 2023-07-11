@@ -115,16 +115,15 @@ class KNNAlgorithm:
     @classmethod
     def get_neighbors(cls, number_of_songs: int, dataframe: pd.DataFrame, song: Song, recommendation_type: str = 'song') -> pd.DataFrame:
 
-        dataframe = dataframe.copy().query('id != @song.id')
+        dataframe: pd.DataFrame = dataframe.copy().query('id != @song.id')
 
         dataframe['distance'] = dataframe.apply(
             lambda row: cls.compute_distance(
                 song_a=song.__dict__,
                 song_b=row,
                 artist_recommendation='artist' in recommendation_type
-            )
+            ),
+            axis=1
         )
 
-        dataframe = dataframe.sort_values(by='distance', ascending=True).head(number_of_songs)
-
-        return dataframe
+        return dataframe.sort_values(by='popularity', ascending=True).head(number_of_songs)

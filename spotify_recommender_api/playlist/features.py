@@ -6,7 +6,6 @@ import spotify_recommender_api.visualization as visualization
 
 from functools import reduce
 from typing import Union, Any
-from spotify_recommender_api.model.user import User
 from spotify_recommender_api.model.song import Song
 from spotify_recommender_api.core.library import Library
 from spotify_recommender_api.core.knn_algorithm import KNNAlgorithm
@@ -27,7 +26,8 @@ class PlaylistFeatures:
         number_of_songs: int,
         dataframe: pd.DataFrame,
         build_playlist: bool = False,
-        print_base_caracteristics: bool = False
+        print_base_caracteristics: bool = False,
+        _auto_artist: bool = False,
     ) -> pd.DataFrame:
         """Playlist which centralises the actions for a recommendation made for a given song
 
@@ -50,10 +50,10 @@ class PlaylistFeatures:
         Returns:
             pd.DataFrame: Pandas DataFrame containing the song recommendations
         """
-        if not (1 < number_of_songs <= 1500):
+        if not (1 <= number_of_songs <= 1500):
             raise ValueError(f'Value for number_of_songs must be between 1 and 1500 on creation of recommendation for the song {song_name} by {artist_name}')
 
-        song = cls._get_song(song_name=song_name, artist_name=artist_name, dataframe=dataframe)
+        song = cls._get_song(song_name=song_name, artist_name=artist_name, dataframe=dataframe, _auto_artist=_auto_artist)
 
         df = cls._get_recommendations(
             song=song,
@@ -83,7 +83,9 @@ class PlaylistFeatures:
             Library.write_playlist(
                 ids=ids,
                 user_id=cls.user_id,
+                song_name=song_name,
                 playlist_type='song',
+                artist_name=artist_name,
                 base_playlist_name=cls.base_playlist_name
             )
 
@@ -122,7 +124,7 @@ class PlaylistFeatures:
         )
 
     @classmethod
-    def _get_song(cls, dataframe: pd.DataFrame, song_name: str, artist_name: Union[str, None] = None) -> Song:
+    def _get_song(cls, dataframe: pd.DataFrame, song_name: str, artist_name: str, _auto_artist: bool = False) -> Song:
         """Function that returns the index of a given song in the list of songs
 
         Args:
@@ -134,10 +136,12 @@ class PlaylistFeatures:
         Returns:
             Song: The song
         """
+        dataframe = dataframe.copy()
 
-        dataframe = dataframe.copy().query('name == @song_name')
+        dataframe = dataframe.query('name == @song_name')
 
-        dataframe = dataframe[dataframe['artists'].apply(lambda artists: artist_name in artists)]
+        if not _auto_artist:
+            dataframe = dataframe[dataframe['artists'].apply(lambda artists: artist_name in artists)]
 
         song_dict = {**dataframe.to_dict('records')[0]}
 
@@ -233,11 +237,11 @@ class PlaylistFeatures:
 
     @staticmethod
     def _extract_items_from_playlist(playlist: pd.DataFrame, item_key: str) -> list:
-        return list(reduce(lambda x, y: list(x) + list(y), playlist[item_key], []))
+        return list(reduce(lambda x, y: x + eval(y), playlist[item_key], []))
 
     @staticmethod
     def _count_items(items: list) -> dict:
-        return dict(reduce(lambda x, y: util.list_to_count_dict(dictionary=x, item=y), items, {}))
+        return {**dict(reduce(lambda x, y: util.list_to_count_dict(dictionary=x, item=y), items, {})), 'total': len(items)}
 
     @staticmethod
     def _sort_items_by_count(items_dict: dict) -> dict:
@@ -296,7 +300,7 @@ class PlaylistFeatures:
         Returns:
             pd.DataFrame: DataFrame containing the new playlist based on the artist
         """
-        if not (1 < number_of_songs <= 1500):
+        if not (1 <= number_of_songs <= 1500):
             raise ValueError('Value for number_of_songs must be between 1 and 1500')
 
         artist_songs, _ = cls._filter_artist_songs(dataframe, artist_name)
@@ -381,7 +385,7 @@ class PlaylistFeatures:
         Returns:
             pd.DataFrame: DataFrame containing the new playlist based on the artist
         """
-        if not (1 < number_of_songs <= 1500):
+        if not (1 <= number_of_songs <= 1500):
             raise ValueError('Value for number_of_songs must be between 1 and 1500')
 
         artist_songs, dataframe = cls._filter_artist_songs(dataframe, artist_name)
@@ -529,9 +533,8 @@ class PlaylistFeatures:
     @staticmethod
     def _get_extreme_song(df: pd.DataFrame, feature: str, ascending: bool) -> dict:
         sorted_df = df.sort_values(feature, ascending=ascending)
-        extreme_song = sorted_df.iloc[0].to_dict()
 
-        return {key: extreme_song[key] for key in extreme_song if key != feature}
+        return sorted_df.iloc[0].to_dict()
 
     @classmethod
     def audio_features_statistics(cls, dataframe: pd.DataFrame) -> 'dict[str, float]':
@@ -606,11 +609,11 @@ class PlaylistFeatures:
 
         url = f'{BASE_URL}/recommendations?limit={number_of_songs}'
 
-        url = cls._build_recommendation_url(url, main_criteria, artists, tracks, genres, audio_statistics)
+        url = cls._build_recommendation_url(url, main_criteria, tracks, genres, artists, audio_statistics)
 
         recommendations = RequestHandler.get_request(url=url).json()
 
-        songs = User._build_song_objects(recommendations=recommendations)
+        songs = Song._build_song_objects(recommendations=recommendations)
         recommendations_playlist = pd.DataFrame(data=songs)
 
         ids = recommendations_playlist['id'].tolist()
@@ -765,7 +768,10 @@ class PlaylistFeatures:
         playlist = cls._create_playlist(
             dataframe=dataframe,
             query=mood_queries[mood]['query'],
-            exclude_mostly_instrumental=exclude_mostly_instrumental
+            energy_threshold=energy_threshold,
+            valence_threshold=valence_threshold,
+            instrumentalness_threshold=instrumentalness_threshold,
+            exclude_mostly_instrumental=exclude_mostly_instrumental,
         )
 
         playlist = cls._sort_playlist(
@@ -794,7 +800,14 @@ class PlaylistFeatures:
         return playlist
 
     @staticmethod
-    def _create_playlist(dataframe: pd.DataFrame, query: str, exclude_mostly_instrumental: bool) -> pd.DataFrame:
+    def _create_playlist(
+        query: str,
+        dataframe: pd.DataFrame,
+        energy_threshold: float,
+        valence_threshold: float,
+        exclude_mostly_instrumental: bool,
+        instrumentalness_threshold: float,
+    ) -> pd.DataFrame:
         playlist = dataframe.query(query).copy()
 
         if exclude_mostly_instrumental:
@@ -817,7 +830,7 @@ class PlaylistFeatures:
         if len(playlist) >= number_of_songs:
             playlist = playlist.head(number_of_songs)
         else:
-            number_of_songs = len(playlist)
+            
             logging.warning(f"The playlist does not contain {number_of_songs} {mood} songs. Therefore there are only {len(playlist)} in the returned playlist.")
 
         return playlist
@@ -853,7 +866,7 @@ class PlaylistFeatures:
 
         top_50 = UserHandler.top_tracks(time_range=time_range, limit=50).json()
 
-        songs = User._build_song_objects(recommendations=top_50, dict_key='items')
+        songs = Song._build_song_objects(recommendations=top_50, dict_key='items')
 
         df = pd.DataFrame(songs)
 

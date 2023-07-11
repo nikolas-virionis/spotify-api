@@ -13,7 +13,6 @@ BASE_URL = 'https://api.spotify.com/v1'
 class RequestHandler:
     # TODO: docstring
 
-    @classmethod
     def access_token_retry(func: Callable[..., Any]) -> Callable[..., Any]: # type: ignore
         @functools.wraps(func)
         def wrapper(cls, *args: Any, **kwargs: Any) -> Any:
@@ -24,6 +23,8 @@ class RequestHandler:
 
                 except AccessTokenExpiredError as e:
                     logging.warning('Error due to the access token expiration')
+                    logging.info(f'{AuthenticationHandler._headers["Authorization"] = }')
+                    logging.info(f'{AuthenticationHandler._headers = }')
                     RequestHandler.get_auth()
 
                     if error_count >= 2:
@@ -40,7 +41,10 @@ class RequestHandler:
     @classmethod
     def _validate_token(cls) -> bool:
         try:
-            cls.get_request(url='https://api.spotify.com/v1/search?q=NF&type=artist&limit=1').json()['artists']
+            response = cls.get_request_no_retry(url='https://api.spotify.com/v1/me/top/tracks?time_range=short_term&limit=50')
+
+            if response.status_code == 401:
+                raise AccessTokenExpiredError('Access token expired')
             # If the access token is not valid the AccessTokenExpiredError exception will be raised, thereby invalidating it
 
             logging.debug('Access token validation successful')
@@ -48,7 +52,7 @@ class RequestHandler:
             return True
 
         except AccessTokenExpiredError as access_token_error:
-            logging.debug('Access token expired. Error: ', access_token_error)
+            logging.debug('Access token expired Error ')
 
             raise
 
@@ -63,10 +67,13 @@ class RequestHandler:
         """
         try:
 
-            if auth_token := AuthenticationHandler._retrieve_local_access_token():
-                cls._validate_token()
+            AuthenticationHandler._retrieve_local_access_token()
 
-                logging.debug("Token is valid")
+            cls._validate_token()
+
+            logging.debug("Token is valid")
+
+            auth_token = AuthenticationHandler._headers["Authorization"].split(" ")[-1]
 
         except FileNotFoundError as file_not_found_error:
             logging.debug("File with auth token not found locally", file_not_found_error)
@@ -74,7 +81,7 @@ class RequestHandler:
             auth_token = AuthenticationHandler._retrive_new_token()
 
         except AccessTokenExpiredError as access_token_expired_error:
-            logging.debug("Access token expired", access_token_expired_error)
+            logging.debug("\n\n\n\nAccess token expired 1233455\n\n\n\n")
 
             auth_token = AuthenticationHandler._retrive_new_token()
 
@@ -176,20 +183,6 @@ class RequestHandler:
         return cls.exponential_backoff(func=requests.post, url=url, headers=AuthenticationHandler._headers, data=data, retries=retries)
 
     @classmethod
-    def post_request_with_auth(cls, url: str, data: Union[dict, None] = None, auth: Union['tuple[str, ...]', None] = None, retries: int = 10) -> requests.Response:
-        """POST request with integrated exponential backoff retry strategy
-
-        Args:
-            url (str): Request URL
-            data (dict, optional): Request body. Defaults to None.
-            retries (int, optional): Number of retries. Defaults to 10.
-
-        Returns:
-            dict: Request response
-        """
-        return cls.exponential_backoff(func=requests.post, url=url, headers=AuthenticationHandler._headers, data=data, auth=auth, retries=retries)
-
-    @classmethod
     def put_request(cls, url: str, data: Union[dict, None] = None, retries: int = 10) -> requests.Response:
         """PUT request with integrated exponential backoff retry strategy
 
@@ -216,3 +209,16 @@ class RequestHandler:
             dict: Request response
         """
         return cls.exponential_backoff(func=requests.delete, url=url, headers=AuthenticationHandler._headers, data=json.dumps(data), retries=retries)
+
+    @classmethod
+    def get_request_no_retry(cls, url: str) -> requests.Response:
+        """GET request with integrated exponential backoff retry strategy
+
+        Args:
+            url (str): Request URL
+            retries (int, optional): Number of retries. Defaults to 10.
+
+        Returns:
+            dict: Request response
+        """
+        return requests.get(url=url, headers=AuthenticationHandler._headers)

@@ -1,12 +1,8 @@
-import os
-import re
 import logging
 import warnings
 import pandas as pd
 import spotify_recommender_api.util as util
-import core as core
 
-from functools import reduce, partial
 from typing import Union, Any, Callable
 from spotify_recommender_api.model.user import User
 from spotify_recommender_api.playlist.playlist import Playlist
@@ -86,7 +82,7 @@ class SpotifyAPI:
 
             self.playlist = Playlist(user_id=self.user.user_id, playlist_id=playlist_id)
 
-    def get_most_listened(self, time_range: str = 'long', number_of_songs: int = 50, build_playlist: bool = False) -> pd.DataFrame:
+    def get_most_listened(self, time_range: str = 'long_term', number_of_songs: int = 50, build_playlist: bool = False) -> pd.DataFrame:
         """Function that creates the most-listened songs playlist for a given period of time in the users profile
 
         Args:
@@ -104,7 +100,7 @@ class SpotifyAPI:
         if time_range not in ['long_term', 'medium_term', 'short_term']:
             raise ValueError('time_range must be long_term, medium_term or short_term')
 
-        if not (1 < number_of_songs <= 1500):
+        if not (1 <= number_of_songs <= 1500):
             raise ValueError(f'Value for K must be between 1 and 1500: {time_range} term most listened')
 
         return self.user.get_most_listened(
@@ -120,7 +116,7 @@ class SpotifyAPI:
             save_with_date: bool = False,
             build_playlist: bool = False,
             time_range: str = 'short_term'
-        ) -> Union[pd.DataFrame, None]:
+        ) -> pd.DataFrame:
         """Builds a Profile based recommendation
 
         Args:
@@ -205,11 +201,11 @@ class SpotifyAPI:
         self,
         song_name: str,
         artist_name: str,
-        number_of_songs: int,
+        number_of_songs: int = 50,
         with_distance: bool = False,
         build_playlist: bool = False,
         print_base_caracteristics: bool = False
-    ) -> Union[pd.DataFrame, None]:
+    ) -> pd.DataFrame:
         """Playlist which centralises the actions for a recommendation made for a given song
 
         Note
@@ -410,7 +406,7 @@ class SpotifyAPI:
         main_criteria: str = 'mixed',
         save_with_date: bool = False,
         build_playlist: bool = False,
-    ) -> Union[pd.DataFrame, None]:
+    ) -> pd.DataFrame:
         """Builds a playlist based recommendation
 
         Args:
@@ -554,7 +550,7 @@ def start_api(
         format='%(asctime)s.%(msecs)03d - %(levelname)s: %(message)s',
     )
 
-    logger = logging.getLogger('spotify-recommender-api')
+    # logger = logging.getLogger('spotify-recommender-api')
 
     if (playlist_url is not None or playlist_id is not None) and liked_songs or (playlist_url is not None and playlist_id is not None):
         raise ValueError('It is necessary to specify only one or none of the following parameters: playlist_id or playlist_url or liked_songs')
@@ -562,5 +558,6 @@ def start_api(
     logging.info('Retrieving Authentication token')
 
     RequestHandler.get_auth()
+    logging.debug('Authentication complete')
 
     return SpotifyAPI(playlist_id=playlist_id, user_id=user_id, playlist_url=playlist_url, liked_songs=liked_songs)

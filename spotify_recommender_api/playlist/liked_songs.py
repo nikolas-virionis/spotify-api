@@ -2,18 +2,20 @@ import logging
 
 from typing import Union
 from spotify_recommender_api.model.song import Song
-from spotify_recommender_api.requests.api_handler import PlaylistHandler
 from spotify_recommender_api.playlist.base_playlist import BasePlaylist
+from spotify_recommender_api.requests.api_handler import PlaylistHandler
 
 class LikedSongs(BasePlaylist):
 
     def __init__(self, user_id: str) -> None:
-        super().__init__(f"{self.user_id}'s Liked Songs")
+        super().__init__(user_id, f"{user_id} Liked Songs")
         self.user_id = user_id
+        self.playlist_name = f"{user_id} Liked Songs"
 
-    def __post_init__(self) -> None:
-        super().__post_init__()
-        self.playlist_name = f"{self.user_id}'s Liked Songs"
+        # self._dataframe = super()._dataframe
+
+    # def __post_init__(self) -> None:
+    #     super().__post_init__()
 
     @staticmethod
     def get_song_count(playlist_id: Union[str, None] = None) -> int:
@@ -21,7 +23,7 @@ class LikedSongs(BasePlaylist):
 
     @staticmethod
     def get_playlist_name(playlist_id: Union[str, None] = None) -> str:
-        return "User's Liked Songs"
+        return playlist_id
 
 
     def get_playlist_from_web(self) -> 'list[Song]':

@@ -1,8 +1,9 @@
+import pytz
 import logging
 import datetime
-import pytz
-from typing import Union, Any
+import contextlib
 
+from typing import Union, Any
 from spotify_recommender_api.requests.api_handler import LibraryHandler, PlaylistHandler
 
 class Library:
@@ -145,7 +146,7 @@ class Library:
 
             cls._delete_playlist_tracks(new_id, playlist_tracks)
 
-            if cls._should_update_playlist_details(playlist_name, playlist_found[1]):
+            if cls._should_update_playlist_details(playlist_name, playlist_found[1], new_id):
                 cls._update_playlist_details(new_id, playlist_name, description)
 
         else:
@@ -177,7 +178,7 @@ class Library:
 
         if playlist_type == 'song':
             playlist_name = f"{kwargs['song_name']!r} Related"
-            description = f"Songs related to {kwargs['song_name']!r}, within the playlist {base_playlist_name}"
+            description = f"Songs related to {kwargs['song_name']!r} by {kwargs['artist_name']}, within the playlist {base_playlist_name}"
 
         elif playlist_type in {'short', 'medium'}:
             playlist_name = "Recent-ish Favorites" if playlist_type == 'medium' else "Latest Favorites"
@@ -185,7 +186,7 @@ class Library:
 
         elif 'most-listened' in playlist_type and 'recommendation' not in playlist_type:
             term = playlist_type.replace('most-listened-', '')
-            playlist_name = f"{term.replace('_', ' ').capitalize()} Most-listened Tracks"
+            playlist_name = f"{term.replace('_', ' ').title()} Most-listened Tracks"
             description = f"The most listened tracks in a {term.replace('_', ' ')} period"
 
         elif playlist_type == 'artist-related':
@@ -202,8 +203,8 @@ class Library:
 
         elif playlist_type == 'profile-recommendation':
             criteria = kwargs['criteria'] if kwargs['criteria'] != 'mixed' else 'genres, tracks and artists'
-            playlist_name = f"{kwargs['time_range'].replace('_', ' ').capitalize()} Profile Recommendation"
-            description = f'''{kwargs['time_range'].replace('_', ' ').capitalize()} profile-based recommendations based on favorite {criteria}'''
+            playlist_name = f"{kwargs['time_range'].replace('_', ' ').title()} Profile Recommendation"
+            description = f'''{kwargs['time_range'].replace('_', ' ').title()} profile-based recommendations based on favorite {criteria}'''
 
             if kwargs['date']:
                 now = datetime.datetime.now(tz=pytz.timezone('UTC'))
@@ -309,14 +310,15 @@ class Library:
                 if (
                     playlist[1] == name or
                     (
-                        name.lower().startswith('profile short term recommendation') and
-                        playlist[1] == name.replace('Short term ', '')
+                        name.lower().startswith('short term profile recommendation') and
+                        playlist[1].strip() == name.replace('Short Term ', '').strip()
                     )
                 ) and
                 (
-                    ' Term Most-listened Tracks' in name or
+                    ' Term Most-listened Tracks' in playlist[1] or
                     f', within the playlist {base_playlist_name}' in playlist[2] or
-                    'Recommendation (' in name
+                    'Recommendation (' in name or
+                    not playlist[2]
                 )
             ),
             ()
@@ -354,7 +356,7 @@ class Library:
 
 
     @staticmethod
-    def _should_update_playlist_details(playlist_name: str, found_playlist_name: str) -> bool:
+    def _should_update_playlist_details(playlist_name: str, found_playlist_name: str, playlist_id: str) -> bool:
         """Checks if the playlist details should be updated.
 
         Args:
@@ -364,7 +366,10 @@ class Library:
         Returns:
             bool: True if the details should be updated, False otherwise.
         """
-        return playlist_name.lower().startswith('short term profile recommendation') and found_playlist_name == playlist_name.replace('Short term ', '')
+        playlist_details = PlaylistHandler.playlist_details(playlist_id).json()
+        description = playlist_details.get('description')
+
+        return not description or playlist_name.lower().startswith('short term profile recommendation') and found_playlist_name == playlist_name.replace('Short Term ', '')
 
 
     @staticmethod
@@ -377,13 +382,15 @@ class Library:
             description (str): The new description of the playlist.
         """
         data = {
+            "public": False,
             "name": playlist_name,
             "description": description,
-            "public": False
         }
 
         logging.info(f'Updating playlist {playlist_name} details')
-        PlaylistHandler.update_playlist_details(playlist_id=playlist_id, data=data)
+
+        with contextlib.suppress(Exception):
+            PlaylistHandler.update_playlist_details(playlist_id=playlist_id, data=data)
 
     @staticmethod
     def _create_new_playlist(user_id: str, data: 'dict[str, Any]') -> str:

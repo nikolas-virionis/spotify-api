@@ -1,6 +1,7 @@
 
 import time
 import uvicorn
+import logging
 import threading
 import webbrowser
 import contextlib
@@ -8,6 +9,7 @@ import contextlib
 from fastapi import FastAPI, status
 from fastapi.responses import HTMLResponse
 from spotify_recommender_api.sensitive import CLIENT_ID, CLIENT_SECRET
+from spotify_recommender_api.requests.auth_handler import AuthHandler
 
 app = FastAPI()
 
@@ -48,8 +50,8 @@ def up_server():
             try:
                 with open('./.spotify-recommender-util/execution-status.txt', 'r') as f:
                     auth_status = f.readline()
-            except Exception as e:
-                pass
+            except FileNotFoundError as e:
+                time.sleep(0.5)
             else:
                 break
 
@@ -62,11 +64,6 @@ def get_access_token(auth_code: str) -> str:
     Returns:
         str: Access token
     """
-    # It is necessary to import only inside the function to avoid circular imports.
-    # It happens since the Auth class needs to make requests to validate and
-    # retrieve the token and the requests class needs authentication information
-    # to make API calls
-    from spotify_recommender_api.requests.api_handler import AuthHandler
 
     response = AuthHandler.authorization_token(
         auth_code=auth_code,

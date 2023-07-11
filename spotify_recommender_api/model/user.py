@@ -7,9 +7,9 @@ from functools import reduce
 from dataclasses import dataclass
 from spotify_recommender_api.model.song import Song
 from spotify_recommender_api.core.library import Library
-from spotify_recommender_api.requests.api_handler import PlaylistHandler, LibraryHandler, UserHandler
 from spotify_recommender_api.playlist.base_playlist import BasePlaylist
 from spotify_recommender_api.requests.request_handler import RequestHandler, BASE_URL
+from spotify_recommender_api.requests.api_handler import PlaylistHandler, LibraryHandler, UserHandler
 
 @dataclass
 class User:
@@ -32,7 +32,7 @@ class User:
         """
         top = UserHandler.top_tracks(time_range=time_range, limit=number_of_songs).json()
 
-        top_songs = self._build_song_objects(
+        top_songs = Song._build_song_objects(
             dict_key='items',
             recommendations=top,
         )
@@ -82,7 +82,7 @@ class User:
         url = self._build_recommendations_url(number_of_songs, main_criteria, artists, genres, tracks)
 
         recommendations = RequestHandler.get_request(url=url).json()
-        songs = self._build_song_objects(recommendations)
+        songs = Song._build_song_objects(recommendations)
 
         recommendations_playlist = pd.DataFrame(data=songs)
         ids = recommendations_playlist['id'].tolist()
@@ -90,10 +90,10 @@ class User:
         if build_playlist:
             Library.write_playlist(
                 ids=ids,
+                date=save_with_date,
                 user_id=self.user_id,
                 time_range=time_range,
                 criteria=main_criteria,
-                save_with_date=save_with_date,
                 playlist_type='profile-recommendation',
             )
 
@@ -136,7 +136,7 @@ class User:
         return RequestHandler.get_request(url=url).json()
 
     def _build_playlist_dataframe(self, recommendations: dict) -> pd.DataFrame:
-        songs = self._build_song_objects(recommendations=recommendations)
+        songs = Song._build_song_objects(recommendations=recommendations)
 
         return pd.DataFrame(data=songs)
 
@@ -153,14 +153,14 @@ class User:
         if artists_info:
             types.append('artists')
             description += f'the {"artist" if len(artists_info) == 1 else "artists"} '
-            description += ', '.join(artists_info)
+            description += ' and '.join(', '.join(artists_info).rsplit(', ', 1))
 
         if genres_info:
             types.append('genres')
             if artists_info:
                 description += ' and ' if len(artists_info) >= 1 else ', '
             description += f'the {"genre" if len(genres_info) == 1 else "genres"} '
-            description += ', '.join(genres_info)
+            description += ' and '.join(', '.join(genres_info).rsplit(', ', 1))
 
         if tracks_info:
             types.append('tracks')
@@ -169,11 +169,11 @@ class User:
             description += f'the {"track" if len(tracks_info) == 1 else "tracks"} '
 
             if isinstance(tracks_info, dict):
-                description += ', '.join(list(tracks_info.keys()))
+                description += ' and '.join(', '.join(list(tracks_info.keys())).rsplit(', ', 1))
             elif isinstance(tracks_info[0], (tuple, list)):
-                description += ', '.join([track_info[0] for track_info in tracks_info])
+                description += ' and '.join(', '.join([track_info[0] for track_info in tracks_info]).rsplit(', ', 1))
             elif isinstance(tracks_info[0], str):
-                description += ', '.join(tracks_info) # type: ignore
+                description += ' and '.join(', '.join(tracks_info).rsplit(', ', 1)) # type: ignore
 
         return description, types
 
@@ -378,42 +378,6 @@ class User:
 
         return url
 
-    @staticmethod
-    def _build_song_objects(recommendations: dict, dict_key: str = 'tracks') -> 'list[Song]':
-        """Builds a list of Song objects from the recommendations data.
-
-        Args:
-            recommendations (dict): Recommendations data.
-
-        Returns:
-            List[Song]: List of Song objects.
-        """
-        songs = []
-
-        for song in recommendations[dict_key]:
-            song_id, name, popularity, artists, _ = Song.song_data(song=song)
-            song_genres = Song.get_song_genres(artists=artists)
-
-            danceability, loudness, energy, instrumentalness, tempo, valence = Song.query_audio_features(song_id=song_id)
-
-            songs.append(
-                Song(
-                    name=name,
-                    id=song_id,
-                    tempo=tempo,
-                    energy=energy,
-                    valence=valence,
-                    loudness=loudness,
-                    genres=song_genres,
-                    popularity=popularity,
-                    danceability=danceability,
-                    instrumentalness=instrumentalness,
-                    artists=[artist.name for artist in artists],
-                )
-            )
-
-        return songs
-
     def update_all_generated_playlists(
             self,
             base_playlist: Union[BasePlaylist, None] = None,
@@ -450,12 +414,12 @@ class User:
                     )
 
                 elif self._should_update_profile_recommendation(name, playlist_types_to_update):
-                    criteria, time_range, playlist_name, description = self._prepare_profile_recommendation(name)
+                    criteria, time_range, playlist_name, playlist_description = self._prepare_profile_recommendation(name)
 
-                    if 'term' in name.lower():
+                    if 'term' in name.lower() or not description:
                         data = {
                             "name": playlist_name,
-                            "description": description,
+                            "description": playlist_description,
                             "public": False
                         }
 
@@ -475,7 +439,11 @@ class User:
                 elif base_playlist is not None and self._should_update_base_playlist(name, description, base_playlist.playlist_name):
                     if self._should_update_song_related(name, playlist_types_to_update):
                         song_name = name.replace(" Related", '')[1:-1]
-                        self._update_song_related(base_playlist, song_name, total_tracks)
+                        try:
+                            artist_name = ' by '.join(description.split(', within the playlist')[0].split(' by ')[1:]) # joining just in case the artist name has " by " in it
+                        except Exception:
+                            artist_name = ''
+                        self._update_song_related(base_playlist, song_name, artist_name, total_tracks)
 
                     elif self._should_update_artist_mix(name, playlist_types_to_update):
                         artist_name = name.replace(" Mix", '')[1:-1]
@@ -483,7 +451,7 @@ class User:
 
                     elif self._should_update_artist_full(name, playlist_types_to_update):
                         artist_name = name.replace("This once was ", '')[1:-1]
-                        ensure_all_artist_songs = f'All {artist_name}' in description
+                        ensure_all_artist_songs = f'All {artist_name}' in description or not description
                         self._update_artist_full(base_playlist, artist_name, total_tracks, ensure_all_artist_songs)
 
                     elif self._should_update_playlist_recommendation(name, playlist_types_to_update):
@@ -572,7 +540,7 @@ class User:
             time_range = '_'.join(name.split(' ')[1:3]).lower()
         else:
             time_range = 'short_term'
-        playlist_name = f"{time_range.replace('_', ' ').capitalize()} Profile Recommendation ({criteria_name})"
+        playlist_name = f"{time_range.replace('_', ' ').title()} Profile Recommendation ({criteria_name})"
         description = f'''{time_range.replace('_', ' ').capitalize()} Profile-based recommendations based on favorite {criteria_name}'''
 
         return criteria, time_range, playlist_name, description
@@ -589,18 +557,19 @@ class User:
     def _should_update_base_playlist(self, name: str, description: str, base_playlist_name: str) -> bool:
         return (
             base_playlist_name is not None and
-            f", within the playlist {base_playlist_name}" in description and
+            (f", within the playlist {base_playlist_name}" in description or not description) and
             ('Related' in name or 'Mix' in name or 'This once was' in name or 'Playlist Recommendation' in name or 'Songs related to the mood' in description or 'most listened recommendations' in name)
         )
 
     def _should_update_song_related(self, name: str, playlist_types_to_update: 'list[str]') -> bool:
         return (re.match(r"\'(.*?)\' Related", name) or re.match(r'\"(.*?)\" Related', name)) and 'song-related' in playlist_types_to_update # type: ignore
 
-    def _update_song_related(self, base_playlist: BasePlaylist, song_name: str, total_tracks: int) -> None:
+    def _update_song_related(self, base_playlist: BasePlaylist, song_name: str, artist_name: str, total_tracks: int) -> None:
         base_playlist.get_recommendations_for_song(
             song_name=song_name,
-            artist_name='',  # TODO: artist name
             build_playlist=True,
+            artist_name=artist_name,
+            _auto_artist=not artist_name,
             number_of_songs=total_tracks - 1,
         )
 
@@ -692,7 +661,7 @@ class User:
         ):
             return True
 
-        elif f', within the playlist {base_playlist_name}' in description and base_playlist_name is not None:
+        elif (not description or f', within the playlist {base_playlist_name}' in description) and base_playlist_name is not None:
             if (re.match(r"\'(.*?)\' Related", name) or re.match(r'\"(.*?)\" Related', name)) and 'song-related' in playlist_types_to_update:
                 return True
 

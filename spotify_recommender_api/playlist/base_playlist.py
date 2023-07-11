@@ -25,9 +25,7 @@ class BasePlaylist(ABC):
     def __init__(self, user_id: str, playlist_id: str = '') -> None:
         self.user_id = user_id
         self.playlist_id = playlist_id
-
-    def __post_init__(self) -> None:
-        self.playlist_name = self.get_playlist_name(self.playlist_id)
+        self.playlist_name = self.get_playlist_name(playlist_id)
 
         self._dataframe = self._retrieve_playlist_items()
 
@@ -36,6 +34,8 @@ class BasePlaylist(ABC):
         PlaylistFeatures.base_playlist_name = self.playlist_name
         PlaylistFeatures.user_id = self.user_id
 
+
+    # def __post_init__(self) -> None:
     def _retrieve_playlist_items(self) -> pd.DataFrame:
         answer = input('Do you want to get the playlist data via CSV, which would have been saved previously, or read from spotify, which will take a few minutes depending on the playlist size (csv/web)? ')
         while answer.lower() not in ['csv', 'web']:  # , 'parquet'
@@ -81,7 +81,7 @@ class BasePlaylist(ABC):
 
     def _retrieve_playlist_csv(self) -> pd.DataFrame:
         try:
-            return pd.read_csv(f'{self.playlist_name}.csv')
+            return pd.read_csv(f'{self.playlist_name}.csv', index_col=[0])
         except FileNotFoundError as file_not_found_error:
             raise FileNotFoundError('The playlist with the specified ID does not exist in the CSV format, try again but selecting the "web" option, as the source for the playlist') from file_not_found_error
 
@@ -94,7 +94,7 @@ class BasePlaylist(ABC):
         playlist = self._dataframe.copy()
 
         if not indexes:
-            playlist = playlist.drop(['genres_indexed', 'artists_indexed'])
+            playlist = playlist.drop(['genres_indexed', 'artists_indexed'], axis=1)
 
         return playlist
 
@@ -106,7 +106,8 @@ class BasePlaylist(ABC):
         number_of_songs: int,
         with_distance: bool = False,
         build_playlist: bool = False,
-        print_base_caracteristics: bool = False
+        print_base_caracteristics: bool = False,
+        _auto_artist: bool = False
     ) -> pd.DataFrame:
         """Playlist which centralises the actions for a recommendation made for a given song
 
@@ -133,14 +134,15 @@ class BasePlaylist(ABC):
         dataframe = PlaylistFeatures.get_recommendations_for_song(
             song_name=song_name,
             artist_name=artist_name,
+            _auto_artist=_auto_artist,
             dataframe=self._dataframe,
             build_playlist=build_playlist,
             number_of_songs=number_of_songs,
-            print_base_caracteristics=print_base_caracteristics
+            print_base_caracteristics=print_base_caracteristics,
         )
 
         if not with_distance:
-            dataframe = dataframe.drop('distance')
+            dataframe = dataframe.drop('distance', axis=1)
 
         return dataframe
 

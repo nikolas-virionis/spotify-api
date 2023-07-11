@@ -8,11 +8,18 @@ class PlaylistUtil:
     def _index_item(dataframe: pd.DataFrame, arg0: str) -> 'list[str]':
         items_list = dataframe[arg0].to_list()
 
-        playlist_items = reduce(
-            lambda all_items, song_items: all_items + song_items,
-            items_list,
-            [],
-        )
+        if isinstance(items_list[0], list):
+            playlist_items = reduce(
+                lambda all_items, song_items: all_items + song_items,
+                items_list,
+                [],
+            )
+        else:
+            playlist_items = reduce(
+                lambda all_items, song_items: all_items + eval(song_items),
+                items_list,
+                [],
+            )
 
         return list(set(playlist_items))
 
@@ -29,8 +36,8 @@ class PlaylistUtil:
 
     @staticmethod
     def _add_indexed_columns(dataframe: pd.DataFrame, genres: 'list[str]', artists: 'list[str]') -> pd.DataFrame:
-        dataframe['genres_indexed'] = dataframe.apply(lambda song: [int(genre in song['genres']) for genre in genres])
-        dataframe['artists_indexed'] = dataframe.apply(lambda song: [int(artist in song['artists']) for artist in artists])
+        dataframe['genres_indexed'] = dataframe['genres'].apply(lambda song: [int(genre in song) for genre in genres])
+        dataframe['artists_indexed'] = dataframe['artists'].apply(lambda song: [int(artist in song) for artist in artists])
 
         return dataframe
 

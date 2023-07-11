@@ -25,7 +25,9 @@ class HTTPRequestError(Exception):
 
         err_code = f': {err_code}' if err_code else ''
 
-        super().__init__(f'{message}{err_code}')
+        self.message = f'{message}{err_code}'
+
+        super().__init__(self.message)
 
 class TooManyRequestsError(HTTPRequestError):
     """Generic exception for HTTP Request Exceptions
@@ -47,3 +49,6 @@ class AccessTokenExpiredError(HTTPRequestError):
         self.func = func
         self.args = args
         self.kwargs = kwargs
+
+    def __str__(self) -> str:
+        return 'Access Token is not valid'

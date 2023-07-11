@@ -1,7 +1,6 @@
 import os
 import logging
 
-
 from spotify_recommender_api.server import up_server
 
 class AuthenticationHandler:
