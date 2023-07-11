@@ -5,7 +5,7 @@ import functools
 
 from dateutil import tz
 from typing import Any, Callable
-from spotify_recommender_api.requests.api_handler import APIHandler
+from spotify_recommender_api.requests.api_handler import PlaylistHandler
 
 
 def playlist_url_to_id(url: str) -> str:
@@ -140,7 +140,7 @@ def get_base_playlist_name(playlist_id: str) -> str:
         str: The base playlist name
     """
 
-    playlist = APIHandler.playlist_details(playlist_id)
+    playlist = PlaylistHandler.playlist_details(playlist_id)
 
     return playlist.json()['name']
 

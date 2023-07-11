@@ -4,7 +4,7 @@ import functools
 from typing import Any, Union
 from dataclasses import dataclass, field
 from spotify_recommender_api.model.artist import Artist
-from spotify_recommender_api.requests.api_handler import APIHandler
+from spotify_recommender_api.requests.api_handler import SongHandler
 
 @dataclass(frozen=True)
 class Song:
@@ -32,7 +32,7 @@ class Song:
 
     @staticmethod
     def query_audio_features(song_id: str) -> 'tuple[float, ...]':
-        audio_features = APIHandler.query_audio_features(song_id).json()
+        audio_features = SongHandler.query_audio_features(song_id).json()
 
         return (
             audio_features['danceability'],
