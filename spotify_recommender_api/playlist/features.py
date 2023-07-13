@@ -4,11 +4,12 @@ import pandas as pd
 import spotify_recommender_api.util as util
 import spotify_recommender_api.visualization as visualization
 
+from typing import Any
 from functools import reduce
-from typing import Union, Any
 from spotify_recommender_api.song import Song
-from spotify_recommender_api.error import EmptyResultError
+from spotify_recommender_api.song.util import SongUtil
 from spotify_recommender_api.core.library import Library
+from spotify_recommender_api.error import EmptyResultError
 from spotify_recommender_api.core.knn_algorithm import KNNAlgorithm
 from spotify_recommender_api.requests.api_handler import UserHandler
 from spotify_recommender_api.requests.request_handler import RequestHandler, BASE_URL
@@ -615,7 +616,7 @@ class PlaylistFeatures:
 
         recommendations = RequestHandler.get_request(url=url).json()
 
-        songs = Song._build_song_objects(recommendations=recommendations)
+        songs = SongUtil._build_song_objects(recommendations=recommendations)
         recommendations_playlist = pd.DataFrame(data=songs)
 
         ids = recommendations_playlist['id'].tolist()
@@ -868,7 +869,7 @@ class PlaylistFeatures:
 
         top_50 = UserHandler.top_tracks(time_range=time_range, limit=50).json()
 
-        songs = Song._build_song_objects(recommendations=top_50, dict_key='items')
+        songs = SongUtil._build_song_objects(recommendations=top_50, dict_key='items')
 
         df = pd.DataFrame(songs)
 

@@ -49,6 +49,14 @@ class SpotifyAPI:
             logging.info('Class initiated without any playlist. To access any playlist related functions please use the select_playlist method.\nAll Profile related functions can still be used anyway you prefer')
 
     def needs_playlist(func: Callable[..., Any]) -> Callable[..., Any]: # type: ignore
+        """Decorator to check if a playlist is provided before accessing a function.
+
+        Args:
+            func (Callable): The function to be decorated.
+
+        Returns:
+            Callable: The decorated function.
+        """
         def wrapper(self, *args, **kwargs):
             if getattr(self, 'playlist', None) is None:
                 raise NoPlaylistProvidedError('To access this function, you need to provide a playlist via the select_playlist method')

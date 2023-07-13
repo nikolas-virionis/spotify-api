@@ -32,8 +32,7 @@ class RequestHandler:
 
                 except AccessTokenExpiredError as e:
                     logging.warning('Error due to the access token expiration')
-                    logging.info(f'{AuthenticationHandler._headers["Authorization"] = }')
-                    logging.info(f'{AuthenticationHandler._headers = }')
+
                     RequestHandler.get_auth()
 
                     if error_count >= 2:

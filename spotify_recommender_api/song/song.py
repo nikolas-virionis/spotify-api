@@ -1,13 +1,15 @@
 import datetime
 import functools
 
-from typing import Any, Union
+from typing import Any
 from dataclasses import dataclass, field
 from spotify_recommender_api.artist import Artist
 from spotify_recommender_api.requests.api_handler import SongHandler
 
 @dataclass(frozen=True)
 class Song:
+    """Represents a song with its attributes and data."""
+
     id: str
     name: str
     popularity: int
@@ -25,13 +27,29 @@ class Song:
 
 
     @staticmethod
-    def get_song_genres(artists: 'list[Artist]'):
+    def get_song_genres(artists: 'list[Artist]') -> 'list[str]':
+        """Get the unique genres from a list of artists.
+
+        Args:
+            artists (list[Artist]): List of artists.
+
+        Returns:
+            list[str]: List of unique genres.
+        """
         genres = functools.reduce(lambda acc, artist: acc + artist.genres, artists, [])
 
         return list(set(genres))
 
     @staticmethod
     def query_audio_features(song_id: str) -> 'tuple[float, ...]':
+        """Query the audio features of a song.
+
+        Args:
+            song_id (str): ID of the song.
+
+        Returns:
+            tuple[float, ...]: Tuple of audio features.
+        """
         audio_features = SongHandler.query_audio_features(song_id).json()
 
         return (
@@ -45,6 +63,14 @@ class Song:
 
     @staticmethod
     def song_data(song: 'dict[str, Any]') -> 'tuple[str, str, int, list[Artist], datetime.datetime]':
+        """Extract relevant data from a song dictionary.
+
+        Args:
+            song (dict[str, Any]): Song data dictionary.
+
+        Returns:
+            tuple[str, str, int, list[Artist], datetime.datetime]: Tuple of song data.
+        """
         if "track" in song:
             song = song['track']
 
@@ -63,39 +89,3 @@ class Song:
             song.get('added_at', datetime.datetime.now()),
         )
 
-
-    @staticmethod
-    def _build_song_objects(recommendations: dict, dict_key: str = 'tracks') -> 'list[Song]':
-        """Builds a list of Song objects from the recommendations data.
-
-        Args:
-            recommendations (dict): Recommendations data.
-
-        Returns:
-            List[Song]: List of Song objects.
-        """
-        songs = []
-
-        for song in recommendations[dict_key]:
-            song_id, name, popularity, artists, _ = Song.song_data(song=song)
-            song_genres = Song.get_song_genres(artists=artists)
-
-            danceability, loudness, energy, instrumentalness, tempo, valence = Song.query_audio_features(song_id=song_id)
-
-            songs.append(
-                Song(
-                    name=name,
-                    id=song_id,
-                    tempo=tempo,
-                    energy=energy,
-                    valence=valence,
-                    loudness=loudness,
-                    genres=song_genres,
-                    popularity=popularity,
-                    danceability=danceability,
-                    instrumentalness=instrumentalness,
-                    artists=[artist.name for artist in artists],
-                )
-            )
-
-        return songs
