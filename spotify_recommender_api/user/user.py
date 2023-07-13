@@ -25,11 +25,11 @@ class User:
 
         Raises:
             ValueError: time range does not correspond to a valid time range ('long_term', 'medium_term', 'short_term')
-            ValueError: Value for K must be between 1 and 1500
+            ValueError: Value for number_of_songs must be between 1 and 1500
 
 
         Returns:
-            pd.DataFrame: pandas DataFrame containing the top K songs in the time range
+            pd.DataFrame: pandas DataFrame containing the top number_of_songs songs in the time range
         """
         top = UserHandler.top_tracks(time_range=time_range, limit=number_of_songs).json()
 
@@ -61,16 +61,16 @@ class User:
         """Builds a Profile based recommendation
 
         Args:
-            K (int, optional): Number of songs in the recommendations playlist. Defaults to 50.
+            number_of_songs (int, optional): Number of songs in the recommendations playlist. Defaults to 50.
             main_criteria (str, optional): Main criteria for the recommendations playlist. Can be one of the following: 'mixed', 'artists', 'tracks', 'genres'. Defaults to 'mixed'.
             save_with_date (bool, optional): Flag to save the recommendations playlist as a Point in Time Snapshot. Defaults to False.
             build_playlist (bool, optional): Flag to build the recommendations playlist in the users library. Defaults to False.
             time_range (str, optional): The time range to get the profile most listened information from. Can be one of the following: 'short_term', 'medium_term', 'long_term'. Defaults to 'short_term'
 
         Raises:
-            ValueError: K must be between 1 and 100
-            ValueError: 'mixed', 'artists', 'tracks', 'genres'
-            ValueError: time_range needs to be one of the following: 'short_term', 'medium_term', 'long_term'
+            ValueError: If number_of_songs is not between 1 and 100.
+            ValueError: If main_criteria is not one of 'mixed', 'artists', 'tracks', 'genres'.
+            ValueError: If time_range is not one of 'short_term', 'medium_term', 'long_term'.
 
         Returns:
             pd.DataFrame: Recommendations playlist

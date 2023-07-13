@@ -201,7 +201,7 @@ class UserUtil:
         """Builds the URL for the recommendations based on the main criteria and seed data.
 
         Args:
-            K (int): Number of songs in the recommendations playlist.
+            number_of_songs (int): Number of songs in the recommendations playlist.
             main_criteria (str): Main criteria for the recommendations playlist.
             artists (list[str]): List of artist IDs.
             genres (list[str]): List of genres.
@@ -440,12 +440,17 @@ class UserUtil:
             tracks_info (Union[list[str], list[tuple[str, str]], list[list[str]], dict[str, str], None]):
                 List of tracks.
 
+        Raises:
+            ValueError: number_of_songs must be between 1 and 100
+            ValueError: At least one of the three args must be provided: genres_info, artists_info, tracks_info
+            ValueError: The sum of the number of items in each of the three args mustn't exceed 5
+
         Returns:
             tuple[list[str], list[str], Union[list[str], list[tuple[str, str]], list[list[str]], dict[str, str]]]:
                 Validated and processed input parameters.
         """
         if not (1 <= number_of_songs <= 100):
-            raise ValueError('K must be between 1 and 100')
+            raise ValueError('number_of_songs must be between 1 and 100')
 
         if not genres_info and not artists_info and not tracks_info:
             raise ValueError('At least one of the three args must be provided: genres_info, artists_info, tracks_info')

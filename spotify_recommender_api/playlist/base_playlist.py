@@ -116,7 +116,7 @@ class BasePlaylist(ABC):
 
 
         Args:
-            K (int): desired number K of neighbors to be returned
+            number_of_songs (int): desired number number_of_songs of neighbors to be returned
             song (str): The desired song name
             generate_csv (bool, optional): Whether to generate a CSV file containing the recommended playlist. Defaults to False.
             with_distance (bool, optional): Whether to allow the distance column to the DataFrame returned, which will have no actual value for most use cases, since  it does not obey any actual unit, it is just a mathematical value to determine the closet songs. Defaults to False.
@@ -125,7 +125,7 @@ class BasePlaylist(ABC):
             print_base_caracteristics (bool, optional): Whether to print the base / informed song information, in order to check why such predictions were made by the algorithm. Defaults to False.
 
         Raises:
-            ValueError: Value for K must be between 1 and 1500
+            ValueError: Value for number_of_songs must be between 1 and 1500
 
         Returns:
             pd.DataFrame: Pandas DataFrame containing the song recommendations
@@ -200,15 +200,15 @@ class BasePlaylist(ABC):
 
         Args:
             artist_name (str): The name of the artist
-            K (int, optional): Maximum number of songs. Defaults to 50.
-            with_distance (bool, optional): Whether to allow the distance column to the DataFrame returned, which will have no actual value for most use cases, since it does not obey any actual unit, it is just a mathematical value to determine the closet songs. ONLY TAKES EFFECT IF complete_with_similar == True AND K > NUMBER_OF_SONGS_WITH_THAT_ARTIST. Defaults to False.
+            number_of_songs (int, optional): Maximum number of songs. Defaults to 50.
+            with_distance (bool, optional): Whether to allow the distance column to the DataFrame returned, which will have no actual value for most use cases, since it does not obey any actual unit, it is just a mathematical value to determine the closet songs. ONLY TAKES EFFECT IF complete_with_similar == True AND number_of_songs > NUMBER_OF_SONGS_WITH_THAT_ARTIST. Defaults to False.
             build_playlist (bool, optional): Whether to build the playlist to the user's library. Defaults to False.
-            ensure_all_artist_songs (bool, optional): Whether to ensure that all artist songs are in the playlist, regardless of the K number specified. Defaults to True
-            complete_with_similar (bool, optional): Flag to complete the list of songs with songs that are similar to that artist, until the K number is reached. Only applies if K is greater than the number of songs by that artist in the playlist. Defaults to False.
-            print_base_caracteristics (bool, optional): Whether to print the base / informed song information, in order to check why such predictions were made by the algorithm. ONLY TAKES EFFECT IF complete_with_similar == True AND K > NUMBER OF SONGS WITH THAT ARTIST. Defaults to False.
+            ensure_all_artist_songs (bool, optional): Whether to ensure that all artist songs are in the playlist, regardless of the number_of_songs number specified. Defaults to True
+            complete_with_similar (bool, optional): Flag to complete the list of songs with songs that are similar to that artist, until the number_of_songs number is reached. Only applies if number_of_songs is greater than the number of songs by that artist in the playlist. Defaults to False.
+            print_base_caracteristics (bool, optional): Whether to print the base / informed song information, in order to check why such predictions were made by the algorithm. ONLY TAKES EFFECT IF complete_with_similar == True AND number_of_songs > NUMBER OF SONGS WITH THAT ARTIST. Defaults to False.
 
         Raises:
-            ValueError: Value for K must be between 1 and 1500
+            ValueError: Value for number_of_songs must be between 1 and 1500
             ValueError: The artist_name specified is not valid
 
         Returns:
@@ -236,15 +236,15 @@ class BasePlaylist(ABC):
 
         Args:
             artist_name (str): The name of the artist
-            K (int, optional): Maximum number of songs. Defaults to 50.
-            with_distance (bool, optional): Whether to allow the distance column to the DataFrame returned, which will have no actual value for most use cases, since it does not obey any actual unit, it is just a mathematical value to determine the closet songs. ONLY TAKES EFFECT IF complete_with_similar == True AND K > NUMBER_OF_SONGS_WITH_THAT_ARTIST. Defaults to False.
+            number_of_songs (int, optional): Maximum number of songs. Defaults to 50.
+            with_distance (bool, optional): Whether to allow the distance column to the DataFrame returned, which will have no actual value for most use cases, since it does not obey any actual unit, it is just a mathematical value to determine the closet songs. ONLY TAKES EFFECT IF complete_with_similar == True AND number_of_songs > NUMBER_OF_SONGS_WITH_THAT_ARTIST. Defaults to False.
             build_playlist (bool, optional): Whether to build the playlist to the user's library. Defaults to False.
-            ensure_all_artist_songs (bool, optional): Whether to ensure that all artist songs are in the playlist, regardless of the K number specified. Defaults to True
-            complete_with_similar (bool, optional): Flag to complete the list of songs with songs that are similar to that artist, until the K number is reached. Only applies if K is greater than the number of songs by that artist in the playlist. Defaults to False.
-            print_base_caracteristics (bool, optional): Whether to print the base / informed song information, in order to check why such predictions were made by the algorithm. ONLY TAKES EFFECT IF complete_with_similar == True AND K > NUMBER OF SONGS WITH THAT ARTIST. Defaults to False.
+            ensure_all_artist_songs (bool, optional): Whether to ensure that all artist songs are in the playlist, regardless of the number_of_songs number specified. Defaults to True
+            complete_with_similar (bool, optional): Flag to complete the list of songs with songs that are similar to that artist, until the number_of_songs number is reached. Only applies if number_of_songs is greater than the number of songs by that artist in the playlist. Defaults to False.
+            print_base_caracteristics (bool, optional): Whether to print the base / informed song information, in order to check why such predictions were made by the algorithm. ONLY TAKES EFFECT IF complete_with_similar == True AND number_of_songs > NUMBER OF SONGS WITH THAT ARTIST. Defaults to False.
 
         Raises:
-            ValueError: Value for K must be between 1 and 1500
+            ValueError: Value for number_of_songs must be between 1 and 1500
             ValueError: The artist_name specified is not valid
 
         Returns:
@@ -305,14 +305,14 @@ class BasePlaylist(ABC):
         """Builds a playlist based recommendation
 
         Args:
-            K (int, optional): Number of songs in the recommendations playlist. Defaults to 50.
+            number_of_songs (int, optional): Number of songs in the recommendations playlist. Defaults to 50.
             time_range (str, optional): Time range that represents how much of the playlist will be considered for the trend. Can be one of the following: 'all_time', 'month', 'trimester', 'semester', 'year'. Defaults to 'all_time'.
             main_criteria (str, optional): Main criteria for the recommendations playlist. Can be one of the following: 'mixed', 'artists', 'tracks', 'genres'. Defaults to 'mixed'.
             save_with_date (bool, optional): Flag to save the recommendations playlist as a Point in Time Snapshot. Defaults to False.
             build_playlist (bool, optional): Flag to build the recommendations playlist in the users library. Defaults to False.
 
         Raises:
-            ValueError: K must be between 1 and 100
+            ValueError: number_of_songs must be between 1 and 100
             ValueError: 'mixed', 'artists', 'tracks', 'genres'
 
         Returns:
@@ -341,7 +341,7 @@ class BasePlaylist(ABC):
 
         Args:
             mood (str): The mood of the song. Can be 'happy', 'sad' or 'calm'
-            K (int, optional): Number of songs. Defaults to 50.
+            number_of_songs (int, optional): Number of songs. Defaults to 50.
             build_playlist (bool, optional): Flag to create the playlist in the user's library. Defaults to False.
             exclude_mostly_instrumental (bool, optional): Flag to exclude the songs which are 80% or more instrumental. Defaults to False.
 
@@ -371,7 +371,7 @@ class BasePlaylist(ABC):
         """Function to create a playlist with songs from the base playlist that are the closest to the user's most listened songs
 
         Args:
-            K (int, optional): Number of songs. Defaults to 50.
+            number_of_songs (int, optional): Number of songs. Defaults to 50.
             build_playlist (bool, optional): Flag to create the playlist in the user's library. Defaults to False.
             time_range (str, optional): String to identify which is the time range, could be one of the following: {'short_term', 'medium_term', 'long_term'}. Defaults to 'short_term'.
 

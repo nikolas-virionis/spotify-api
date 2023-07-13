@@ -21,11 +21,11 @@ class Library:
 
         Args:
             type (str): the type of the playlist being created
-            K (int): desired number K of neighbors to be returned
+            number_of_songs (int): desired number number_of_songs of neighbors to be returned
             additional_info (Any, optional): the song name when the type is 'song'. Defaults to None.
 
         Raises:
-            ValueError: Value for K must be between 1 and 1500
+            ValueError: Value for number_of_songs must be between 1 and 1500
             ValueError: Invalid type
         """
         uris = ','.join([f'spotify:track:{song_id}' for song_id in ids])

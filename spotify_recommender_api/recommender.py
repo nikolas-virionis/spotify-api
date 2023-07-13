@@ -14,26 +14,21 @@ warnings.filterwarnings('error')
 
 
 class SpotifyAPI:
-    """
-    Spotify API is the Class that provides access to the playlists recommendations
-    """
+    """Spotify API is the Class that provides access to the playlists recommendations"""
 
     def __init__(self, user_id: str, playlist_id: Union[str, None] = None, playlist_url: Union[str, None] = None, liked_songs: bool = False):
         """Spotify API is the Class that provides access to the playlists recommendations
 
         Note:
-            It will trigger most of the API functions and can take a good while to complete
+            It will trigger most of the API functions and can take a good while to complete if the playlist is specified, and the "web" option selected to retrieve the playlist items
 
 
         Args:
-            auth_token (str): The authentication token for the Spotify API, base64 encoded string that allows the use of the API's functionalities
             user_id (str): The user ID, visible in the Spotify profile account settings
             playlist_id (str, optional): The playlist ID hash in Spotify. Defaults to None.
             playlist_url (str, optional): The url used while sharing the playlist. Defaults to None.
+            liked_songs (bool, optional): Whether to use the User's Liked Songs as the base playlist, Defaults to False.
 
-        Raises:
-            ValueError: auth_token is required
-            ValueError: Either the playlist url or its id must be specified
         """
 
         self.user = User(user_id=user_id)
@@ -46,16 +41,18 @@ class SpotifyAPI:
             )
 
         else:
-            logging.info('Class initiated without any playlist. To access any playlist related functions please use the select_playlist method.\nAll Profile related functions can still be used anyway you prefer')
+            logging.info('Class initiated without any playlist. To access any playlist-related functions please use the select_playlist method.\nAll Profile related functions can still be used in any way you prefer')
+
+        logging.info('After version 5.0.0 there has been a full refactoring of the package, so any problems that you may encounter, submit an issue at: https://github.com/nikolas-virionis/spotify-api/issues')
 
     def needs_playlist(func: Callable[..., Any]) -> Callable[..., Any]: # type: ignore
         """Decorator to check if a playlist is provided before accessing a function.
 
         Args:
-            func (Callable): The function to be decorated.
+            func (Callable[..., Any]): The function to be decorated.
 
         Returns:
-            Callable: The decorated function.
+            Callable[..., Any]: The decorated function.
         """
         def wrapper(self, *args, **kwargs):
             if getattr(self, 'playlist', None) is None:
@@ -77,7 +74,6 @@ class SpotifyAPI:
             playlist_id (str, optional): Playlist ID. Defaults to None.
             playlist_url (str, optional): Playlist Share URL (contains the ID, and it's easier to get). Defaults to None.
             liked_songs (bool, optional): Flag to use the user 'Liked songs' as the playlist. Defaults to False.
-            prepare_favorites (bool, optional): Flag to prepare the deprecated functions for mid-term and short term favorites. Defaults to False.
 
         """
         if liked_songs:
@@ -96,21 +92,22 @@ class SpotifyAPI:
 
         Args:
             time_range (str, optional): time range ('long_term', 'medium_term', 'short_term'). Defaults to 'long'.
-            K (int, optional): Number of the most listened songs to return. Defaults to 50.
+            number_of_songs (int, optional): Number of the most listened songs to return. Defaults to 50.
+            build_playlist (bool, optional): Whether to create, or update, a playlist in the user's library. Defaults to False.
 
         Raises:
             ValueError: time range does not correspond to a valid time range ('long_term', 'medium_term', 'short_term')
-            ValueError: Value for K must be between 1 and 1500
+            ValueError: Value for number_of_songs must be between 1 and 1500
 
 
         Returns:
-            pd.DataFrame: pandas DataFrame containing the top K songs in the time range
+            pd.DataFrame: pandas DataFrame containing the top number_of_songs songs in the time range
         """
         if time_range not in ['long_term', 'medium_term', 'short_term']:
             raise ValueError('time_range must be long_term, medium_term or short_term')
 
         if not (1 <= number_of_songs <= 1500):
-            raise ValueError(f'Value for K must be between 1 and 1500: {time_range} term most listened')
+            raise ValueError(f'Value for number_of_songs must be between 1 and 1500: {time_range} term most listened')
 
         return self.user.get_most_listened(
             time_range=time_range,
@@ -129,16 +126,16 @@ class SpotifyAPI:
         """Builds a Profile based recommendation
 
         Args:
-            K (int, optional): Number of songs in the recommendations playlist. Defaults to 50.
+            number_of_songs (int, optional): Number of songs in the recommendations playlist. Defaults to 50.
             main_criteria (str, optional): Main criteria for the recommendations playlist. Can be one of the following: 'mixed', 'artists', 'tracks', 'genres'. Defaults to 'mixed'.
             save_with_date (bool, optional): Flag to save the recommendations playlist as a Point in Time Snapshot. Defaults to False.
             build_playlist (bool, optional): Flag to build the recommendations playlist in the users library. Defaults to False.
             time_range (str, optional): The time range to get the profile most listened information from. Can be one of the following: 'short_term', 'medium_term', 'long_term'. Defaults to 'short_term'
 
         Raises:
-            ValueError: K must be between 1 and 100
-            ValueError: 'mixed', 'artists', 'tracks', 'genres'
-            ValueError: time_range needs to be one of the following: 'short_term', 'medium_term', 'long_term'
+            ValueError: If number_of_songs is not between 1 and 100.
+            ValueError: If main_criteria is not one of 'mixed', 'artists', 'tracks', 'genres'.
+            ValueError: If time_range is not one of 'short_term', 'medium_term', 'long_term'.
 
         Returns:
             pd.DataFrame: Recommendations playlist
@@ -164,21 +161,30 @@ class SpotifyAPI:
         """Builds a general recommendation based on up to 5 items spread across artists, genres, and tracks.
 
         Args:
-            K (int, optional): Number of songs in the recommendations playlist. Defaults to 50.
+            number_of_songs (int, optional): Number of songs in the recommendations playlist. Defaults to 50.
             genres_info (list[str], optional): list of the genre names to be used in the recommendation. Defaults to [].
             artists_info (list[str], optional): list of the artist names to be used in the recommendation. Defaults to [].
             build_playlist (bool, optional): Flag to build the recommendations playlist in the users library. Defaults to False.
             use_main_playlist_audio_features (bool, optional): Flag to use the audio features of the main playlist to target better recommendations. Defaults to False.
-            tracks_info (list[str] | list[tuple[str]] | list[list[str]] | dict[str, str]], optional): List of the song names to be used in the recommendations. They can be only the song names, but since there are a lot of songs with the same name i recommend using also the artist name in a key-value format using either a tuple, or list, or dict. Defaults to [].
+            tracks_info (list[str] | list[tuple[str]] | list[list[str]] | dict[str, str]], optional): List of the song names to be used in the recommendations. They can be only the song names, but since there are a lot of songs with the same name i recommend using also the artist name in a key-value format using either a tuple, or list, or dict. Examples below. Defaults to [].
 
         Raises:
-            ValueError: K must be between 1 and 100
+            ValueError: number_of_songs must be between 1 and 100
             ValueError: At least one of the three args must be provided: genres_info, artists_info, tracks_info
             ValueError: The sum of the number of items in each of the three args mustn't exceed 5
             ValueError: The argument tracks_info must be an instance of one of the following 4 types: list[str], list[tuple[str]], list[list[str]], dict[str, str]
 
         Returns:
             pd.DataFrame: Recommendations playlist
+
+        ## Examples of tracks_info
+        >>> api.get_general_recommendation(tracks_info={'song': 'artist', 'song': 'artist'})
+        # or
+        >>> api.get_general_recommendation(tracks_info=[('song', 'artist'), ('song', 'artist')])
+        # or
+        >>> api.get_general_recommendation(tracks_info=[['song', 'artist'], ['song', 'artist']])
+        # or, but not recommended
+        >>> api.get_general_recommendation(tracks_info=['song', 'song'])
         """
         if use_main_playlist_audio_features:
             audio_statistics = self.audio_features_statistics()
@@ -197,8 +203,8 @@ class SpotifyAPI:
     @needs_playlist
     def playlist_to_csv(self):
         """
-        Function to convert playlist to CSV format
-        Really useful if the package is being used in a .py file since it is not worth it to use it directly through web requests everytime even more when the playlist has not changed since last package usage
+        Function to convert playlist to CSV format. \n
+        Really useful if the package is being used in a .py file since it is not worth it to use it directly through web requests everytime even more when the playlist has not changed since last package usage, making it possible to store it for easier and quicker access
         """
 
         playlist = self.get_playlist()
@@ -222,16 +228,15 @@ class SpotifyAPI:
 
 
         Args:
-            K (int): desired number K of neighbors to be returned
-            song (str): The desired song name
-            generate_csv (bool, optional): Whether to generate a CSV file containing the recommended playlist. Defaults to False.
+            song_name (str): The desired song name
+            artist_name (str): The desired song's artist name
+            number_of_songs (int): desired number number_of_songs of neighbors to be returned
             with_distance (bool, optional): Whether to allow the distance column to the DataFrame returned, which will have no actual value for most use cases, since  it does not obey any actual unit, it is just a mathematical value to determine the closet songs. Defaults to False.
             build_playlist (bool, optional): Whether to build the playlist to the user's library. Defaults to False.
-            generate_parquet (bool, optional): Whether to generate a parquet file containing the recommended playlist. Defaults to False.
             print_base_caracteristics (bool, optional): Whether to print the base / informed song information, in order to check why such predictions were made by the algorithm. Defaults to False.
 
         Raises:
-            ValueError: Value for K must be between 1 and 1500
+            ValueError: Value for number_of_songs must be between 1 and 1500
 
         Returns:
             pd.DataFrame: Pandas DataFrame containing the song recommendations
@@ -322,15 +327,14 @@ class SpotifyAPI:
 
         Args:
             artist_name (str): The name of the artist
-            K (int, optional): Maximum number of songs. Defaults to 50.
-            with_distance (bool, optional): Whether to allow the distance column to the DataFrame returned, which will have no actual value for most use cases, since it does not obey any actual unit, it is just a mathematical value to determine the closet songs. ONLY TAKES EFFECT IF complete_with_similar == True AND K > NUMBER_OF_SONGS_WITH_THAT_ARTIST. Defaults to False.
+            number_of_songs (int, optional): Maximum number of songs. Defaults to 50.
+            with_distance (bool, optional): Whether to allow the distance column to the DataFrame returned, which will have no actual value for most use cases, since it does not obey any actual unit, it is just a mathematical value to determine the closet songs.  Defaults to False.
             build_playlist (bool, optional): Whether to build the playlist to the user's library. Defaults to False.
-            ensure_all_artist_songs (bool, optional): Whether to ensure that all artist songs are in the playlist, regardless of the K number specified. Defaults to True
-            complete_with_similar (bool, optional): Flag to complete the list of songs with songs that are similar to that artist, until the K number is reached. Only applies if K is greater than the number of songs by that artist in the playlist. Defaults to False.
-            print_base_caracteristics (bool, optional): Whether to print the base / informed song information, in order to check why such predictions were made by the algorithm. ONLY TAKES EFFECT IF complete_with_similar == True AND K > NUMBER OF SONGS WITH THAT ARTIST. Defaults to False.
+            ensure_all_artist_songs (bool, optional): Whether to ensure that all artist songs are in the playlist, regardless of the number_of_songs. Defaults to True
+            print_base_caracteristics (bool, optional): Whether to print the base / informed song information, in order to check why such predictions were made by the algorithm. ONLY TAKES EFFECT IF complete_with_similar == True AND number_of_songs > NUMBER OF SONGS WITH THAT ARTIST. Defaults to False.
 
         Raises:
-            ValueError: Value for K must be between 1 and 1500
+            ValueError: Value for number_of_songs must be between 1 and 1500
             ValueError: The artist_name specified is not valid
 
         Returns:
@@ -356,15 +360,13 @@ class SpotifyAPI:
 
         Args:
             artist_name (str): The name of the artist
-            K (int, optional): Maximum number of songs. Defaults to 50.
-            with_distance (bool, optional): Whether to allow the distance column to the DataFrame returned, which will have no actual value for most use cases, since it does not obey any actual unit, it is just a mathematical value to determine the closet songs. ONLY TAKES EFFECT IF complete_with_similar == True AND K > NUMBER_OF_SONGS_WITH_THAT_ARTIST. Defaults to False.
+            number_of_songs (int, optional): Maximum number of songs. Defaults to 50.
+            with_distance (bool, optional): Whether to allow the distance column to the DataFrame returned, which will have no actual value for most use cases, since it does not obey any actual unit, it is just a mathematical value to determine the closet songs. Defaults to False.
             build_playlist (bool, optional): Whether to build the playlist to the user's library. Defaults to False.
-            ensure_all_artist_songs (bool, optional): Whether to ensure that all artist songs are in the playlist, regardless of the K number specified. Defaults to True
-            complete_with_similar (bool, optional): Flag to complete the list of songs with songs that are similar to that artist, until the K number is reached. Only applies if K is greater than the number of songs by that artist in the playlist. Defaults to False.
-            print_base_caracteristics (bool, optional): Whether to print the base / informed song information, in order to check why such predictions were made by the algorithm. ONLY TAKES EFFECT IF complete_with_similar == True AND K > NUMBER OF SONGS WITH THAT ARTIST. Defaults to False.
+            print_base_caracteristics (bool, optional): Whether to print the base / informed song information, in order to check why such predictions were made by the algorithm. ONLY TAKES EFFECT IF complete_with_similar == True AND number_of_songs > NUMBER OF SONGS WITH THAT ARTIST. Defaults to False.
 
         Raises:
-            ValueError: Value for K must be between 1 and 1500
+            ValueError: Value for number_of_songs must be between 1 and 1500
             ValueError: The artist_name specified is not valid
 
         Returns:
@@ -419,15 +421,15 @@ class SpotifyAPI:
         """Builds a playlist based recommendation
 
         Args:
-            K (int, optional): Number of songs in the recommendations playlist. Defaults to 50.
+            number_of_songs (int, optional): Number of songs in the recommendations playlist. Defaults to 50.
             time_range (str, optional): Time range that represents how much of the playlist will be considered for the trend. Can be one of the following: 'all_time', 'month', 'trimester', 'semester', 'year'. Defaults to 'all_time'.
             main_criteria (str, optional): Main criteria for the recommendations playlist. Can be one of the following: 'mixed', 'artists', 'tracks', 'genres'. Defaults to 'mixed'.
             save_with_date (bool, optional): Flag to save the recommendations playlist as a Point in Time Snapshot. Defaults to False.
             build_playlist (bool, optional): Flag to build the recommendations playlist in the users library. Defaults to False.
 
         Raises:
-            ValueError: K must be between 1 and 100
-            ValueError: 'mixed', 'artists', 'tracks', 'genres'
+            ValueError: number_of_songs must be between 1 and 100
+            ValueError: main_criteria has to be on of the following: 'mixed', 'artists', 'tracks', 'genres'
 
         Returns:
             pd.DataFrame: Recommendations playlist
@@ -453,7 +455,7 @@ class SpotifyAPI:
 
         Args:
             mood (str): The mood of the song. Can be 'happy', 'sad' or 'calm'
-            K (int, optional): Number of songs. Defaults to 50.
+            number_of_songs (int, optional): Number of songs. Defaults to 50.
             build_playlist (bool, optional): Flag to create the playlist in the user's library. Defaults to False.
             exclude_mostly_instrumental (bool, optional): Flag to exclude the songs which are 80% or more instrumental. Defaults to False.
 
@@ -480,7 +482,7 @@ class SpotifyAPI:
         """Function to create a playlist with songs from the base playlist that are the closest to the user's most listened songs
 
         Args:
-            K (int, optional): Number of songs. Defaults to 50.
+            number_of_songs (int, optional): Number of songs. Defaults to 50.
             build_playlist (bool, optional): Flag to create the playlist in the user's library. Defaults to False.
             time_range (str, optional): String to identify which is the time range, could be one of the following: {'short_term', 'medium_term', 'long_term'}. Defaults to 'short_term'.
 
@@ -496,7 +498,6 @@ class SpotifyAPI:
             number_of_songs=number_of_songs,
         )
 
-
     def update_all_generated_playlists(
             self, *,
             playlist_types_to_update: Union['list[str]', None] = None,
@@ -504,13 +505,9 @@ class SpotifyAPI:
         ) -> None:
         """Update all package generated playlists in batch
 
-        Note:
-            It is NOT recommended to use the K parameter in this function, unless 100% on purpose, since it will make all the playlists have the same number of songs in them
-
         Arguments:
-            K (int, optional): Number of songs in the new playlists, if not set, defaults to the number of songs already in the playlist. Defaults to None.
-            playlist_types_to_update (list[str], optional): List of playlist types to update. For example, if you only want to update song-related playlists use this argument as ['song-related']. Defaults to all == ['most-listened-tracks', 'song-related', 'artist-mix', 'artist-full', 'playlist-recommendation', 'short-term-profile-recommendation', 'medium-term-profile-recommendation', 'long-term-profile-recommendation', 'mood', 'most-listened-recommendation'].
-            playlist_types_not_to_update (list[str], optional): List of playlist types not to update. For example, if you want to update all playlists but song-related playlists use this argument as ['song-related']. it can be used alongside with the playlist_types_to_update but it can become confusing or redundant. Defaults to none == [].
+            playlist_types_to_update (list[str], optional, keyword-argument): List of playlist types to update. For example, if you only want to update song-related playlists use this argument as ['song-related']. Defaults to all == ['most-listened-tracks', 'song-related', 'artist-mix', 'artist-full', 'playlist-recommendation', 'short-term-profile-recommendation', 'medium-term-profile-recommendation', 'long-term-profile-recommendation', 'mood', 'most-listened-recommendation'].
+            playlist_types_not_to_update (list[str], optional, keyword-argument): List of playlist types not to update. For example, if you want to update all playlists but song-related playlists use this argument as ['song-related']. it can be used alongside with the playlist_types_to_update but it can become confusing or redundant. Defaults to none == [].
         """
         self.user.update_all_generated_playlists(
             base_playlist=getattr(self, 'playlist', None),
@@ -520,10 +517,10 @@ class SpotifyAPI:
 
 def start_api(
     user_id: str, *,
+    log_level: str = 'INFO',
     liked_songs: bool = False,
     playlist_url: Union[str, None] = None,
     playlist_id: Union[str, None] = None,
-    log_level: str = 'INFO',
 ) -> SpotifyAPI:
     """Function that prepares for and initializes the API
 
@@ -534,21 +531,16 @@ def start_api(
         user_id(str): the id of user, present in the user account profile
 
     Keyword Arguments:
-        playlist_url(str, optional, keyword-argument only): the url for the playlist, which is visible when trying to share it. Defaults to False.
+        playlist_url (str, optional, keyword-argument only): the url for the playlist, which is visible when trying to share it. Defaults to False.
         playlist_id (str, optional, keyword-argument only): the id of the playlist, an unique big hash which identifies the playlist. Defaults to False.
         liked_songs (bool, optional, keyword-argument only): A flag to identify if the playlist to be mapped is the Liked Songs. Defaults to False.
-        prepare_favorites (bool, optional, keyword-argument only): A flag to identify if the Short and Medium term favorite playlists will be calculated. IMPORTANT to note that both are DEPRECATED. Defaults to False.
+        log_level (str, optional, keyword-argument only): The log level, of the logging library, to be used. Defaults to INFO
 
     Raises:
-        ValueError: at least one of the playlist related arguments have to be specified
-        ValueError: when asked to input the auth token, in case it is not valid, an error is raised
-        ValueError: when passing the arguments, there should be only one filled between playlist_url, playlist_id and liked_songs
+        ValueError: when passing the arguments, there should be only one or none filled between playlist_url, playlist_id and liked_songs
 
     Returns:
         SpotifyAPI: The instance of the SpotifyAPI class
-
-    Note:
-    Although both the playlist_url and playlist_id are optional, informing at least one of them is required, though the choice is up to you
     """
     if log_level.upper() not in ['DEBUG', 'INFO', 'WARNING', 'ERROR']:
         raise ValueError("log_level must be one of the following: 'DEBUG', 'INFO', 'WARNING', 'ERROR'")
@@ -558,8 +550,6 @@ def start_api(
         datefmt='%Y-%m-%d %H:%M:%S',
         format='%(asctime)s.%(msecs)03d - %(levelname)s: %(message)s',
     )
-
-    # logger = logging.getLogger('spotify-recommender-api')
 
     if (playlist_url is not None or playlist_id is not None) and liked_songs or (playlist_url is not None and playlist_id is not None):
         raise ValueError('It is necessary to specify only one or none of the following parameters: playlist_id or playlist_url or liked_songs')

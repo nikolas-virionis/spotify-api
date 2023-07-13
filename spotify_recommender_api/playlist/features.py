@@ -39,7 +39,7 @@ class PlaylistFeatures:
 
 
         Args:
-            K (int): desired number K of neighbors to be returned
+            number_of_songs (int): desired number number_of_songs of neighbors to be returned
             song (str): The desired song name
             generate_csv (bool, optional): Whether to generate a CSV file containing the recommended playlist. Defaults to False.
             with_distance (bool, optional): Whether to allow the distance column to the DataFrame returned, which will have no actual value for most use cases, since  it does not obey any actual unit, it is just a mathematical value to determine the closet songs. Defaults to False.
@@ -48,7 +48,7 @@ class PlaylistFeatures:
             print_base_caracteristics (bool, optional): Whether to print the base / informed song information, in order to check why such predictions were made by the algorithm. Defaults to False.
 
         Raises:
-            ValueError: Value for K must be between 1 and 1500
+            ValueError: Value for number_of_songs must be between 1 and 1500
 
         Returns:
             pd.DataFrame: Pandas DataFrame containing the song recommendations
@@ -100,7 +100,7 @@ class PlaylistFeatures:
 
         Args:
             info (Any): the changed song_dict list if the type is short or medium or else it is the name of the song to get recommendations from
-            K (int, optional): desired number K of neighbors to be returned. Defaults to 51.
+            number_of_songs (int, optional): desired number of neighbors to be returned. Defaults to 51.
             type (str): the type of the playlist being created ('song', 'short', 'medium'), meaning:
 
             --- 'song': a playlist related to a song
@@ -377,9 +377,9 @@ class PlaylistFeatures:
         Args:
             artist_name (str): The name of the artist
             number_of_songs (int, optional): Maximum number of songs. Defaults to 50.
-            with_distance (bool, optional): Whether to allow the distance column to the DataFrame returned, which will have no actual value for most use cases, since it does not obey any actual unit, it is just a mathematical value to determine the closet songs. ONLY TAKES EFFECT IF complete_with_similar == True AND K > NUMBER_OF_SONGS_WITH_THAT_ARTIST. Defaults to False.
+            with_distance (bool, optional): Whether to allow the distance column to the DataFrame returned, which will have no actual value for most use cases, since it does not obey any actual unit, it is just a mathematical value to determine the closet songs. ONLY TAKES EFFECT IF complete_with_similar == True AND number_of_songs > NUMBER_OF_SONGS_WITH_THAT_ARTIST. Defaults to False.
             build_playlist (bool, optional): Whether to build the playlist to the user's library. Defaults to False.
-            print_base_caracteristics (bool, optional): Whether to print the base / informed song information, in order to check why such predictions were made by the algorithm. ONLY TAKES EFFECT IF complete_with_similar == True AND K > NUMBER OF SONGS WITH THAT ARTIST. Defaults to False.
+            print_base_caracteristics (bool, optional): Whether to print the base / informed song information, in order to check why such predictions were made by the algorithm. ONLY TAKES EFFECT IF complete_with_similar == True AND number_of_songs > NUMBER OF SONGS WITH THAT ARTIST. Defaults to False.
 
         Raises:
             ValueError: Value for number_of_songs must be between 1 and 1500
@@ -854,7 +854,7 @@ class PlaylistFeatures:
         """Function to create a playlist with songs from the base playlist that are the closest to the user's most listened songs
 
         Args:
-            K (int, optional): Number of songs. Defaults to 50.
+            number_of_songs (int, optional): Number of songs. Defaults to 50.
             build_playlist (bool, optional): Flag to create the playlist in the user's library. Defaults to False.
             time_range (str, optional): String to identify which is the time range, could be one of the following: {'short_term', 'medium_term', 'long_term'}. Defaults to 'short_term'.
 
