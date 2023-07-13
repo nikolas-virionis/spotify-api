@@ -102,7 +102,7 @@ class RequestHandler:
             auth_token = AuthenticationHandler._retrive_new_token()
 
         except AccessTokenExpiredError as access_token_expired_error:
-            logging.debug("\n\n\n\nAccess token expired 1233455\n\n\n\n")
+            logging.debug("Access token expired")
 
             auth_token = AuthenticationHandler._retrive_new_token()
 
