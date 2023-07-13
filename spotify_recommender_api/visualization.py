@@ -12,16 +12,17 @@ def plot_bar_chart(df: pd.DataFrame, chart_title: Union[str, None] = None, top: 
     """Plot a bar Chart with the top values from the dictionary
 
     Args:
-        df (pd.DataFrame): DataFrame to plotthat contains the data
+        df (pd.DataFrame): DataFrame to be plotted
         chart_title (str, optional): label of the chart. Defaults to None
         top (int, optional): numbers of values to be in the chart. Defaults to 10
+        plot_max (bool, optional): Flag to plot the 'total' which is just the total number of songs, just as a comparison between each value and the total
     """
 
     if plot_max:
-        df = df[df['name'] != ''][:top + 1]
+        df = df.query("name != ''")[:top + 1]
     else:
         logging.info(f'Total number of songs: {df["number of songs"][0]}')
-        df = df[df['name'] != ''][1:top + 1]
+        df = df.query("name != ''")[1:top + 1]
 
     plt.figure(figsize=(15, 10))
 

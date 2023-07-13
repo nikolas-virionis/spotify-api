@@ -6,11 +6,13 @@ import spotify_recommender_api.visualization as visualization
 
 from functools import reduce
 from typing import Union, Any
-from spotify_recommender_api.model.song import Song
+from spotify_recommender_api.song import Song
+from spotify_recommender_api.error import EmptyResultError
 from spotify_recommender_api.core.library import Library
 from spotify_recommender_api.core.knn_algorithm import KNNAlgorithm
 from spotify_recommender_api.requests.api_handler import UserHandler
 from spotify_recommender_api.requests.request_handler import RequestHandler, BASE_URL
+
 
 
 class PlaylistFeatures:
@@ -168,7 +170,7 @@ class PlaylistFeatures:
 
         if playlist.empty:
             logging.warning(f"No songs added to the playlist in the time range {time_range} ")
-            raise ValueError("No songs added to the playlist in the time range")
+            raise EmptyResultError("No songs added to the playlist in the time range")
 
         genres = cls._extract_items_from_playlist(playlist, 'genres')
 
@@ -205,7 +207,7 @@ class PlaylistFeatures:
 
         if playlist.empty:
             logging.warning(f"No songs added to the playlist in the time range {time_range} ")
-            raise ValueError("No songs added to the playlist in the time range")
+            raise EmptyResultError("No songs added to the playlist in the time range")
 
         artists = cls._extract_items_from_playlist(playlist, 'artists')
 
@@ -830,7 +832,7 @@ class PlaylistFeatures:
         if len(playlist) >= number_of_songs:
             playlist = playlist.head(number_of_songs)
         else:
-            
+
             logging.warning(f"The playlist does not contain {number_of_songs} {mood} songs. Therefore there are only {len(playlist)} in the returned playlist.")
 
         return playlist

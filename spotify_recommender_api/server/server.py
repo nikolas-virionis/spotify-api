@@ -1,15 +1,14 @@
 
 import time
 import uvicorn
-import logging
 import threading
 import webbrowser
 import contextlib
 
 from fastapi import FastAPI, status
 from fastapi.responses import HTMLResponse
-from spotify_recommender_api.sensitive import CLIENT_ID, CLIENT_SECRET
 from spotify_recommender_api.requests.auth_handler import AuthHandler
+from spotify_recommender_api.server.sensitive import CLIENT_ID, CLIENT_SECRET
 
 app = FastAPI()
 

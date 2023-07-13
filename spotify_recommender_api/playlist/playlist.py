@@ -1,7 +1,7 @@
 import logging
 import spotify_recommender_api.util as util
 
-from spotify_recommender_api.model.song import Song
+from spotify_recommender_api.song import Song
 from spotify_recommender_api.playlist.base_playlist import BasePlaylist
 from spotify_recommender_api.requests.api_handler import PlaylistHandler
 

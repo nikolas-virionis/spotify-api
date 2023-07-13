@@ -1,7 +1,7 @@
 import pandas as pd
 
-from typing import Any, Union
-from spotify_recommender_api.model.song import Song
+from typing import Union
+from spotify_recommender_api.song import Song
 
 
 class KNNAlgorithm:
@@ -17,11 +17,11 @@ class KNNAlgorithm:
             For obvious reasons although both the parameters have two value options (genres, artists), when one of the parameters is specified as one of those, the other follows
 
         Args:
-            a (list[int]): one song's list of genres or artists
-            b (list[int]): counterpart song's list of genres or artists
+            indexed_list_a (list[int]): one song's list of genres or artists
+            indexed_list_b (list[int]): counterpart song's list of genres or artists
 
         Returns:
-            int: The distance between the two indexed lists
+            float: The distance between the two indexed lists
         """
         distance = 0
         for item_a, item_b in zip(indexed_list_a, indexed_list_b):
@@ -52,20 +52,37 @@ class KNNAlgorithm:
             danceability_distance: float,
             instrumentalness_distance: float
         ) -> float:
+        """Function that uses the values for all the individual distances in a weighted equation to determine the total distance between the two songs
+
+        Args:
+            tempo_distance (float): The distance calculated for the tempo variable
+            genres_distance (float): The distance calculated for the genres variable
+            energy_distance (float): The distance calculated for the energy variable
+            valence_distance (float): The distance calculated for the valence variable
+            artists_distance (float): The distance calculated for the artists variable
+            loudness_distance (float): The distance calculated for the loudness variable
+            popularity_distance (float): The distance calculated for the popularity variable
+            artist_recommendation (bool): A flag to indicate whether the distance is being calculated for an artist related recommendation
+            danceability_distance (float): The distance calculated for the danceability variable
+            instrumentalness_distance (float): The distance calculated for the instrumentalness variable
+
+        Returns:
+            float: Overall distance between the two songs
+        """
         return (
             genres_distance * 0.8 +
-            energy_distance * 0.6 +
-            valence_distance * 0.9 +
+            energy_distance * 0.65 +
+            valence_distance * 0.93 +
             artists_distance * 0.38 +
             tempo_distance * 0.0025 +
-            loudness_distance * 0.25 +
+            loudness_distance * 0.15 +
             danceability_distance * 0.25 +
             instrumentalness_distance * 0.4 +
             popularity_distance * (0.003 if artist_recommendation else 0.015)
         )
 
     @classmethod
-    def compute_distance(cls, song_a: 'dict[str, Any]', song_b: 'dict[str, Any]', artist_recommendation: bool = False) -> float:
+    def compute_distance(cls, song_a: 'dict[str, Union[float, list[str], int]]', song_b: 'dict[str, Union[float, list[str], int]]', artist_recommendation: bool = False) -> float: # type: ignore
         """The portion of the algorithm that calculates the overall distance between two songs regarding the following:
         - genres: the difference between the two song's genres, using the list_distance function above
         - artists: the difference between the two song's artists, using the list_distance function above
@@ -82,22 +99,22 @@ class KNNAlgorithm:
             - They have different importance levels to the final result of the calculation
 
         Args:
-            a (dict[str,]): the song a, having all it's caracteristics
-            b (dict[str,]): the song b, having all it's caracteristics
+            song_a (dict[str, Union[float, list[str], int]]): the song a, having all it's caracteristics
+            song_b (dict[str, Union[float, list[str], int]]): the song b, having all it's caracteristics
 
         Returns:
             float: the distance between the two songs
         # """
 
-        tempo_distance = abs(song_a['tempo'] - song_b['tempo'])
-        energy_distance = abs(song_a['energy'] - song_b['energy'])
-        valence_distance = abs(song_a['valence'] - song_b['valence'])
-        popularity_distance = abs(song_a['popularity'] - song_b['popularity'])
-        danceability_distance = abs(song_a['danceability'] - song_b['danceability'])
-        loudness_distance = abs(song_a['loudness'] - song_b['loudness'])
-        genres_distance = cls.list_distance(song_a['genres_indexed'], song_b['genres_indexed'])
-        artists_distance = cls.list_distance(song_a['artists_indexed'], song_b['artists_indexed'])
-        instrumentalness_distance = abs(round(song_a['instrumentalness'], 2) - round(song_b['instrumentalness'], 2))
+        tempo_distance = abs(song_a['tempo'] - song_b['tempo']) # type: ignore
+        energy_distance = abs(song_a['energy'] - song_b['energy']) # type: ignore
+        valence_distance = abs(song_a['valence'] - song_b['valence']) # type: ignore
+        loudness_distance = abs(song_a['loudness'] - song_b['loudness']) # type: ignore
+        popularity_distance = abs(song_a['popularity'] - song_b['popularity']) # type: ignore
+        danceability_distance = abs(song_a['danceability'] - song_b['danceability']) # type: ignore
+        genres_distance = cls.list_distance(song_a['genres_indexed'], song_b['genres_indexed']) # type: ignore
+        artists_distance = cls.list_distance(song_a['artists_indexed'], song_b['artists_indexed']) # type: ignore
+        instrumentalness_distance = abs(round(song_a['instrumentalness'], 2) - round(song_b['instrumentalness'], 2)) # type: ignore
 
         return cls.calculate_total_distance(
             tempo_distance=tempo_distance,
@@ -105,8 +122,8 @@ class KNNAlgorithm:
             energy_distance=energy_distance,
             valence_distance=valence_distance,
             artists_distance=artists_distance,
-            popularity_distance=popularity_distance,
             loudness_distance=loudness_distance,
+            popularity_distance=popularity_distance,
             danceability_distance=danceability_distance,
             artist_recommendation=artist_recommendation,
             instrumentalness_distance=instrumentalness_distance,
@@ -114,10 +131,21 @@ class KNNAlgorithm:
 
     @classmethod
     def get_neighbors(cls, number_of_songs: int, dataframe: pd.DataFrame, song: Song, recommendation_type: str = 'song') -> pd.DataFrame:
+        """Function to retrieve a number of the closest songs to one given song.
 
-        dataframe: pd.DataFrame = dataframe.copy().query('id != @song.id')
+        Args:
+            number_of_songs (int): Number of closest songs to gather
+            dataframe (pd.DataFrame): Entire songbase, normally the provided playlist
+            song (Song): The base song, the one the distances will be calculated from
+            recommendation_type (str, optional): The recommendation type. Defaults to 'song'.
 
-        dataframe['distance'] = dataframe.apply(
+        Returns:
+            pd.DataFrame: The recommendation songs in a dataframe
+        """
+
+        df: pd.DataFrame = dataframe.copy().query('id != @song.id')
+
+        df['distance'] = df.apply(
             lambda row: cls.compute_distance(
                 song_a=song.__dict__,
                 song_b=row,
@@ -126,4 +154,4 @@ class KNNAlgorithm:
             axis=1
         )
 
-        return dataframe.sort_values(by='popularity', ascending=True).head(number_of_songs)
+        return df.sort_values(by='popularity', ascending=True).head(number_of_songs)

@@ -1,0 +1,1 @@
+from spotify_recommender_api.server.server import up_server

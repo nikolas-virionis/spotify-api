@@ -4,8 +4,9 @@ import pandas as pd
 import spotify_recommender_api.util as util
 
 from typing import Union, Any, Callable
-from spotify_recommender_api.model.user import User
+from spotify_recommender_api.user import User
 from spotify_recommender_api.playlist.playlist import Playlist
+from spotify_recommender_api.error import NoPlaylistProvidedError
 from spotify_recommender_api.playlist.liked_songs import LikedSongs
 from spotify_recommender_api.requests.request_handler import RequestHandler
 
@@ -50,7 +51,7 @@ class SpotifyAPI:
     def needs_playlist(func: Callable[..., Any]) -> Callable[..., Any]: # type: ignore
         def wrapper(self, *args, **kwargs):
             if getattr(self, 'playlist', None) is None:
-                raise ValueError('To access this function, you need to provide a playlist via the select_playlist method')
+                raise NoPlaylistProvidedError('To access this function, you need to provide a playlist via the select_playlist method')
 
             return func(self, *args, **kwargs) # type: ignore
 

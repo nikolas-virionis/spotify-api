@@ -3,7 +3,7 @@ import functools
 
 from typing import Any, Union
 from dataclasses import dataclass, field
-from spotify_recommender_api.model.artist import Artist
+from spotify_recommender_api.artist import Artist
 from spotify_recommender_api.requests.api_handler import SongHandler
 
 @dataclass(frozen=True)

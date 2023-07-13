@@ -11,9 +11,18 @@ from spotify_recommender_api.error import HTTPRequestError, TooManyRequestsError
 BASE_URL = 'https://api.spotify.com/v1'
 
 class RequestHandler:
-    # TODO: docstring
+    """Class for handling API requests."""
 
     def access_token_retry(func: Callable[..., Any]) -> Callable[..., Any]: # type: ignore
+        """
+        Decorator to retry API requests with an updated access token.
+
+        Args:
+            func (Callable[..., Any]): The function to decorate.
+
+        Returns:
+            Callable[..., Any]: The decorated function.
+        """
         @functools.wraps(func)
         def wrapper(cls, *args: Any, **kwargs: Any) -> Any:
             value = None
@@ -40,6 +49,15 @@ class RequestHandler:
 
     @classmethod
     def _validate_token(cls) -> bool:
+        """
+        Validate the access token.
+
+        Raises:
+            AccessTokenExpiredError: If the access token has expired.
+
+        Returns:
+            bool: True if the access token is valid.
+        """
         try:
             response = cls.get_request_no_retry(url='https://api.spotify.com/v1/me/top/tracks?time_range=short_term&limit=50')
 
@@ -63,10 +81,14 @@ class RequestHandler:
 
     @classmethod
     def get_auth(cls) -> None:
-        """Function to retrieve the authentication token
+        """
+        Function to retrieve the authentication token.
+
+        Raises:
+            FileNotFoundError: If the file with the auth token is not found.
+            AccessTokenExpiredError: If the access token has expired.
         """
         try:
-
             AuthenticationHandler._retrieve_local_access_token()
 
             cls._validate_token()

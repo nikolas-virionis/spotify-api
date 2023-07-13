@@ -2,7 +2,7 @@ import pandas as pd
 import spotify_recommender_api.util as util
 
 from abc import ABC, abstractmethod
-from spotify_recommender_api.model.song import Song
+from spotify_recommender_api.song import Song
 from spotify_recommender_api.playlist.util import PlaylistUtil
 from spotify_recommender_api.playlist.features import PlaylistFeatures
 

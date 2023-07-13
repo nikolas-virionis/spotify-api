@@ -38,54 +38,6 @@ class Library:
             **kwargs
         )
 
-    # def write_playlist(cls, type: str, K: int, additional_info: Union[str, 'list[str]', None] = None):
-    #     """Function that writes a new playlist with the recommendations for the given type
-    #     type: the type of the playlist being created ('song', 'short', 'medium'):
-    #      - 'song': a playlist related to a song
-    #      - 'short': a playlist related to the short term favorites for that given user
-    #      - 'medium': a playlist related to the medium term favorites for that given user
-
-    #     Note:
-    #         This function will change the user's library by either creating a new plalylist or overriding the existing one
-
-    #     Args:
-    #         type (str): the type of the playlist being created
-    #         K (int): desired number K of neighbors to be returned
-    #         additional_info (Any, optional): the song name when the type is 'song'. Defaults to None.
-
-    #     Raises:
-    #         ValueError: Value for K must be between 1 and 1500
-    #         ValueError: Invalid type
-    #     """
-    #     if K > 1500:
-    #         logging.warning('K limit exceded. Maximum value for K is 1500')
-    #         K = 1500
-    #     elif K < 1:
-    #         raise ValueError(f'Value for K must be between 1 and 1500 on creation of {type} playlist. {additional_info=!r}')
-
-    #     if type == 'song':
-    #         index = self.__get_index_for_song(additional_info)
-    #         uris = f'spotify:track:{self.__song_dict[index]["id"]},'
-
-    #         uris += ','.join([f'spotify:track:{neighbor}' for neighbor in self.__get_recommendations('song', additional_info, K)['id']])
-
-    #     elif type in {'medium', 'short'}:
-    #         ids = self.__medium_fav['id'] if type == 'medium' else self.__short_fav['id']
-
-    #         uris = ','.join([f'spotify:track:{song}' for song in ids])
-
-    #     elif any(x in type for x in ['most-listened', 'artist', '-recommendation', 'mood']):
-    #         ids = additional_info
-    #         if ids is None: # only because of strict type checking enforncing that if it can be None it souldnt be part of an iteration
-    #             ids = []
-    #         uris = ','.join([f'spotify:track:{song}' for song in ids])
-
-    #     else:
-    #         uris = ''
-    #         raise ValueError('Invalid type')
-
-    #     self.__build_playlist(type=type, uris=uris)
-
     @classmethod
     def _build_playlist(cls, user_id: str, playlist_type: str, uris: str, base_playlist_name: Union[str, None] = None, **kwargs) -> None:
         """Function that builds the contents of a playlist
@@ -160,14 +112,14 @@ class Library:
 
         return new_id
 
-    @staticmethod
-    def _get_playlist_info(playlist_type: str, base_playlist_name: Union[str, None] = None, **kwargs) -> 'tuple[str, str]':
+    @classmethod
+    def _get_playlist_info(cls, playlist_type: str, base_playlist_name: Union[str, None] = None, **kwargs) -> 'tuple[str, str]':
         """Generates the playlist name and description based on the playlist type and additional information.
 
         Args:
             playlist_type (str): The type of playlist.
             base_playlist_name (str): The name of the base playlist.
-            additional_info (Union[str, list[Any], None]): Additional information.
+            **kwargs: Additional arguments based on the playlist type.
 
         Raises:
             ValueError: If additional information is None.
@@ -177,96 +129,225 @@ class Library:
         """
 
         if playlist_type == 'song':
-            playlist_name = f"{kwargs['song_name']!r} Related"
-            description = f"Songs related to {kwargs['song_name']!r} by {kwargs['artist_name']}, within the playlist {base_playlist_name}"
+            return cls._get_song_playlist_info(base_playlist_name, **kwargs)
 
-        elif playlist_type in {'short', 'medium'}:
-            playlist_name = "Recent-ish Favorites" if playlist_type == 'medium' else "Latest Favorites"
-            description = f"Songs related to your {playlist_type} term top 5, within the playlist {base_playlist_name}"
+        if 'most-listened' in playlist_type and 'recommendation' not in playlist_type:
+            return cls._get_most_listened_tracks_playlist_info(playlist_type)
 
-        elif 'most-listened' in playlist_type and 'recommendation' not in playlist_type:
-            term = playlist_type.replace('most-listened-', '')
-            playlist_name = f"{term.replace('_', ' ').title()} Most-listened Tracks"
-            description = f"The most listened tracks in a {term.replace('_', ' ')} period"
+        if playlist_type == 'artist-related':
+            return cls._get_artist_related_playlist_info(base_playlist_name, **kwargs)
 
-        elif playlist_type == 'artist-related':
-            playlist_name = f"{kwargs['artist_name']!r} Mix"
-            description = f"Songs related to {kwargs['artist_name']!r}, within the playlist {base_playlist_name}"
+        if playlist_type == 'artist-full':
+            return cls._get_artist_full_playlist_info(base_playlist_name, **kwargs)
 
-        elif playlist_type == 'artist-full':
-            playlist_name = f"This once was {kwargs['artist_name']!r}"
-            description = f'''All {kwargs['artist_name']}'{"" if kwargs['artist_name'][-1] == "s" else "s"} songs, within the playlist {base_playlist_name}'''
+        if playlist_type == 'artist':
+            return cls._get_artist_playlist_info(base_playlist_name, **kwargs)
 
-        elif playlist_type == 'artist':
-            playlist_name = f"This once was {kwargs['artist_name']!r}"
-            description = f'''{kwargs['artist_name']}'{"" if kwargs['artist_name'][-1] == "s" else "s"} songs, within the playlist {base_playlist_name}'''
+        if playlist_type == 'profile-recommendation':
+            return cls._get_profile_recommendation_playlist_info(**kwargs)
 
-        elif playlist_type == 'profile-recommendation':
-            criteria = kwargs['criteria'] if kwargs['criteria'] != 'mixed' else 'genres, tracks and artists'
-            playlist_name = f"{kwargs['time_range'].replace('_', ' ').title()} Profile Recommendation"
-            description = f'''{kwargs['time_range'].replace('_', ' ').title()} profile-based recommendations based on favorite {criteria}'''
+        if playlist_type == 'playlist-recommendation':
+            return cls._get_playlist_recommendation_playlist_info(base_playlist_name, **kwargs)
 
-            if kwargs['date']:
-                now = datetime.datetime.now(tz=pytz.timezone('UTC'))
-                playlist_name += f' ({criteria} - {now.strftime("%Y-%m-%d")})'
-                description += f' - {now.strftime("%Y-%m-%d")} snapshot'
-            else:
-                playlist_name += f' ({criteria})'
+        if playlist_type == 'general-recommendation':
+            return cls._get_general_recommendation_playlist_info(**kwargs)
 
-        elif playlist_type == 'playlist-recommendation':
-            criteria = kwargs['criteria'] if kwargs['criteria'] != 'mixed' else 'genres, tracks and artists'
-            time_range = f"for the last {kwargs['time_range']}" if kwargs['time_range'] != 'all_time' else 'for all_time'
-            playlist_name = f"Playlist Recommendation {time_range}"
-            description = f'''Playlist-based recommendations based on favorite {criteria}, within the playlist {base_playlist_name} {time_range}'''
+        if playlist_type == 'mood':
+            return cls._get_mood_playlist_info(base_playlist_name, **kwargs)
 
-            if kwargs['date']:
-                now = datetime.datetime.now(tz=pytz.timezone('UTC'))
-                playlist_name += f' ({criteria} - {now.strftime("%Y-%m-%d")})'
-                description += f' - {now.strftime("%Y-%m-%d")} snapshot'
-            else:
-                playlist_name += f' ({criteria})'
+        if playlist_type == 'most-listened-recommendation':
+            return cls._get_most_listened_recommendation_playlist_info(base_playlist_name, **kwargs)
 
-        elif playlist_type == 'general-recommendation':
-            playlist_name = f"General Recommendation based on {kwargs['description_types']}"
-            description = kwargs['description']
+        raise ValueError('Invalid playlist type')
 
-        elif playlist_type == 'mood':
-            mood = kwargs['mood']
-            playlist_name = f"{mood} Songs".capitalize()
-            description = f'Songs related to the mood "{mood}"{", excluding the mostly instrumental songs" if kwargs["exclude_mostly_instrumental"] else ""}, within the playlist {base_playlist_name}'
 
-        elif playlist_type == 'most-listened-recommendation':
-            playlist_name = f"{kwargs['time_range'].replace('_', ' ')} most listened recommendations".capitalize() # type: ignore
-            description = f"Songs related to the {kwargs['time_range'].replace('_', ' ')} most listened tracks, within the playlist {base_playlist_name}" # type: ignore
+    @staticmethod
+    def _get_song_playlist_info(base_playlist_name: Union[str, None], **kwargs) -> 'tuple[str, str]':
+        """Generates the playlist name and description for a song-related playlist.
 
+        Args:
+            base_playlist_name (str): The name of the base playlist.
+            **kwargs: Additional arguments.
+
+        Returns:
+            tuple[str, str]: The playlist name and description.
+        """
+        song_name = kwargs['song_name']
+        artist_name = kwargs['artist_name']
+        playlist_name = f"{song_name!r} Related"
+        description = f"Songs related to {song_name!r} by {artist_name}, within the playlist {base_playlist_name}"
+        return playlist_name, description
+
+
+    @staticmethod
+    def _get_most_listened_tracks_playlist_info(playlist_type: str) -> 'tuple[str, str]':
+        """Generates the playlist name and description for a most listened tracks playlist.
+
+        Args:
+            playlist_type (str): The type of most listened tracks playlist.
+
+        Returns:
+            tuple[str, str]: The playlist name and description.
+        """
+        term = playlist_type.replace('most-listened-', '')
+        playlist_name = f"{term.replace('_', ' ').title()} Most-listened Tracks"
+        description = f"The most listened tracks in a {term.replace('_', ' ')} period"
+        return playlist_name, description
+
+
+    @staticmethod
+    def _get_artist_related_playlist_info(base_playlist_name: Union[str, None], **kwargs) -> 'tuple[str, str]':
+        """Generates the playlist name and description for an artist-related playlist.
+
+        Args:
+            base_playlist_name (str): The name of the base playlist.
+            **kwargs: Additional arguments.
+
+        Returns:
+            tuple[str, str]: The playlist name and description.
+        """
+        artist_name = kwargs['artist_name']
+        playlist_name = f"{artist_name!r} Mix"
+        description = f"Songs related to {artist_name!r}, within the playlist {base_playlist_name}"
+        return playlist_name, description
+
+
+    @staticmethod
+    def _get_artist_full_playlist_info(base_playlist_name: Union[str, None], **kwargs) -> 'tuple[str, str]':
+        """Generates the playlist name and description for an artist full playlist.
+
+        Args:
+            base_playlist_name (str): The name of the base playlist.
+            **kwargs: Additional arguments.
+
+        Returns:
+            tuple[str, str]: The playlist name and description.
+        """
+        artist_name = kwargs['artist_name']
+        playlist_name = f"This once was {artist_name!r}"
+        description = f"All {artist_name}'s songs, within the playlist {base_playlist_name}"
+        return playlist_name, description
+
+
+    @staticmethod
+    def _get_artist_playlist_info(base_playlist_name: Union[str, None], **kwargs) -> 'tuple[str, str]':
+        """Generates the playlist name and description for an artist playlist.
+
+        Args:
+            base_playlist_name (str): The name of the base playlist.
+            **kwargs: Additional arguments.
+
+        Returns:
+            tuple[str, str]: The playlist name and description.
+        """
+        artist_name = kwargs['artist_name']
+        playlist_name = f"This once was {artist_name!r}"
+        description = f"{artist_name}'s songs, within the playlist {base_playlist_name}"
+        return playlist_name, description
+
+
+    @staticmethod
+    def _get_profile_recommendation_playlist_info(**kwargs) -> 'tuple[str, str]':
+        """Generates the playlist name and description for a profile recommendation playlist.
+
+        Args:
+            **kwargs: Additional arguments.
+
+        Returns:
+            tuple[str, str]: The playlist name and description.
+        """
+        criteria = kwargs['criteria'] if kwargs['criteria'] != 'mixed' else 'genres, tracks and artists'
+        playlist_name = f"{kwargs['time_range'].replace('_', ' ').title()} Profile Recommendation"
+        description = f"{kwargs['time_range'].replace('_', ' ').title()} profile-based recommendations based on favorite {criteria}"
+
+        if kwargs['date']:
+            now = datetime.datetime.now(tz=pytz.timezone('UTC'))
+            playlist_name += f" ({criteria} - {now.strftime('%Y-%m-%d')})"
+            description += f" - {now.strftime('%Y-%m-%d')} snapshot"
         else:
-            raise ValueError('type not valid')
-
-    # additional_information_by_type = {
-    #         'song': {'song_name': getattr(self, '_SpotifyAPI__song_name', None)},
-    #         'artist': {'artist_name': getattr(self, '_SpotifyAPI__artist_name', None)},
-    #         'mood': {
-    #             'mood': getattr(self, '_SpotifyAPI__mood', None),
-    #             'exclude_mostly_instrumental': getattr(self, '_SpotifyAPI__exclude_mostly_instrumental', None),
-    #         },
-    #         'profile-recommendation': {
-    #             'criteria': getattr(self, '_SpotifyAPI__profile_recommendation_criteria', None),
-    #             'date': getattr(self, '_SpotifyAPI__profile_recommendation_date', None),
-    #             'time_range': getattr(self, '_SpotifyAPI__profile_recommendation_time_range', None)
-    #         },
-    #         'playlist-recommendation': {
-    #             'criteria': getattr(self, '_SpotifyAPI__playlist_recommendation_criteria', None),
-    #             'date': getattr(self, '_SpotifyAPI__playlist_recommendation_date', None),
-    #             'time_range': getattr(self, '_SpotifyAPI__playlist_recommendation_time_range', None)
-    #         },
-    #         'general-recommendation': {
-    #             'description': getattr(self, '_SpotifyAPI__general_recommendation_description', None),
-    #             'description_types': getattr(self, '_SpotifyAPI__general_recommendation_description_types', None)
-    #         },
-    #         'most-listened-recommendation': {'time_range': getattr(self, '_SpotifyAPI__most_listened_recommendation_time_range', None)},
-    #     }
+            playlist_name += f" ({criteria})"
 
         return playlist_name, description
+
+
+    @staticmethod
+    def _get_playlist_recommendation_playlist_info(base_playlist_name: Union[str, None], **kwargs) -> 'tuple[str, str]':
+        """Generates the playlist name and description for a playlist recommendation playlist.
+
+        Args:
+            base_playlist_name (str): The name of the base playlist.
+            **kwargs: Additional arguments.
+
+        Returns:
+            tuple[str, str]: The playlist name and description.
+        """
+        criteria = kwargs['criteria'] if kwargs['criteria'] != 'mixed' else 'genres, tracks and artists'
+        time_range = f"for the last {kwargs['time_range']}" if kwargs['time_range'] != 'all_time' else 'for all_time'
+        playlist_name = f"Playlist Recommendation {time_range}"
+        description = f"Playlist-based recommendations based on favorite {criteria}, within the playlist {base_playlist_name} {time_range}"
+
+        if kwargs['date']:
+            now = datetime.datetime.now(tz=pytz.timezone('UTC'))
+            playlist_name += f" ({criteria} - {now.strftime('%Y-%m-%d')})"
+            description += f" - {now.strftime('%Y-%m-%d')} snapshot"
+        else:
+            playlist_name += f" ({criteria})"
+
+        return playlist_name, description
+
+
+    @staticmethod
+    def _get_general_recommendation_playlist_info(**kwargs) -> 'tuple[str, str]':
+        """Generates the playlist name and description for a general recommendation playlist.
+
+        Args:
+            **kwargs: Additional arguments.
+
+        Returns:
+            tuple[str, str]: The playlist name and description.
+        """
+        playlist_name = f"General Recommendation based on {kwargs['description_types']}"
+        description = kwargs['description']
+        return playlist_name, description
+
+
+    @staticmethod
+    def _get_mood_playlist_info(base_playlist_name: Union[str, None], **kwargs) -> 'tuple[str, str]':
+        """Generates the playlist name and description for a mood playlist.
+
+        Args:
+            base_playlist_name (str): The name of the base playlist.
+            **kwargs: Additional arguments.
+
+        Returns:
+            tuple[str, str]: The playlist name and description.
+        """
+        mood = kwargs['mood']
+        exclude_mostly_instrumental = kwargs['exclude_mostly_instrumental']
+        playlist_name = f"{mood} Songs".capitalize()
+        description = f'Songs related to the mood "{mood}"'
+        if exclude_mostly_instrumental:
+            description += ", excluding the mostly instrumental songs"
+        description += f", within the playlist {base_playlist_name}"
+        return playlist_name, description
+
+
+    @staticmethod
+    def _get_most_listened_recommendation_playlist_info(base_playlist_name: Union[str, None], **kwargs) -> 'tuple[str, str]':
+        """Generates the playlist name and description for a most listened recommendation playlist.
+
+        Args:
+            base_playlist_name (str): The name of the base playlist.
+            **kwargs: Additional arguments.
+
+        Returns:
+            tuple[str, str]: The playlist name and description.
+        """
+        time_range = kwargs['time_range'].replace('_', ' ')
+        playlist_name = f"{time_range} most listened recommendations".capitalize()
+        description = f"Songs related to the {time_range} most listened tracks, within the playlist {base_playlist_name}"
+        return playlist_name, description
+
 
 
     @classmethod
@@ -422,7 +503,6 @@ class Library:
             PlaylistHandler.insert_songs_in_playlist(playlist_id=playlist_id, uris=uris)
 
         else:
-
             for offset in range(0, len(full_uris_list), 100):
                 uris = ','.join(full_uris_list[offset:offset + min(len(full_uris_list) - offset, 100)])
 

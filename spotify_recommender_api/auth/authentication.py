@@ -4,7 +4,7 @@ import logging
 from spotify_recommender_api.server import up_server
 
 class AuthenticationHandler:
-    # TODO: docstring
+    """Class that contains both headers, with authentication, and authentication gathering actions"""
 
     _headers: 'dict[str, str]' = {
         "Accept": "application/json",
@@ -14,6 +14,7 @@ class AuthenticationHandler:
 
     @classmethod
     def _retrieve_local_access_token(cls) -> None:
+        """Function that tries to retrieve the access token from the local file where it is stored. In case it does not exist it raises an exception"""
         try:
 
             with open('./.spotify-recommender-util/execution.txt', 'r') as f:
@@ -31,6 +32,7 @@ class AuthenticationHandler:
 
     @staticmethod
     def _cleanup_aux_files() -> None:
+        """Function that removes the temporary auxiliary file used for the token retrieving action"""
         logging.debug('Cleaning up txt file used temporarily for retrieving the auth token')
 
         if os.path.exists("./.spotify-recommender-util/execution-status.txt"):
@@ -39,6 +41,11 @@ class AuthenticationHandler:
 
     @classmethod
     def _retrive_new_token(cls) -> str:
+        """Function that centralizes the new token retrieval actions
+
+        Returns:
+            str: The newly retrieved access token
+        """
         logging.debug('Error while trying the existant auth token. Executing server to retrieve a new one.')
 
         up_server()

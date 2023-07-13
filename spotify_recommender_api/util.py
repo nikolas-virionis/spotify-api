@@ -34,6 +34,7 @@ def item_list_indexed(items: 'list[str]', all_items: 'list[str]') -> 'list[str]'
     """
 
     return [str(int(all_genres_x in items)) for all_genres_x in all_items]
+
 def get_datetime_by_time_range(time_range: str = 'all_time') -> datetime.datetime:
     """Calculates the datetime that corresponds to the given time range before the current date
 
@@ -47,8 +48,7 @@ def get_datetime_by_time_range(time_range: str = 'all_time') -> datetime.datetim
         datetime.datetime: Datetime of the specified time_range before the current date
     """
     if time_range not in ['all_time', 'month', 'trimester', 'semester', 'year']:
-        raise ValueError(
-            'time_range must be one of the following: "all_time", "month", "trimester", "semester", "year"')
+        raise ValueError('time_range must be one of the following: "all_time", "month", "trimester", "semester", "year"')
 
     now = datetime.datetime.now(tz=tz.gettz('UTC'))
     date_options = {
@@ -135,7 +135,6 @@ def get_base_playlist_name(playlist_id: str) -> str:
 
     Args:
         playlist_id (str): The Spotify playlist id
-        headers (dict): Request headers
 
     Returns:
         str: The base playlist name
@@ -152,7 +151,7 @@ def deprecated(func: Callable[..., Any]) -> Callable[..., Any]:
     when the function is used."""
 
     @functools.wraps(func)
-    def new_func(*args, **kwargs):
+    def new_func(*args, **kwargs) -> Any:
         warnings.simplefilter('always', DeprecationWarning)  # turn off filter
         warnings.warn(f"Call to deprecated function {func.__name__}.", category=DeprecationWarning, stacklevel=2)
         warnings.simplefilter('default', DeprecationWarning)  # reset filter
