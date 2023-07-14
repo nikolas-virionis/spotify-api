@@ -1,5 +1,5 @@
-import re
 import logging
+import traceback
 import pandas as pd
 
 from typing import Union
@@ -184,7 +184,8 @@ class User:
                     UserUtil._update_base_playlist(name, description, total_tracks, base_playlist, playlist_types_to_update)
 
             except ValueError as e:
-                logging.error(f"Unfortunately we couldn't update a playlist because\n {e}")
+                logging.error(f"Unfortunately we couldn't update the playlist {name} because\n {e} ")
+                logging.debug(traceback.format_exc())
 
         logging.info('Playlists update operation at 100%')
 

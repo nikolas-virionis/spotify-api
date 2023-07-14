@@ -136,8 +136,13 @@ class RequestHandler:
             try:
                 response: requests.Response = func(*args, **kwargs)
 
-                if response.status_code != 204 and 'error' in response.json():
-                    raise HTTPRequestError(func_name=func.__name__, err_code=f"{response.status_code}: {response.json()['error']['message']}", message=None, *args, **kwargs)
+                try:
+                    if response.status_code != 204 and 'error' in response.json():
+                        raise HTTPRequestError(func_name=func.__name__, err_code=f"{response.status_code}: {response.json()['error']['message']}", message=None, *args, **kwargs)
+                except requests.exceptions.JSONDecodeError:
+                    logging.debug(f'json decode error: {response.status_code} - {response.json()}')
+                    return None
+
 
                 return response
             except Exception as e:

@@ -330,7 +330,7 @@ class SpotifyAPI:
             number_of_songs (int, optional): Maximum number of songs. Defaults to 50.
             with_distance (bool, optional): Whether to allow the distance column to the DataFrame returned, which will have no actual value for most use cases, since it does not obey any actual unit, it is just a mathematical value to determine the closet songs.  Defaults to False.
             build_playlist (bool, optional): Whether to build the playlist to the user's library. Defaults to False.
-            ensure_all_artist_songs (bool, optional): Whether to ensure that all artist songs are in the playlist, regardless of the number_of_songs. Defaults to True
+            ensure_all_artist_songs (bool, optional): Whether to ensure that all artist songs are in the playlist, regardless of the number_of_songs number specified. Defaults to True
             print_base_caracteristics (bool, optional): Whether to print the base / informed song information, in order to check why such predictions were made by the algorithm. ONLY TAKES EFFECT IF complete_with_similar == True AND number_of_songs > NUMBER OF SONGS WITH THAT ARTIST. Defaults to False.
 
         Raises:

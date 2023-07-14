@@ -82,16 +82,16 @@ class UserUtil:
         url = f'{BASE_URL}/recommendations?limit={number_of_songs}'
 
         if artists_info:
-            url = UserUtil._add_seed_artists(url, artists_info)
+            url = cls._add_seed_artists(url, artists_info)
 
         if genres_info:
-            url = UserUtil._add_seed_genres(url, genres_info)
+            url = cls._add_seed_genres(url, genres_info)
 
         if tracks_info:
-            url = UserUtil._add_seed_tracks(url, tracks_info)
+            url = cls._add_seed_tracks(url, tracks_info)
 
         if audio_statistics is not None:
-            url = UserUtil._add_audio_features(url, audio_statistics)
+            url = cls._add_audio_features(url, audio_statistics)
 
         return url
 
@@ -213,7 +213,7 @@ class UserUtil:
         url = f'{BASE_URL}/recommendations?limit={number_of_songs}'
 
         if main_criteria == 'artists':
-            url += f'&seed_artists{",".join(artists)}'
+            url += f'&seed_artists={",".join(artists)}'
         elif main_criteria == 'genres':
             url += f'&seed_genres={",".join(genres[:4])}&seed_tracks={",".join(tracks[:1])}'
         elif main_criteria == 'mixed':
@@ -509,8 +509,8 @@ class UserUtil:
 
         return playlist_types_to_update
 
-    @staticmethod
-    def _get_playlists_to_update(playlist_types_to_update: 'list[str]', base_playlist: Union[BasePlaylist, None]) -> 'list[tuple[str, str, str, int]]':
+    @classmethod
+    def _get_playlists_to_update(cls, playlist_types_to_update: 'list[str]', base_playlist: Union[BasePlaylist, None]) -> 'list[tuple[str, str, str, int]]':
         """Gets the playlists to update based on playlist types and base playlist.
 
         Args:
@@ -530,7 +530,7 @@ class UserUtil:
         playlists = [
             playlist
             for playlist in playlists
-            if UserUtil._playlist_needs_update(
+            if cls._playlist_needs_update(
                 playlist=playlist,
                 playlist_types_to_update=playlist_types_to_update,
                 base_playlist_name=None if base_playlist is None else base_playlist.playlist_name
@@ -582,7 +582,7 @@ class UserUtil:
             criteria = 'mixed'
 
         if 'term' in name.lower():
-            time_range = '_'.join(name.split(' ')[1:3]).lower()
+            time_range = '_'.join(name.split(' ')[:2]).lower()
         else:
             time_range = 'short_term'
         playlist_name = f"{time_range.replace('_', ' ').title()} Profile Recommendation ({criteria_name})"

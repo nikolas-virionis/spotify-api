@@ -19,7 +19,7 @@ class BasePlaylist(ABC):
         ...
 
     @abstractmethod
-    def get_playlist_from_web(self) -> pd.DataFrame:
+    def get_playlist_from_web(self) -> 'list[Song]':
         pass
 
     def __init__(self, user_id: str, playlist_id: str = '') -> None:
@@ -27,7 +27,7 @@ class BasePlaylist(ABC):
         self.playlist_id = playlist_id
         self.playlist_name = self.get_playlist_name(playlist_id)
 
-        self._dataframe = self._retrieve_playlist_items()
+        self._dataframe = pd.DataFrame(self._retrieve_playlist_items())
 
         self._normalize_playlist()
 
@@ -36,7 +36,7 @@ class BasePlaylist(ABC):
 
 
     # def __post_init__(self) -> None:
-    def _retrieve_playlist_items(self) -> pd.DataFrame:
+    def _retrieve_playlist_items(self) -> 'list[Song]':
         answer = input('Do you want to get the playlist data via CSV, which would have been saved previously, or read from spotify, which will take a few minutes depending on the playlist size (csv/web)? ')
         while answer.lower() not in ['csv', 'web']:  # , 'parquet'
             answer = input("Please select a valid response (csv/web): ")
@@ -58,26 +58,6 @@ class BasePlaylist(ABC):
         )
 
         self._dataframe = PlaylistUtil._normalize_dtypes(dataframe=self._dataframe)
-
-        self.songs = [
-            Song(
-                id=song['id'],
-                name=song['name'],
-                tempo=song['tempo'],
-                energy=song['energy'],
-                genres=song['genres'],
-                valence=song['valence'],
-                artists=song['artists'],
-                added_at=song['added_at'],
-                loudness=song['loudness'],
-                popularity=song['popularity'],
-                danceability=song['danceability'],
-                genres_indexed=song['genres_indexed'],
-                artists_indexed=song['artists_indexed'],
-                instrumentalness=song['instrumentalness'],
-            )
-            for song in self._dataframe.to_dict('records')
-        ]
 
     def _retrieve_playlist_csv(self) -> pd.DataFrame:
         try:
@@ -135,9 +115,9 @@ class BasePlaylist(ABC):
             song_name=song_name,
             artist_name=artist_name,
             _auto_artist=_auto_artist,
-            dataframe=self._dataframe,
             build_playlist=build_playlist,
             number_of_songs=number_of_songs,
+            dataframe=self._dataframe.copy(),
             print_base_caracteristics=print_base_caracteristics,
         )
 
@@ -217,9 +197,9 @@ class BasePlaylist(ABC):
         return PlaylistFeatures.artist_only_playlist(
             user_id=self.user_id,
             artist_name=artist_name,
-            dataframe=self._dataframe,
             build_playlist=build_playlist,
             number_of_songs=number_of_songs,
+            dataframe=self._dataframe.copy(),
             base_playlist_name=self.playlist_name,
             ensure_all_artist_songs=ensure_all_artist_songs
         )
@@ -255,11 +235,11 @@ class BasePlaylist(ABC):
             user_id=self.user_id,
             all_genres=self._genres,
             artist_name=artist_name,
-            dataframe=self._dataframe,
             all_artists=self._artists,
             with_distance=with_distance,
             build_playlist=build_playlist,
             number_of_songs=number_of_songs,
+            dataframe=self._dataframe.copy(),
             base_playlist_name=self.playlist_name,
             print_base_caracteristics=print_base_caracteristics
         )
@@ -321,11 +301,11 @@ class BasePlaylist(ABC):
         return PlaylistFeatures.get_playlist_recommendation(
             user_id=self.user_id,
             time_range=time_range,
-            dataframe=self._dataframe,
             main_criteria=main_criteria,
             save_with_date=save_with_date,
             build_playlist=build_playlist,
             number_of_songs=number_of_songs,
+            dataframe=self._dataframe.copy(),
             base_playlist_name=self.playlist_name,
         )
 
@@ -354,9 +334,9 @@ class BasePlaylist(ABC):
         return PlaylistFeatures.get_songs_by_mood(
             mood=mood,
             user_id=self.user_id,
-            dataframe=self._dataframe,
             build_playlist=build_playlist,
             number_of_songs=number_of_songs,
+            dataframe=self._dataframe.copy(),
             base_playlist_name=self.playlist_name,
             exclude_mostly_instrumental=exclude_mostly_instrumental
         )
@@ -385,10 +365,10 @@ class BasePlaylist(ABC):
             user_id=self.user_id,
             time_range=time_range,
             all_genres=self._genres,
-            dataframe=self._dataframe,
             all_artists=self._artists,
             build_playlist=build_playlist,
             number_of_songs=number_of_songs,
+            dataframe=self._dataframe.copy(),
             base_playlist_name=self.playlist_name,
         )
 

@@ -71,7 +71,7 @@ class PlaylistHandler:
             int: The total count of songs in the playlist.
         """
         response = cls.playlist_songs(playlist_id=playlist_id, limit=1)
-        return response.json()['tracks']['total']
+        return response.json()['total']
 
     @staticmethod
     def delete_playlist_songs(playlist_id: str, playlist_tracks: 'list[dict[str, str]]') -> requests.Response:

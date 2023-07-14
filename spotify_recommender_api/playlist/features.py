@@ -5,6 +5,7 @@ import spotify_recommender_api.util as util
 import spotify_recommender_api.visualization as visualization
 
 from typing import Any
+from dateutil.tz import tz
 from functools import reduce
 from spotify_recommender_api.song import Song
 from spotify_recommender_api.song.util import SongUtil
@@ -57,6 +58,9 @@ class PlaylistFeatures:
             raise ValueError(f'Value for number_of_songs must be between 1 and 1500 on creation of recommendation for the song {song_name} by {artist_name}')
 
         song = cls._get_song(song_name=song_name, artist_name=artist_name, dataframe=dataframe, _auto_artist=_auto_artist)
+
+        if song is None:
+            return None
 
         df = cls._get_recommendations(
             song=song,
@@ -145,6 +149,10 @@ class PlaylistFeatures:
 
         if not _auto_artist:
             dataframe = dataframe[dataframe['artists'].apply(lambda artists: artist_name in artists)]
+
+        if dataframe.empty:
+            logging.warning(f'Playlist has no song named {song_name} {"" if _auto_artist else f"by {artist_name}"}')
+            return None
 
         song_dict = {**dataframe.to_dict('records')[0]}
 
@@ -236,7 +244,14 @@ class PlaylistFeatures:
 
     @staticmethod
     def _filter_playlist_by_time(dataframe: pd.DataFrame, added_at_begin: datetime.datetime) -> pd.DataFrame:
-        return dataframe.query('added_at > @added_at_begin')
+        added_at_begin = pd.to_datetime(added_at_begin.astimezone(tz.tzutc()))
+        try:
+            dataframe['added_at'] = pd.to_datetime(dataframe['added_at'], errors='coerce').dt.tz_localize(tz.tzutc())
+        except Exception:
+            dataframe['added_at'] = pd.to_datetime(dataframe['added_at'], errors='coerce').dt.tz_convert(tz.tzutc())
+
+        return dataframe[dataframe['added_at'] >= added_at_begin]
+        # return dataframe.query('added_at > @added_at_begin')
 
     @staticmethod
     def _extract_items_from_playlist(playlist: pd.DataFrame, item_key: str) -> list:
