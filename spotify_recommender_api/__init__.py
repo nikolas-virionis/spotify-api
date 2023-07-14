@@ -1,1 +1,3 @@
-__version__ = '4.5.0'
+from spotify_recommender_api.recommender import start_api
+
+__version__ = '5.0.0'

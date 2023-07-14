@@ -7,13 +7,14 @@ import contextlib
 
 from fastapi import FastAPI, status
 from fastapi.responses import HTMLResponse
-from spotify_recommender_api.sensitive import CLIENT_ID, CLIENT_SECRET
-from spotify_recommender_api.request_handler import post_request_with_auth
+from spotify_recommender_api.requests.auth_handler import AuthHandler
+from spotify_recommender_api.server.sensitive import CLIENT_ID, CLIENT_SECRET
 
 app = FastAPI()
 
 redirect_uri = 'http://localhost:8000/callback'
 scope = ["playlist-modify-private", "playlist-read-private", "user-library-read", "user-library-modify", "user-top-read"]
+
 
 class Server(uvicorn.Server):
     """Subclass of uvicorn.Server so that the run and shutdown methods can be done while running in a separate thread
@@ -36,7 +37,6 @@ class Server(uvicorn.Server):
             self.should_exit = True
             thread.join()
 
-
 def up_server():
     """Function to start the fastapi server and wait for the callback request from spotify to complete, to get the access token the shutdown the server
     """
@@ -49,8 +49,8 @@ def up_server():
             try:
                 with open('./.spotify-recommender-util/execution-status.txt', 'r') as f:
                     auth_status = f.readline()
-            except Exception as e:
-                pass
+            except FileNotFoundError as e:
+                time.sleep(0.5)
             else:
                 break
 
@@ -63,14 +63,12 @@ def get_access_token(auth_code: str) -> str:
     Returns:
         str: Access token
     """
-    response = post_request_with_auth(
-        "https://accounts.spotify.com/api/token",
-        auth=(CLIENT_ID, CLIENT_SECRET), # type: ignore
-        data={
-            "grant_type": "authorization_code",
-            "code": auth_code,
-            "redirect_uri": redirect_uri,
-        },
+
+    response = AuthHandler.authorization_token(
+        auth_code=auth_code,
+        client_id=CLIENT_ID,
+        redirect_uri=redirect_uri,
+        client_secret=CLIENT_SECRET
     )
 
     return response.json()["access_token"]

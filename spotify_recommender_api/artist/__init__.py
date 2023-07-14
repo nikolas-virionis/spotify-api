@@ -1,0 +1,1 @@
+from spotify_recommender_api.artist.artist import Artist
