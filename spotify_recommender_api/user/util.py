@@ -528,7 +528,7 @@ class UserUtil:
 
         for offset in range(0, total_playlist_count, 50):
             request = LibraryHandler.library_playlists(limit=50, offset=offset).json()
-            playlists += [(playlist['id'], playlist['name'], playlist['description'], playlist['tracks']['total']) for playlist in request['items']]
+            playlists += [(playlist['id'], playlist['name'], playlist['description'], playlist['tracks']['total'] or 50) for playlist in request['items']]
 
         playlists = [
             playlist

@@ -146,12 +146,15 @@ class RequestHandler:
 
                 return response
             except Exception as e:
-                if '401' in f'{e}':
+                if response.status_code == 401:
                     logging.error('Access Token Expired')
                     raise AccessTokenExpiredError(func_name=func.__name__, message=None, *args, **kwargs) from e
 
-                if '429' not in f'{e}':
+                if response.status_code != 429 and response.status_code < 500:
                     raise HTTPRequestError(func_name=func.__name__, err_code=f"{response.status_code}: {response.json()['error']['message']}", message=None, *args, **kwargs) from e
+
+                if response.status_code >= 500:
+                    logging.info('There has been an internal error in the Spotify API.')
 
                 if x == 0:
                     logging.warning('\nExponential backoff triggered: ')
@@ -159,7 +162,7 @@ class RequestHandler:
                 x += 1
 
                 if x >= retries:
-                    raise TooManyRequestsError(func_name=func.__name__, message=f'After {retries} attempts, the execution of the function failed with the 429 exception', *args, **kwargs) from e
+                    raise TooManyRequestsError(func_name=func.__name__, message=f'After {retries} attempts, the execution of the function failed with the {response.status_code} exception', *args, **kwargs) from e
 
                 sleep = 2 ** x
                 logging.warning(f'\tError raised: sleeping {sleep} seconds')
