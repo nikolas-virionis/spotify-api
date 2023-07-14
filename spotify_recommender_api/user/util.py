@@ -520,6 +520,9 @@ class UserUtil:
         Returns:
             list[tuple[str, str, str, int]]: List of playlists to update.
         """
+
+        logging.info('Starting to map the playlists which need to be updated')
+
         total_playlist_count = LibraryHandler.get_total_playlist_count()
         playlists = []
 
@@ -536,6 +539,8 @@ class UserUtil:
                 base_playlist_name=None if base_playlist is None else base_playlist.playlist_name
             )
         ]
+
+        logging.info('Playlists to be updated mapped successfully')
 
         return playlists
 

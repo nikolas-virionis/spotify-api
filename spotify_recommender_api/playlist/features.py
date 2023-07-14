@@ -151,7 +151,7 @@ class PlaylistFeatures:
             dataframe = dataframe[dataframe['artists'].apply(lambda artists: artist_name in artists)]
 
         if dataframe.empty:
-            logging.warning(f'Playlist has no song named {song_name} {"" if _auto_artist else f"by {artist_name}"}')
+            logging.warning(f'Playlist has no song named {song_name} {f"by {artist_name}" if not _auto_artist else ""}')
             return None
 
         song_dict = {**dataframe.to_dict('records')[0]}

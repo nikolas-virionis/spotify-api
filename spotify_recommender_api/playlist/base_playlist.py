@@ -121,6 +121,9 @@ class BasePlaylist(ABC):
             print_base_caracteristics=print_base_caracteristics,
         )
 
+        if dataframe is None:
+            return None
+
         if not with_distance:
             dataframe = dataframe.drop('distance', axis=1)
 

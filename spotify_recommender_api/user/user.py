@@ -163,8 +163,12 @@ class User:
         playlist_types_to_update = UserUtil._get_playlist_types_to_update(playlist_types_to_update, playlist_types_not_to_update)
         playlists = UserUtil._get_playlists_to_update(base_playlist=base_playlist, playlist_types_to_update=playlist_types_to_update)
 
+        if not len(playlists):
+            logging.info('No playlist found to be updated, given the playlist type filters')
+
         last_printed_perc_update = 0
 
+        logging.info('Starting to update playlists')
         for index, (playlist_id, name, description, total_tracks) in enumerate(playlists):
             try:
                 logging.debug(f'Updating song {name} - {index}/{len(playlists)}')
@@ -211,7 +215,7 @@ class User:
         """
         criteria, time_range, playlist_name, playlist_description = UserUtil._prepare_profile_recommendation(name)
 
-        if 'term' in name.lower() or not description:
+        if 'term' not in name.lower() or not description:
             data = {
                 "name": playlist_name,
                 "description": playlist_description,
