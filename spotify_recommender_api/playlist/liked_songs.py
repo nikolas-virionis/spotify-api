@@ -12,11 +12,6 @@ class LikedSongs(BasePlaylist):
         self.user_id = user_id
         self.playlist_name = f"{user_id} Liked Songs"
 
-        # self._dataframe = super()._dataframe
-
-    # def __post_init__(self) -> None:
-    #     super().__post_init__()
-
     @staticmethod
     def get_song_count(playlist_id: Union[str, None] = None) -> int:
         return PlaylistHandler.get_liked_songs_count()

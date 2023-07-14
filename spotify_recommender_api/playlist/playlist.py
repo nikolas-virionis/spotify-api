@@ -10,9 +10,6 @@ class Playlist(BasePlaylist):
     def __init__(self, user_id: str, playlist_id: str) -> None:
         super().__init__(user_id, playlist_id)
 
-    # def __post_init__(self) -> None:
-    #     return super().__post_init__()
-
     @staticmethod
     def get_song_count(playlist_id: str) -> int:
         return PlaylistHandler.get_playlist_total_song_count(playlist_id=playlist_id)

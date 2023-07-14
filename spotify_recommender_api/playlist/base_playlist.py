@@ -35,7 +35,6 @@ class BasePlaylist(ABC):
         PlaylistFeatures.user_id = self.user_id
 
 
-    # def __post_init__(self) -> None:
     def _retrieve_playlist_items(self) -> 'list[Song]':
         answer = input('Do you want to get the playlist data via CSV, which would have been saved previously, or read from spotify, which will take a few minutes depending on the playlist size (csv/web)? ')
         while answer.lower() not in ['csv', 'web']:  # , 'parquet'
