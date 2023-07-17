@@ -62,6 +62,9 @@ class PlaylistFeatures:
         if song is None:
             return None
 
+        if _auto_artist:
+            artist_name = eval(song.artists)[0]
+
         df = cls._get_recommendations(
             song=song,
             dataframe=dataframe,
@@ -84,7 +87,7 @@ class PlaylistFeatures:
                 song.valence
             )
 
-        ids = df['id'].to_list()
+        ids = [song.id, *df['id'].to_list()]
 
         if build_playlist:
             Library.write_playlist(

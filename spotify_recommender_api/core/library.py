@@ -450,7 +450,20 @@ class Library:
         playlist_details = PlaylistHandler.playlist_details(playlist_id).json()
         description = playlist_details.get('description')
 
-        return not description or playlist_name.lower().startswith('short term profile recommendation') and found_playlist_name == playlist_name.replace('Short Term ', '')
+        return (
+            not description or
+            (
+                playlist_name.lower().startswith('short term profile recommendation') and
+                found_playlist_name == playlist_name.replace('Short Term ', '')
+            ) or
+            (
+                description.lower().startswith('songs related to') and
+                (
+                    ' by ' not in description or
+                    ' by ,' in description
+                )
+            )
+        )
 
 
     @staticmethod
