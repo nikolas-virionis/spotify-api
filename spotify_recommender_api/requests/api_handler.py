@@ -203,6 +203,24 @@ class SongHandler:
         """
         return RequestHandler.get_request(url=f'{BASE_URL}/audio-features/{song_id}')
 
+    @staticmethod
+    def batch_query_audio_features(song_ids: 'list[str]') -> requests.Response:
+        """
+        Query audio features of a song.
+
+        Args:
+            song_ids (list[str]): The ID of the song.
+
+        Returns:
+            requests.Response: The response object containing the audio features of the song.
+        """
+        if len(song_ids) > 100:
+            raise ValueError('song_ids must be a list with at most 100 items')
+
+        ids = ','.join(song_ids)
+
+        return RequestHandler.get_request(url=f'{BASE_URL}/audio-features?{ids=!s}')
+
 
 class UserHandler:
     """Class for handling Spotify user-related API requests."""
@@ -277,3 +295,21 @@ class ArtistHandler:
             requests.Response: The response object containing artist details.
         """
         return RequestHandler.get_request(url=f'{BASE_URL}/artists/{artist_id}')
+
+    @staticmethod
+    def batch_get_artist(artist_ids: 'list[str]') -> requests.Response:
+        """
+        Get details of an artist.
+
+        Args:
+            artist_ids (list[str]): The ID of the artist.
+
+        Returns:
+            requests.Response: The response object containing artist details.
+        """
+        if len(artist_ids) > 50:
+            raise ValueError('artist_ids must be a list with at most 50 items')
+
+        ids = ','.join(artist_ids)
+
+        return RequestHandler.get_request(url=f'{BASE_URL}/artists?{ids=!s}')

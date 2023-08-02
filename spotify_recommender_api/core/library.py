@@ -453,16 +453,16 @@ class Library:
         return (
             not description or
             (
-                playlist_name.lower().startswith('short term profile recommendation') and
-                found_playlist_name == playlist_name.replace('Short Term ', '')
-            ) or
-            (
+                'mood' not in description.lower() and
                 description.lower().startswith('songs related to') and
+                'term most listened tracks' not in description.lower() and
                 (
                     ' by ' not in description or
                     ' by ,' in description
                 )
-            )
+            ) or
+            playlist_name.lower().startswith('short term profile recommendation') and
+            found_playlist_name == playlist_name.replace('Short Term ', '')
         )
 
 

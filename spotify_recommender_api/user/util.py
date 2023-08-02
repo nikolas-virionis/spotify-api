@@ -1,4 +1,5 @@
 import re
+import html
 import logging
 import pandas as pd
 
@@ -662,9 +663,9 @@ class UserUtil:
         base_playlist.get_recommendations_for_song(
             song_name=song_name,
             build_playlist=True,
-            artist_name=artist_name,
             _auto_artist=not artist_name,
             number_of_songs=total_tracks - 1,
+            artist_name=html.unescape(artist_name),
         )
 
 

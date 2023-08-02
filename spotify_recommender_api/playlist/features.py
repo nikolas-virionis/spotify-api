@@ -258,7 +258,7 @@ class PlaylistFeatures:
 
     @staticmethod
     def _extract_items_from_playlist(playlist: pd.DataFrame, item_key: str) -> list:
-        return list(reduce(lambda x, y: x + eval(y), playlist[item_key], []))
+        return list(reduce(lambda x, y: x + eval(str(y)), playlist[item_key], []))
 
     @staticmethod
     def _count_items(items: list) -> dict:
