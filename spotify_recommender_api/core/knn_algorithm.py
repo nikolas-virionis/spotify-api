@@ -154,4 +154,4 @@ class KNNAlgorithm:
             axis=1
         )
 
-        return df.sort_values(by='popularity', ascending=True).head(number_of_songs)
+        return df.sort_values(by='distance', ascending=True).head(number_of_songs)
