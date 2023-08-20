@@ -454,7 +454,10 @@ class Library:
             not description or
             (
                 'mood' not in description.lower() and
-                description.lower().startswith('songs related to') and
+                (
+                    description.lower().startswith('songs related to') and
+                    'Mix' not in playlist_name
+                ) and
                 'term most listened tracks' not in description.lower() and
                 (
                     ' by ' not in description or
@@ -481,7 +484,7 @@ class Library:
             "description": description,
         }
 
-        logging.info(f'Updating playlist {playlist_name} details')
+        logging.warning(f'Updating playlist {playlist_name} details')
 
         with contextlib.suppress(Exception):
             PlaylistHandler.update_playlist_details(playlist_id=playlist_id, data=data)

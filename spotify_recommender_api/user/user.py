@@ -1,6 +1,7 @@
 import logging
 import traceback
 import pandas as pd
+import spotify_recommender_api.util as util
 
 from typing import Union
 from dataclasses import dataclass
@@ -163,20 +164,17 @@ class User:
         playlist_types_to_update = UserUtil._get_playlist_types_to_update(playlist_types_to_update, playlist_types_not_to_update)
         playlists = UserUtil._get_playlists_to_update(base_playlist=base_playlist, playlist_types_to_update=playlist_types_to_update)
 
-        if not len(playlists):
+        playlist_count = len(playlists)
+
+        if not playlist_count:
             logging.info('No playlist found to be updated, given the playlist type filters')
 
-        last_printed_perc_update = 0
-
         logging.info('Starting to update playlists')
+        util.progress_bar(0, playlist_count, suffix=f'0/{playlist_count}', percentage_precision=1)
         for index, (playlist_id, name, description, total_tracks) in enumerate(playlists):
             try:
-                logging.debug(f'Updating song {name} - {index}/{len(playlists)}')
 
-                perc_update = UserUtil._get_percentage_update(index, len(playlists))
-                if last_printed_perc_update + 10 <= perc_update < 100:
-                    logging.info(f'Playlists update operation at {perc_update}%')
-                    last_printed_perc_update = perc_update
+                util.progress_bar(index, playlist_count, suffix=f'{index}/{playlist_count}', percentage_precision=1)
 
                 if UserUtil._should_update_most_listened(name, playlist_types_to_update):
                     self.update_most_listened_playlist(total_tracks, name)
@@ -187,11 +185,13 @@ class User:
                 elif base_playlist is not None and UserUtil._should_update_base_playlist(name, description, base_playlist.playlist_name):
                     UserUtil._update_base_playlist(name, description, total_tracks, base_playlist, playlist_types_to_update)
 
-            except ValueError as e:
+            except Exception as e:
                 logging.error(f"Unfortunately we couldn't update the playlist {name} because\n {e} ")
                 logging.debug(traceback.format_exc())
 
-        logging.info('Playlists update operation at 100%')
+        util.progress_bar(playlist_count, playlist_count, suffix=f'{playlist_count}/{playlist_count}', percentage_precision=1)
+        print()
+        logging.info('Playlists update operation complete')
 
     def update_most_listened_playlist(self, total_tracks: int, name: str) -> None:
         """Update the most listened playlist.

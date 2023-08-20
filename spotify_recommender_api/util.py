@@ -1,10 +1,11 @@
+import sys
 import logging
 import warnings
 import datetime
 import functools
 
 from dateutil import tz
-from typing import Any, Callable
+from typing import Any, Callable, Union
 from spotify_recommender_api.requests.api_handler import PlaylistHandler
 
 
@@ -157,3 +158,35 @@ def deprecated(func: Callable[..., Any]) -> Callable[..., Any]:
         warnings.simplefilter('default', DeprecationWarning)  # reset filter
         return func(*args, **kwargs)
     return new_func
+
+def _generate_progress_bar(filled_up_length: int, bar_length: int) -> str:
+    return '=' * (filled_up_length - 1) + '>' + '-' * (bar_length - filled_up_length)
+
+def _generate_progress_string(bar: str, rounded_percentage: float, suffix: str) -> str:
+    return f'[{bar}] {rounded_percentage}% {f" ... {suffix}" if suffix else ""}\r'
+
+def progress_bar(count_value: Union[int, float], total: Union[int, float], suffix: str = '', percentage_precision: int = 0) -> None:
+    """Function that prints and updates a progress bar in the terminal
+
+    Note: Since this function is called once for every progress change, if after it is done one would want to print something else to the terminal, it is necessary to print a new line, such as in using an empty print()
+
+    Args:
+        count_value (int | float): Actual value to be printed as progress
+        total (int | float): Full value. Equivalent to 100%
+        suffix (str, optional): If needed the suffix is the string that will come after the percentage. It can be used to things such as printing the numbers alongside with the percentage. Defaults to ''.
+        percentage_precision (int, optional): The number of decimal places that the printed percentage should have. Defaults to 0.
+    """
+    bar_length = 100
+    filled_up_ratio = count_value / float(total)
+    percentage = bar_length * filled_up_ratio
+
+    filled_up_length = round(percentage)
+
+    rounded_percentage = round(percentage, percentage_precision)
+
+    bar = _generate_progress_bar(filled_up_length, bar_length)
+
+    output = _generate_progress_string(bar, rounded_percentage, suffix)
+
+    sys.stdout.write(output)
+    sys.stdout.flush()

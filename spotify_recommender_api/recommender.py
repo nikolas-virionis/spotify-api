@@ -16,7 +16,14 @@ warnings.filterwarnings('error')
 class SpotifyAPI:
     """Spotify API is the Class that provides access to the playlists recommendations"""
 
-    def __init__(self, user_id: str, playlist_id: Union[str, None] = None, playlist_url: Union[str, None] = None, liked_songs: bool = False):
+    def __init__(
+        self,
+        user_id: str,
+        playlist_id: Union[str, None] = None,
+        playlist_url: Union[str, None] = None,
+        liked_songs: bool = False,
+        retrieval_type: Union[str, None] = None,
+    ):
         """Spotify API is the Class that provides access to the playlists recommendations
 
         Note:
@@ -28,6 +35,7 @@ class SpotifyAPI:
             playlist_id (str, optional): The playlist ID hash in Spotify. Defaults to None.
             playlist_url (str, optional): The url used while sharing the playlist. Defaults to None.
             liked_songs (bool, optional): Whether to use the User's Liked Songs as the base playlist, Defaults to False.
+            retrieval_type (str, optional): The playlist retrieval type. It has to be either "csv" or "web". Defaults to None.
 
         """
 
@@ -37,13 +45,14 @@ class SpotifyAPI:
             self.select_playlist(
                 liked_songs=liked_songs,
                 playlist_id=playlist_id,
-                playlist_url=playlist_url
+                playlist_url=playlist_url,
+                retrieval_type=retrieval_type
             )
 
         else:
             logging.info('Class initiated without any playlist. To access any playlist-related functions please use the select_playlist method.\nAll Profile related functions can still be used in any way you prefer')
 
-        logging.info('After version 5.0.0 there has been a full refactoring of the package, so any problems that you may encounter, submit an issue at: https://github.com/nikolas-virionis/spotify-api/issues')
+        logging.info('After version 5.0.0 there has been a full refactoring of the package, so for any problems that you might encounter, submit an issue at: https://github.com/nikolas-virionis/spotify-api/issues')
 
     def needs_playlist(func: Callable[..., Any]) -> Callable[..., Any]: # type: ignore
         """Decorator to check if a playlist is provided before accessing a function.
@@ -67,6 +76,7 @@ class SpotifyAPI:
             liked_songs: bool = False,
             playlist_id: Union[str, None] = None,
             playlist_url: Union[str, None] = None,
+            retrieval_type: Union[str, None] = None,
         ) -> None:
         """Function to select a playlist to be mapped and be available on all the playlist related recommendation functions
 
@@ -74,18 +84,24 @@ class SpotifyAPI:
             playlist_id (str, optional): Playlist ID. Defaults to None.
             playlist_url (str, optional): Playlist Share URL (contains the ID, and it's easier to get). Defaults to None.
             liked_songs (bool, optional): Flag to use the user 'Liked songs' as the playlist. Defaults to False.
+            retrieval_type (str, optional): The playlist retrieval type. It has to be either "csv" or "web". Defaults to None.
 
         """
+        if retrieval_type is None:
+            logging.warning('After version 5.1.0 it is mandatory to provide a retrieval_type in the select_playlist operation.')
+            logging.warning('Since before this version, it worked as a user input instead of parameter, no error will be raised, but the value "web" will be assumed.')
+            retrieval_type = 'web'
+
         if liked_songs:
-            self.playlist = LikedSongs(user_id=self.user.user_id)
+            self.playlist = LikedSongs(user_id=self.user.user_id, retrieval_type=retrieval_type)
 
         elif playlist_id is not None:
-            self.playlist = Playlist(user_id=self.user.user_id, playlist_id=playlist_id)
+            self.playlist = Playlist(user_id=self.user.user_id, retrieval_type=retrieval_type, playlist_id=playlist_id)
 
         elif playlist_url is not None:
             playlist_id = util.playlist_url_to_id(url=playlist_url)
 
-            self.playlist = Playlist(user_id=self.user.user_id, playlist_id=playlist_id)
+            self.playlist = Playlist(user_id=self.user.user_id, retrieval_type=retrieval_type, playlist_id=playlist_id)
 
     def get_most_listened(self, time_range: str = 'long_term', number_of_songs: int = 50, build_playlist: bool = False) -> pd.DataFrame:
         """Function that creates the most-listened songs playlist for a given period of time in the users profile
@@ -504,6 +520,9 @@ class SpotifyAPI:
             playlist_types_not_to_update: Union['list[str]', None] = None
         ) -> None:
         """Update all package generated playlists in batch
+
+        Note:
+            This function's progress is NOT linear since the different playlist types need different API calls and agregations, which interfere with the time each one will take.
 
         Arguments:
             playlist_types_to_update (list[str], optional, keyword-argument): List of playlist types to update. For example, if you only want to update song-related playlists use this argument as ['song-related']. Defaults to all == ['most-listened-tracks', 'song-related', 'artist-mix', 'artist-full', 'playlist-recommendation', 'short-term-profile-recommendation', 'medium-term-profile-recommendation', 'long-term-profile-recommendation', 'mood', 'most-listened-recommendation'].
