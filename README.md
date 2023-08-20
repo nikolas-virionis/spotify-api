@@ -74,7 +74,8 @@ Firstly, it's necessary to import the method start_api from the package spotify_
   --- User ID: The user id is available when clicking the account, and accessing its information, on Spotify's website<br>
   <img src='./readme-pictures/Account.png' width='25%'><br>
   --- Liked Songs: A flag to pass in case the playlist you want to use is your profile Liked Songs <br>
-  --- Log level: the logging package log level. Defaults to INFO, but can be DEBUG, INFO, WARNING and ERROR
+  --- Log level: the logging package log level. Defaults to INFO, but can be DEBUG, INFO, WARNING and ERROR <br>
+  --- Retrieval Type: The retrieval_type parameter must be either "csv" or "web"
 
   - Calling the function:
 ~~~python
@@ -82,15 +83,15 @@ api = start_api(user_id='<USER_ID>')
 ~~~
 Or
 ~~~python
-api = start_api(user_id='<USER_ID>', playlist_url='<PLAYLIST_URL>')
+api = start_api(user_id='<USER_ID>', playlist_url='<PLAYLIST_URL>', retrieval_type='csv')
 ~~~
 Or
 ~~~python
-api = start_api(user_id='<USER_ID>', playlist_id='<PLAYLIST_ID>')
+api = start_api(user_id='<USER_ID>', playlist_id='<PLAYLIST_ID>', retrieval_type='web')
 ~~~
 Or
 ~~~python
-api = start_api(user_id='<USER_ID>', liked_songs=True)
+api = start_api(user_id='<USER_ID>', liked_songs=True, retrieval_type='web')
 ~~~
 Though, to be honest, it is easier and more convenient to use either the playlist URL or the liked_songs flag
 
@@ -108,12 +109,14 @@ Though, to be honest, it is easier and more convenient to use either the playlis
 select_playlist(
     playlist_id: str = None,
     playlist_url: str = None,
-    liked_songs: bool = False
+    liked_songs: bool = False,
+    retrieval_type: str = None
 )
 # Method Use Example
-api.select_playlist(liked_songs=True)
+api.select_playlist(liked_songs=True, retrieval_type='web')
 # Function to select a playlist to be mapped and be available on all the playlist-related recommendation
 # functions on an already existing authentication context
+# The retrieval_type parameter must be either "csv" or "web"
 ~~~~~~
  - get_most_listened
 ~~~python
