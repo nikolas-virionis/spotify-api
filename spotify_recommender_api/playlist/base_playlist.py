@@ -1,5 +1,4 @@
 import pandas as pd
-import spotify_recommender_api.util as util
 
 from abc import ABC, abstractmethod
 from spotify_recommender_api.song import Song
@@ -22,12 +21,12 @@ class BasePlaylist(ABC):
     def get_playlist_from_web(self) -> 'list[Song]':
         pass
 
-    def __init__(self, user_id: str, playlist_id: str = '') -> None:
+    def __init__(self, user_id: str, retrieval_type: str, playlist_id: str = '') -> None:
         self.user_id = user_id
         self.playlist_id = playlist_id
         self.playlist_name = self.get_playlist_name(playlist_id)
 
-        self._dataframe = pd.DataFrame(self._retrieve_playlist_items())
+        self._dataframe = pd.DataFrame(self._retrieve_playlist_items(retrieval_type=retrieval_type))
 
         self._normalize_playlist()
 
@@ -35,12 +34,22 @@ class BasePlaylist(ABC):
         PlaylistFeatures.user_id = self.user_id
 
 
-    def _retrieve_playlist_items(self) -> 'list[Song]':
-        answer = input('Do you want to get the playlist data via CSV, which would have been saved previously, or read from spotify, which will take a few minutes depending on the playlist size (csv/web)? ')
-        while answer.lower() not in ['csv', 'web']:  # , 'parquet'
-            answer = input("Please select a valid response (csv/web): ")
+    def _retrieve_playlist_items(self, retrieval_type: str) -> 'list[Song]':
+        """_summary_
 
-        if answer.lower() == 'csv':
+        Args:
+            retrieval_type (str): The playlist items retrieval type. Has to be either "csv" or "web".
+
+        Raises:
+            FileNotFoundError: In case of the retrieval_type being CSV and there is no CSV file available, the error is raised
+
+        Returns:
+            list[Song]: List of songs in the playlist mapping
+        """
+        if retrieval_type.lower() not in {'csv', 'web'}:
+            raise ValueError('The playlist items retrieval_type has to be either "csv" or "web"')
+
+        if retrieval_type.lower() == 'csv':
             return self.get_playlist_from_csv()
 
         return self.get_playlist_from_web()

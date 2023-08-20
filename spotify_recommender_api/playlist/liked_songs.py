@@ -1,4 +1,5 @@
 import logging
+import spotify_recommender_api.util as util
 
 from typing import Union
 from spotify_recommender_api.song import Song
@@ -7,8 +8,8 @@ from spotify_recommender_api.requests.api_handler import PlaylistHandler
 
 class LikedSongs(BasePlaylist):
 
-    def __init__(self, user_id: str) -> None:
-        super().__init__(user_id, f"{user_id} Liked Songs")
+    def __init__(self, user_id: str, retrieval_type: str) -> None:
+        super().__init__(user_id, retrieval_type, f"{user_id} Liked Songs")
         self.user_id = user_id
         self.playlist_name = f"{user_id} Liked Songs"
 
@@ -25,9 +26,10 @@ class LikedSongs(BasePlaylist):
         songs = []
         total_song_count = self.get_song_count()
 
+        logging.info('Retrieving Liked Songs.')
         for offset in range(0, total_song_count, 50):
-            logging.info(f'Songs mapped: {offset}/{total_song_count}')
 
+            util.progress_bar(offset, total_song_count, suffix=f'{offset}/{total_song_count}', percentage_precision=1)
             playlist_songs = PlaylistHandler.liked_songs(limit=50, offset=offset)
 
             for song in playlist_songs.json()["items"]:
@@ -54,6 +56,8 @@ class LikedSongs(BasePlaylist):
                     )
                 )
 
-        logging.info(f'Songs mapping complete: {total_song_count}/{total_song_count}')
+        util.progress_bar(total_song_count, total_song_count, suffix=f'{total_song_count}/{total_song_count}', percentage_precision=1)
+        print()
+        logging.info('Songs mapping complete')
 
         return songs
