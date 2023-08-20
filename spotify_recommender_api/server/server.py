@@ -54,7 +54,7 @@ def up_server():
             else:
                 break
 
-def get_access_token(auth_code: str) -> str:
+def get_access_token(auth_code: str) -> 'tuple[str, str]':
     """Funciton to request for the access token request
 
     Args:
@@ -71,7 +71,7 @@ def get_access_token(auth_code: str) -> str:
         client_secret=CLIENT_SECRET
     )
 
-    return response.json()["access_token"]
+    return response.json()["access_token"], response.json()["refresh_token"]
 
 @app.get("/", status_code=status.HTTP_200_OK)
 async def auth():
@@ -152,7 +152,10 @@ async def callback(code: str):
         fastapi.responses.HTMLResponse: HTML page to close the web page after the retrieval of the access token
     """
 
-    token = get_access_token(code)
+    token, refresh_token = get_access_token(code)
+
+    with open('./.spotify-recommender-util/execution-refresh.txt', 'w') as f:
+        f.write(refresh_token)
 
     with open('./.spotify-recommender-util/execution.txt', 'w') as f:
         f.write(token)

@@ -5,7 +5,9 @@ import requests
 import functools
 
 from typing import Union, Callable, Any
+from spotify_recommender_api.requests.auth_handler import AuthHandler
 from spotify_recommender_api.auth.authentication import AuthenticationHandler
+from spotify_recommender_api.server.sensitive import CLIENT_ID, CLIENT_SECRET
 from spotify_recommender_api.error import HTTPRequestError, TooManyRequestsError, AccessTokenExpiredError
 
 BASE_URL = 'https://api.spotify.com/v1'
@@ -45,6 +47,18 @@ class RequestHandler:
 
         return wrapper
 
+    @staticmethod
+    def get_refreshed_token(refresh_token: str) -> str:
+        response = AuthHandler.post_request_with_auth(
+            auth=(CLIENT_ID, CLIENT_SECRET),
+            url="https://accounts.spotify.com/api/token",
+            data={
+                "grant_type": "refresh_token",
+                "refresh_token": refresh_token
+            },
+        ).json()
+
+        return response['access_token']
 
     @classmethod
     def _validate_token(cls) -> bool:
@@ -103,8 +117,22 @@ class RequestHandler:
 
         except AccessTokenExpiredError as access_token_expired_error:
             logging.debug("Access token expired")
+            try:
+                with open('./.spotify-recommender-util/execution-refresh.txt', 'r') as f:
+                    refresh_token = f.readline()
 
-            auth_token = AuthenticationHandler._retrive_new_token()
+                    auth_token = cls.get_refreshed_token(refresh_token)
+
+                    AuthenticationHandler._headers['Authorization'] = f'Bearer {auth_token}'
+
+                    cls._validate_token()
+
+                    logging.info('Token refreshed')
+
+            except Exception as refresh_token_error:
+                logging.debug('Error while trying to use the refresh token: ', refresh_token_error)
+
+                auth_token = AuthenticationHandler._retrive_new_token()
 
         except Exception as e:
             logging.error('There was an error while validating the access token', e)
