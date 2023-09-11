@@ -1,3 +1,4 @@
+import nltk
 import logging
 import warnings
 import pandas as pd
@@ -11,6 +12,7 @@ from spotify_recommender_api.playlist.liked_songs import LikedSongs
 from spotify_recommender_api.requests.request_handler import RequestHandler
 
 warnings.filterwarnings('error')
+nltk.download('vader_lexicon', quiet=True)
 
 
 class SpotifyAPI:
@@ -286,7 +288,9 @@ class SpotifyAPI:
                 'energy',
                 'instrumentalness',
                 'tempo',
-                'valence'
+                'valence',
+                'vader_sentiment',
+                'lyrics'
             ]
         ]
 

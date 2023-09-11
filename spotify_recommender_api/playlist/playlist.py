@@ -35,6 +35,8 @@ class Playlist(BasePlaylist):
 
                 danceability, loudness, energy, instrumentalness, tempo, valence = Song.query_audio_features(song_id=song_id)
 
+                vader_sentiment_analysis = Song.vader_sentiment_analysis(song_name=name, artist_name=artists[0].name)
+
                 songs.append(
                     Song(
                         name=name,
@@ -48,7 +50,9 @@ class Playlist(BasePlaylist):
                         popularity=popularity,
                         danceability=danceability,
                         instrumentalness=instrumentalness,
+                        lyrics=vader_sentiment_analysis['lyrics'],
                         artists=[artist.name for artist in artists],
+                        vader_sentiment=vader_sentiment_analysis['vader_sentiment'],
                     )
                 )
 

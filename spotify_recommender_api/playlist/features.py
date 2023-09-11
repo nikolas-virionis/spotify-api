@@ -359,6 +359,7 @@ class PlaylistFeatures:
 
         song_dict = {
             'id': "",
+            'lyrics': "",
             'name': subset_name,
             'genres': artist_songs_genres,
             'artists': artist_songs_artists,
@@ -368,6 +369,7 @@ class PlaylistFeatures:
             'loudness': float(base_songs['loudness'].mean()),
             'popularity': round(base_songs['popularity'].mean()),
             'danceability': float(base_songs['danceability'].mean()),
+            'vader_sentiment': float(base_songs['vader_sentiment'].mean()),
             'instrumentalness': float(base_songs['instrumentalness'].mean()),
             'genres_indexed': util.item_list_indexed(artist_songs_genres, all_items=all_genres),
             'artists_indexed': util.item_list_indexed(artist_songs_artists, all_items=all_artists),
@@ -451,7 +453,7 @@ class PlaylistFeatures:
 
     @staticmethod
     def _create_artist_dataframe(artist_songs: pd.DataFrame, mix_songs: pd.DataFrame, with_distance: bool) -> pd.DataFrame:
-        columns = ['id', 'name', 'artists', 'genres', 'popularity', 'added_at', 'danceability', 'loudness', 'energy', 'instrumentalness', 'tempo', 'valence']
+        columns = ['id', 'name', 'artists', 'genres', 'popularity', 'added_at', 'danceability', 'loudness', 'energy', 'instrumentalness', 'tempo', 'valence', 'vader_sentiment', 'lyrics']
         df = pd.concat([artist_songs[columns], mix_songs[columns]])
 
         if with_distance:
@@ -472,7 +474,8 @@ class PlaylistFeatures:
             song.energy,
             song.instrumentalness,
             song.tempo,
-            song.valence
+            song.valence,
+            song.vader_sentiment
         )
 
     @staticmethod
@@ -499,7 +502,7 @@ class PlaylistFeatures:
         else:
             df = artist_songs.head(number_of_songs).copy()
 
-        columns = ['id', 'name', 'artists', 'genres', 'popularity', 'added_at', 'danceability', 'loudness', 'energy', 'instrumentalness', 'tempo', 'valence']
+        columns = ['id', 'name', 'artists', 'genres', 'popularity', 'added_at', 'danceability', 'loudness', 'energy', 'instrumentalness', 'tempo', 'valence', 'vader_sentiment', 'lyrics']
         df = df[columns]
 
         return df
@@ -534,7 +537,7 @@ class PlaylistFeatures:
         Returns:
             dict[str, dict]: The dictionary with the maximum and minimum values for each audio feature used in the package
         """
-        df = dataframe[['id', 'name', 'artists', 'genres', 'popularity','added_at', 'danceability', 'loudness', 'energy', 'instrumentalness', 'tempo', 'valence']]
+        df = dataframe[['id', 'name', 'artists', 'genres', 'popularity','added_at', 'danceability', 'loudness', 'energy', 'instrumentalness', 'tempo', 'valence', 'vader_sentiment', 'lyrics']]
 
         return {
             'max_loudness': cls._get_extreme_song(df, 'loudness', ascending=False),
@@ -549,6 +552,8 @@ class PlaylistFeatures:
             'min_tempo': cls._get_extreme_song(df, 'tempo', ascending=True),
             'max_valence': cls._get_extreme_song(df, 'valence', ascending=False),
             'min_valence': cls._get_extreme_song(df, 'valence', ascending=True),
+            'max_vader_sentiment': cls._get_extreme_song(df, 'vader_sentiment', ascending=False),
+            'min_vader_sentiment': cls._get_extreme_song(df, 'vader_sentiment', ascending=True),
         }
 
     @staticmethod
@@ -564,7 +569,7 @@ class PlaylistFeatures:
         Returns:
             dict[str, float]: The dictionary with the statistics
         """
-        df: pd.DataFrame = dataframe[['id', 'name', 'artists', 'genres', 'popularity', 'added_at', 'danceability', 'loudness', 'energy', 'instrumentalness', 'tempo', 'valence']]
+        df: pd.DataFrame = dataframe[['id', 'name', 'artists', 'genres', 'popularity', 'added_at', 'danceability', 'loudness', 'energy', 'instrumentalness', 'tempo', 'valence', 'vader_sentiment', 'lyrics']]
 
         return {
             'min_tempo': df['tempo'].min(),
@@ -585,6 +590,9 @@ class PlaylistFeatures:
             'min_instrumentalness': df['instrumentalness'].min(),
             'max_instrumentalness': df['instrumentalness'].max(),
             'mean_instrumentalness': df['instrumentalness'].mean(),
+            'min_vader_sentiment': df['vader_sentiment'].min(),
+            'max_vader_sentiment': df['vader_sentiment'].max(),
+            'mean_vader_sentiment': df['vader_sentiment'].mean(),
         }
 
     @classmethod
@@ -737,12 +745,12 @@ class PlaylistFeatures:
             'calm': {
                 'ascending': True,
                 'sorting': 'energy&loudness',
-                'query': 'valence >= @valence_threshold and energy < @energy_threshold'
+                'query': 'valence >= @valence_threshold and energy < @energy_threshold and loudness < @loudness_threshold'
             },
             'angry': {
                 'ascending': False,
                 'sorting': 'energy&loudness',
-                'query': 'valence < @valence_threshold and energy >= @energy_threshold'
+                'query': 'valence < @valence_threshold and energy >= @energy_threshold and loudness >= @loudness_threshold'
             },
             'happy': {
                 'ascending': False,
@@ -780,17 +788,23 @@ class PlaylistFeatures:
         if mood not in ['happy', 'sad', 'calm']:
             raise ValueError("The mood parameter must be one of the following: 'happy', 'sad', 'calm'")
 
-        energy_threshold = 0.7
+        vader_positive = 0.3
+        vader_negative = -0.3
+        energy_threshold = 0.6
         valence_threshold = 0.5
+        loudness_threshold = 0.5
         instrumentalness_threshold = 0.8
 
         mood_queries = cls._mood_constants()
 
         playlist = cls._create_playlist(
             dataframe=dataframe,
+            vader_positive=vader_positive,
+            vader_negative=vader_negative,
             query=mood_queries[mood]['query'],
             energy_threshold=energy_threshold,
             valence_threshold=valence_threshold,
+            loudness_threshold=loudness_threshold,
             instrumentalness_threshold=instrumentalness_threshold,
             exclude_mostly_instrumental=exclude_mostly_instrumental,
         )
@@ -823,16 +837,18 @@ class PlaylistFeatures:
     @staticmethod
     def _create_playlist(
         query: str,
+        vader_positive: float,
+        vader_negative: float,
         dataframe: pd.DataFrame,
         energy_threshold: float,
         valence_threshold: float,
+        loudness_threshold: float,
         exclude_mostly_instrumental: bool,
         instrumentalness_threshold: float,
     ) -> pd.DataFrame:
         playlist = dataframe.query(query).copy()
 
         if exclude_mostly_instrumental:
-            instrumentalness_threshold = 0.8
             playlist = playlist.query('instrumentalness <= @instrumentalness_threshold')
 
         return playlist
@@ -840,9 +856,9 @@ class PlaylistFeatures:
     @staticmethod
     def _sort_playlist(playlist: pd.DataFrame, sorting: str, ascending: bool) -> pd.DataFrame:
         if sorting == 'energy&valence':
-            playlist['mood_index'] = playlist['energy'] + 3 * playlist['valence']
+            playlist['mood_index'] = playlist['energy'] + 3 * playlist['valence'] + 2 * playlist['vader_sentiment']
         else:
-            playlist['mood_index'] = playlist['energy'] + 3 * playlist['loudness']
+            playlist['mood_index'] = playlist['energy'] + 3 * playlist['loudness'] + playlist['vader_sentiment']
 
         return playlist.sort_values(by='mood_index', ascending=ascending)
 

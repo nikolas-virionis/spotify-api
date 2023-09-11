@@ -50,6 +50,7 @@ class KNNAlgorithm:
             popularity_distance: float,
             artist_recommendation: bool,
             danceability_distance: float,
+            vader_sentiment_distance: float,
             instrumentalness_distance: float
         ) -> float:
         """Function that uses the values for all the individual distances in a weighted equation to determine the total distance between the two songs
@@ -77,6 +78,7 @@ class KNNAlgorithm:
             tempo_distance * 0.0025 +
             loudness_distance * 0.15 +
             danceability_distance * 0.25 +
+            vader_sentiment_distance * 0.6 +
             instrumentalness_distance * 0.4 +
             popularity_distance * (0.003 if artist_recommendation else 0.015)
         )
@@ -112,6 +114,7 @@ class KNNAlgorithm:
         loudness_distance = abs(song_a['loudness'] - song_b['loudness']) # type: ignore
         popularity_distance = abs(song_a['popularity'] - song_b['popularity']) # type: ignore
         danceability_distance = abs(song_a['danceability'] - song_b['danceability']) # type: ignore
+        vader_sentiment_distance = abs(song_a['vader_sentiment'] - song_b['vader_sentiment']) # type: ignore
         genres_distance = cls.list_distance(song_a['genres_indexed'], song_b['genres_indexed']) # type: ignore
         artists_distance = cls.list_distance(song_a['artists_indexed'], song_b['artists_indexed']) # type: ignore
         instrumentalness_distance = abs(round(song_a['instrumentalness'], 2) - round(song_b['instrumentalness'], 2)) # type: ignore
@@ -126,6 +129,7 @@ class KNNAlgorithm:
             popularity_distance=popularity_distance,
             danceability_distance=danceability_distance,
             artist_recommendation=artist_recommendation,
+            vader_sentiment_distance=vader_sentiment_distance,
             instrumentalness_distance=instrumentalness_distance,
         )
 

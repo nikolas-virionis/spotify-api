@@ -1,10 +1,23 @@
 import datetime
 import functools
+import lyricsgenius
 
 from typing import Any
 from dataclasses import dataclass, field
 from spotify_recommender_api.artist import Artist
+from nltk.sentiment.vader import SentimentIntensityAnalyzer
 from spotify_recommender_api.requests.api_handler import SongHandler
+from spotify_recommender_api.server.sensitive import GENIUS_ACCESS_TOKEN
+
+vader_sentiment_analyser = SentimentIntensityAnalyzer()
+genius = lyricsgenius.Genius(
+    retries=5,
+    sleep_time=0,
+    verbose=False,
+    remove_section_headers=True,
+    access_token=GENIUS_ACCESS_TOKEN,
+)
+
 
 @dataclass(frozen=True)
 class Song:
@@ -19,6 +32,8 @@ class Song:
     instrumentalness: float
     tempo: float
     valence: float
+    lyrics: str
+    vader_sentiment: float
     genres: 'list[str]' = field(default_factory=list)
     artists: 'list[str]' = field(default_factory=list)
     added_at: datetime.datetime = datetime.datetime.now()
@@ -89,3 +104,26 @@ class Song:
             song.get('added_at', datetime.datetime.now()),
         )
 
+    @staticmethod
+    def vader_sentiment_analysis(song_name: str, artist_name: str) -> 'tuple[str, float]':
+        genius_song = None
+
+        for _ in range(5):
+            if genius_song is not None:
+                break
+            genius_song = genius.search_song(song_name, artist_name, get_full_info=False)
+
+        if genius_song is None:
+            return {
+                'lyrics': '',
+                'vader_sentiment': 0
+            }
+
+        lyrics = '\n'.join(genius_song.lyrics.split('\n')[1:])
+
+        vader_analysis = vader_sentiment_analyser.polarity_scores(lyrics)
+
+        return {
+            'lyrics': lyrics,
+            'vader_sentiment': vader_analysis['compound']
+        }
