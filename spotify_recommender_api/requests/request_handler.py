@@ -166,7 +166,7 @@ class RequestHandler:
 
                 try:
                     if response.status_code != 204 and 'error' in response.json():
-                        raise HTTPRequestError(func_name=func.__name__, err_code=f"{response.status_code}: {response.json()['error']['message']}", message=None, *args, **kwargs)
+                        raise HTTPRequestError(func_name=func.__name__, err_code=f"{response.status_code}", message=None, *args, **kwargs) # : {response.json()['error']['message']}
                 except requests.exceptions.JSONDecodeError:
                     logging.debug(f'json decode error: {response.status_code} - {response.json()}')
                     return None
@@ -179,7 +179,7 @@ class RequestHandler:
                     raise AccessTokenExpiredError(func_name=func.__name__, message=None, *args, **kwargs) from e
 
                 if response.status_code != 429 and response.status_code < 500:
-                    raise HTTPRequestError(func_name=func.__name__, err_code=f"{response.status_code}: {response.json()['error']['message']}", message=None, *args, **kwargs) from e
+                    raise HTTPRequestError(func_name=func.__name__, err_code=f"{response.status_code}", message=None, *args, **kwargs) from e # : {response.json()['error']['message']}
 
                 if response.status_code >= 500:
                     logging.info('There has been an internal error in the Spotify API.')
@@ -199,7 +199,7 @@ class RequestHandler:
         return requests.Response()
 
     @classmethod
-    def get_request(cls, url: str, retries: int = 10) -> requests.Response:
+    def get_request(cls, url: str, retries: int = 5) -> requests.Response:
         """GET request with integrated exponential backoff retry strategy
 
         Args:
@@ -212,7 +212,7 @@ class RequestHandler:
         return cls.exponential_backoff(func=requests.get, url=url, headers=AuthenticationHandler._headers, retries=retries)
 
     @classmethod
-    def post_request(cls, url: str, data: Union[dict, None] = None, retries: int = 10) -> requests.Response:
+    def post_request(cls, url: str, data: Union[dict, None] = None, retries: int = 5) -> requests.Response:
         """POST request with integrated exponential backoff retry strategy
 
         Args:
@@ -226,7 +226,7 @@ class RequestHandler:
         return cls.exponential_backoff(func=requests.post, url=url, headers=AuthenticationHandler._headers, data=json.dumps(data), retries=retries)
 
     @classmethod
-    def post_request_dict(cls, url: str, data: Union[dict, None] = None, retries: int = 10) -> requests.Response:
+    def post_request_dict(cls, url: str, data: Union[dict, None] = None, retries: int = 5) -> requests.Response:
         """POST request with integrated exponential backoff retry strategy
 
         Args:
@@ -240,7 +240,7 @@ class RequestHandler:
         return cls.exponential_backoff(func=requests.post, url=url, headers=AuthenticationHandler._headers, data=data, retries=retries)
 
     @classmethod
-    def put_request(cls, url: str, data: Union[dict, None] = None, retries: int = 10) -> requests.Response:
+    def put_request(cls, url: str, data: Union[dict, None] = None, retries: int = 5) -> requests.Response:
         """PUT request with integrated exponential backoff retry strategy
 
         Args:
@@ -254,7 +254,7 @@ class RequestHandler:
         return cls.exponential_backoff(func=requests.put, url=url, headers=AuthenticationHandler._headers, data=json.dumps(data), retries=retries)
 
     @classmethod
-    def delete_request(cls, url: str, data: Union[dict, None] = None, retries: int = 10) -> requests.Response:
+    def delete_request(cls, url: str, data: Union[dict, None] = None, retries: int = 5) -> requests.Response:
         """DELETE request with integrated exponential backoff retry strategy
 
         Args:
