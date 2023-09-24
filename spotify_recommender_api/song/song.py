@@ -26,14 +26,14 @@ class Song:
     id: str
     name: str
     popularity: int
-    danceability: float
-    loudness: float
-    energy: float
-    instrumentalness: float
-    tempo: float
-    valence: float
-    lyrics: str
-    vader_sentiment: float
+    danceability: float = 0
+    loudness: float = 0
+    energy: float = 0
+    instrumentalness: float = 0
+    tempo: float = 0
+    valence: float = 0
+    lyrics: str = ''
+    vader_sentiment: float = 0
     genres: 'list[str]' = field(default_factory=list)
     artists: 'list[str]' = field(default_factory=list)
     added_at: datetime.datetime = datetime.datetime.now()
@@ -77,6 +77,30 @@ class Song:
         )
 
     @staticmethod
+    def batch_query_audio_features(song_ids: 'list[str]') -> 'list[dict[str, float | int]]':
+        """Query the audio features of a song.
+
+        Args:
+            song_ids (list[str]): IDs of the songs.
+
+        Returns:
+            tuple[float, ...]: Tuple of audio features.
+        """
+        response = SongHandler.batch_query_audio_features(song_ids).json()
+
+        return [
+            {
+                'danceability': audio_features['danceability'],
+                'loudness': audio_features['loudness'] / -60,
+                'energy': audio_features['energy'],
+                'instrumentalness': audio_features['instrumentalness'],
+                'tempo': audio_features['tempo'],
+                'valence': audio_features['valence']
+            }
+            for audio_features in response['audio_features']
+        ]
+
+    @staticmethod
     def song_data(song: 'dict[str, Any]') -> 'tuple[str, str, int, list[Artist], datetime.datetime]':
         """Extract relevant data from a song dictionary.
 
@@ -102,6 +126,31 @@ class Song:
                 for artist in song.get("artists", [])
             ],
             song.get('added_at', datetime.datetime.now()),
+        )
+
+    @staticmethod
+    def song_data_batch(song: 'dict[str, Any]') -> 'tuple[str, str, int, list[Artist], datetime.datetime]':
+        """Extract relevant data from a song dictionary.
+
+        Args:
+            song (dict[str, Any]): Song data dictionary.
+
+        Returns:
+            tuple[str, str, int, list[Artist], datetime.datetime]: Tuple of song data.
+        """
+        if "track" in song:
+            song = song['track']
+
+        return (
+            song['id'],
+            song['name'],
+            song['popularity'],
+            [
+                artist['name']
+                for artist in song.get("artists", [])
+            ],
+            song.get('added_at', datetime.datetime.now()),
+            Artist.get_artists_genres([artist['id'] for artist in song.get("artists", [])])
         )
 
     @staticmethod

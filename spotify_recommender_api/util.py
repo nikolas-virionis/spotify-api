@@ -190,3 +190,15 @@ def progress_bar(count_value: Union[int, float], total: Union[int, float], suffi
 
     sys.stdout.write(output)
     sys.stdout.flush()
+
+def chunk_list(input_list: list, chunk_size: int) -> 'list[list]':
+    """Function to divide a list of items into a list of smaller lists of items
+
+    Args:
+        input_list (list): whole list
+        chunk_size (int): numbers of items per chunk
+
+    Returns:
+        list[list]: divided list
+    """
+    return [input_list[i:i+chunk_size] for i in range(0, len(input_list), chunk_size)]

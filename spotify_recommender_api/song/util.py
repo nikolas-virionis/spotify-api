@@ -1,3 +1,5 @@
+import spotify_recommender_api.util as util
+
 from spotify_recommender_api.song.song import Song
 
 
@@ -17,30 +19,32 @@ class SongUtil:
         """
         songs = []
 
-        for song in recommendations[dict_key]:
-            song_id, name, popularity, artists, _ = Song.song_data(song=song)
-            song_genres = Song.get_song_genres(artists=artists)
+        for songs_chunk in util.chunk_list(recommendations[dict_key], 50):
 
-            danceability, loudness, energy, instrumentalness, tempo, valence = Song.query_audio_features(song_id=song_id)
+            song_batch = []
+            for song in songs_chunk:
+                song_id, name, popularity, artists, _, genres = Song.song_data_batch(song=song)
 
-            vader_sentiment_analysis = Song.vader_sentiment_analysis(song_name=name, artist_name=artists[0].name)
+                vader_sentiment_analysis = Song.vader_sentiment_analysis(song_name=name, artist_name=artists[0])
 
-            songs.append(
-                Song(
-                    name=name,
-                    id=song_id,
-                    tempo=tempo,
-                    energy=energy,
-                    valence=valence,
-                    loudness=loudness,
-                    genres=song_genres,
-                    popularity=popularity,
-                    danceability=danceability,
-                    instrumentalness=instrumentalness,
-                    lyrics=vader_sentiment_analysis['lyrics'],
-                    artists=[artist.name for artist in artists],
-                    vader_sentiment=vader_sentiment_analysis['vader_sentiment'],
-                )
-            )
+                song_batch.append({
+                    'name': name,
+                    'id': song_id,
+                    'genres': genres,
+                    'popularity': popularity,
+                    'lyrics': vader_sentiment_analysis['lyrics'],
+                    'artists': [artist for artist in artists],
+                    'vader_sentiment': vader_sentiment_analysis['vader_sentiment'],
+                })
+
+            songs_ids = [song['id'] for song in songs_chunk]
+
+            songs_audio_features = Song.batch_query_audio_features(songs_ids)
+
+            for song, song_audio_features in zip(song_batch, songs_audio_features):
+                song.update(song_audio_features)
+
+            songs += song_batch
+
 
         return songs

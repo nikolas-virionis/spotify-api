@@ -26,35 +26,34 @@ class Playlist(BasePlaylist):
         for offset in range(0, total_song_count, 100):
             util.progress_bar(offset, total_song_count, suffix=f'{offset}/{total_song_count}', percentage_precision=1)
 
+            song_batch = []
+
             playlist_songs = PlaylistHandler.playlist_songs(playlist_id=self.playlist_id, limit=100, offset=offset)
 
             for song in playlist_songs.json()["items"]:
-                song_id, name, popularity, artists, added_at = Song.song_data(song=song)
+                song_id, name, popularity, artists, added_at, genres = Song.song_data_batch(song)
 
-                song_genres = Song.get_song_genres(artists=artists)
+                vader_sentiment_analysis = Song.vader_sentiment_analysis(song_name=name, artist_name=artists[0])
 
-                danceability, loudness, energy, instrumentalness, tempo, valence = Song.query_audio_features(song_id=song_id)
+                song_batch.append({
+                    'name': name,
+                    'id': song_id,
+                    'genres': genres,
+                    'added_at': added_at,
+                    'popularity': popularity,
+                    'lyrics': vader_sentiment_analysis['lyrics'],
+                    'artists': [artist for artist in artists],
+                    'vader_sentiment': vader_sentiment_analysis['vader_sentiment'],
+                })
 
-                vader_sentiment_analysis = Song.vader_sentiment_analysis(song_name=name, artist_name=artists[0].name)
+            songs_ids = [song['track']['id'] for song in playlist_songs.json()["items"]]
 
-                songs.append(
-                    Song(
-                        name=name,
-                        id=song_id,
-                        tempo=tempo,
-                        energy=energy,
-                        valence=valence,
-                        added_at=added_at,
-                        loudness=loudness,
-                        genres=song_genres,
-                        popularity=popularity,
-                        danceability=danceability,
-                        instrumentalness=instrumentalness,
-                        lyrics=vader_sentiment_analysis['lyrics'],
-                        artists=[artist.name for artist in artists],
-                        vader_sentiment=vader_sentiment_analysis['vader_sentiment'],
-                    )
-                )
+            songs_audio_features = Song.batch_query_audio_features(songs_ids[:len(songs_ids)//2]) + Song.batch_query_audio_features(songs_ids[len(songs_ids)//2:])
+
+            for song, song_audio_features in zip(song_batch, songs_audio_features):
+                song.update(song_audio_features)
+
+            songs += song_batch
 
         util.progress_bar(total_song_count, total_song_count, suffix=f'{total_song_count}/{total_song_count}', percentage_precision=1)
         print()
