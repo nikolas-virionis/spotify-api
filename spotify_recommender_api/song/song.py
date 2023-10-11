@@ -1,3 +1,4 @@
+import logging
 import datetime
 import functools
 import lyricsgenius
@@ -160,7 +161,11 @@ class Song:
         for _ in range(5):
             if genius_song is not None:
                 break
-            genius_song = genius.search_song(song_name, artist_name, get_full_info=False)
+            try:
+                genius_song = genius.search_song(song_name, artist_name, get_full_info=False)
+            except Exception as e:
+                logging.warning(f'Error while searching for song lyrics on genius: {e}')
+                genius_song = None
 
         if genius_song is None:
             return {
