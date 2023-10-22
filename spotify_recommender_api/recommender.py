@@ -2,6 +2,7 @@ import nltk
 import logging
 import warnings
 import pandas as pd
+nltk.download('vader_lexicon', quiet=True)
 import spotify_recommender_api.util as util
 
 from typing import Union, Any, Callable
@@ -12,7 +13,6 @@ from spotify_recommender_api.playlist.liked_songs import LikedSongs
 from spotify_recommender_api.requests.request_handler import RequestHandler
 
 warnings.filterwarnings('error')
-nltk.download('vader_lexicon', quiet=True)
 
 
 class SpotifyAPI:
