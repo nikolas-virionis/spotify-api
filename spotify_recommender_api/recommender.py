@@ -133,6 +133,34 @@ class SpotifyAPI:
             number_of_songs=number_of_songs,
         )
 
+    def get_recently_played(self, time_range: str = 'last-day', number_of_songs: int = 50, build_playlist: bool = False) -> pd.DataFrame:
+        """Function that creates the last played songs playlist for a given period of time in the users profile
+
+        Args:
+            time_range (str, optional): time range ('last-30-minutes', 'last-hour', 'last-3-hours', 'last-6-hours', 'last-12-hours', 'last-day', 'last-3-days', 'last-week', 'last-2-weeks', 'last-month', 'last-3-months', 'last-6-months', 'last-year'). Defaults to 'last-day'.
+            number_of_songs (int, optional): Number of the most listened songs to return. Defaults to 50.
+            build_playlist (bool, optional): Whether to create, or update, a playlist in the user's library. Defaults to False.
+
+        Raises:
+            ValueError: time range does not correspond to a valid time range ('last-30-minutes', 'last-hour', 'last-3-hours', 'last-6-hours', 'last-12-hours', 'last-day', 'last-3-days', 'last-week', 'last-2-weeks', 'last-month', 'last-3-months', 'last-6-months', 'last-year')
+            ValueError: Value for number_of_songs must be between 1 and 1500
+
+
+        Returns:
+            pd.DataFrame: pandas DataFrame containing the last "number_of_songs" songs played in the time range
+        """
+        if time_range not in ['last-30-minutes', 'last-hour', 'last-3-hours', 'last-6-hours', 'last-12-hours', 'last-day', 'last-3-days', 'last-week', 'last-2-weeks', 'last-month', 'last-3-months', 'last-6-months', 'last-year']:
+            raise ValueError("time_range must be one of the following: 'last-30-minutes', 'last-hour', 'last-3-hours', 'last-6-hours', 'last-12-hours', 'last-day', 'last-3-days', 'last-week', 'last-2-weeks', 'last-month', 'last-3-months', 'last-6-months', 'last-year'")
+
+        if not (1 <= number_of_songs <= 1500):
+            raise ValueError(f'Value for number_of_songs must be between 1 and 1500: Songs recently played in the {time_range}')
+
+        return self.user.get_recently_played(
+            time_range=time_range,
+            build_playlist=build_playlist,
+            number_of_songs=number_of_songs,
+        )
+
     def get_profile_recommendation(
             self,
             number_of_songs: int = 50,

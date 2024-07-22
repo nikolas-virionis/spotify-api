@@ -13,7 +13,7 @@ from spotify_recommender_api.server.sensitive import CLIENT_ID, CLIENT_SECRET
 app = FastAPI()
 
 redirect_uri = 'http://localhost:8000/callback'
-scope = ["playlist-modify-private", "playlist-read-private", "user-library-read", "user-library-modify", "user-top-read"]
+scope = ["playlist-modify-private", "playlist-read-private", "user-library-read", "user-library-modify", "user-top-read", "user-read-recently-played"]
 
 
 class Server(uvicorn.Server):

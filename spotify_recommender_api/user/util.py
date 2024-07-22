@@ -1,10 +1,15 @@
 import re
 import html
+import time
 import logging
+import datetime
 import pandas as pd
+import spotify_recommender_api.util as util
 
 from typing import Union
 from functools import reduce
+from dateutil.tz import tzutc
+from spotify_recommender_api.song import Song
 from spotify_recommender_api.song.util import SongUtil
 from spotify_recommender_api.playlist.base_playlist import BasePlaylist
 from spotify_recommender_api.requests.api_handler import LibraryHandler, UserHandler
@@ -858,57 +863,120 @@ class UserUtil:
             number_of_songs=total_tracks,
         )
 
+    @staticmethod
+    def _get_timedelta_from_time_range(time_range: str) -> datetime.timedelta:
+        """Gets the timedelta from a time range.
+
+        Args:
+            time_range (str): The time range, which needs to be one of the following: 'last-30-minutes', 'last-hour', 'last-3-hours', 'last-6-hours', 'last-12-hours', 'last-day', 'last-3-days', 'last-week', 'last-2-weeks', 'last-month', 'last-3-months', 'last-6-months', 'last-year'
+
+        Returns:
+            timedelta: The timedelta from the time range.
+        """
+        if time_range == 'last-30-minutes':
+            return datetime.timedelta(minutes=30)
+        if time_range == 'last-hour':
+            return datetime.timedelta(hours=1)
+        if time_range == 'last-3-hours':
+            return datetime.timedelta(hours=3)
+        if time_range == 'last-6-hours':
+            return datetime.timedelta(hours=6)
+        if time_range == 'last-12-hours':
+            return datetime.timedelta(hours=12)
+        if time_range == 'last-day':
+            return datetime.timedelta(days=1)
+        if time_range == 'last-3-days':
+            return datetime.timedelta(days=3)
+        if time_range == 'last-week':
+            return datetime.timedelta(weeks=1)
+        if time_range == 'last-2-weeks':
+            return datetime.timedelta(weeks=2)
+        if time_range == 'last-month':
+            return datetime.timedelta(days=30)
+        if time_range == 'last-3-months':
+            return datetime.timedelta(days=90)
+        if time_range == 'last-6-months':
+            return datetime.timedelta(days=180)
+        if time_range == 'last-year':
+            return datetime.timedelta(days=365)
+
+        raise ValueError("Invalid time range")
 
 
+    @classmethod
+    def _get_timestamp_from_time_range(cls, time_range: str) -> int:
+        """Gets the timestamp from a time range.
 
+        Args:
+            time_range (str): The time range, which needs to be one of the following: 'last-30-minutes', 'last-hour', 'last-3-hours', 'last-6-hours', 'last-12-hours', 'last-day', 'last-3-days', 'last-week', 'last-2-weeks', 'last-month', 'last-3-months', 'last-6-months', 'last-year'
 
+        Returns:
+            int: The timestamp from the time range.
+        """
+        now = datetime.datetime.now(tz=tzutc())
 
+        after = now - cls._get_timedelta_from_time_range(time_range)
 
+        return time.mktime(after.timetuple()) * 1_000
 
+    @classmethod
+    def get_recently_played_songs(cls, after: int, limit: int, before: Union[int, None] = None) -> 'list[dict[str, str]]':
+        """Get the recently played songs.
 
+        Args:
+            after (int): The timestamp to get the recently played songs after.
+            limit (int): The number of songs to get.
 
+        Returns:
+            dict: The recently played songs.
+        """
 
+        songs = []
+        next_url = None
+        for offset in range(0, limit, 50):
+            util.progress_bar(offset, limit, suffix=f'{offset}/{limit}', percentage_precision=1)
 
+            song_batch = []
 
+            recently_played = UserHandler.get_recently_played_songs(after=after, limit=min(limit, 50), next=next_url).json()
 
+            if not recently_played.get('items'):
+                break
 
+            for song in recently_played.json()["items"]:
+                song_id, name, popularity, artists, added_at, genres = Song.song_data_batch(song)
 
+                vader_sentiment_analysis = Song.vader_sentiment_analysis(song_name=name, artist_name=artists[0])
 
+                song_batch.append({
+                    'name': name,
+                    'id': song_id,
+                    'genres': genres,
+                    'added_at': added_at,
+                    'popularity': popularity,
+                    'lyrics': vader_sentiment_analysis['lyrics'],
+                    'artists': list(artists),
+                    'vader_sentiment': vader_sentiment_analysis['vader_sentiment'],
+                })
 
+            songs_ids = [song['track']['id'] for song in recently_played.json()["items"]]
 
+            songs_audio_features = Song.batch_query_audio_features(songs_ids[:len(songs_ids)//2]) + Song.batch_query_audio_features(songs_ids[len(songs_ids)//2:])
 
+            for song, song_audio_features in zip(song_batch, songs_audio_features):
+                song.update(song_audio_features)
 
+            songs += song_batch
 
+            next_url = recently_played.get('next')
 
+        util.progress_bar(len(songs), len(songs), suffix=f'{len(songs)}/{len(songs)}', percentage_precision=1)
 
+        if len(songs) < limit:
+            logging.info(
+                'The number of recently played songs is less than the limit, '
+                f'due to there being less than {limit} songs played in the selected time range. '
+                f'Returning {len(songs)} songs'
+            )
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+        return songs

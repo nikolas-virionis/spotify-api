@@ -39,17 +39,34 @@ class User:
             recommendations=top,
         )
 
-        dataframe = pd.DataFrame(data=top_songs)
-        ids = dataframe['id'].tolist()
+        return UserUtil._build_playlist_df(
+            data=top_songs,
+            time_range=time_range,
+            build_playlist=build_playlist,
+            playlist_type='most-listened',
+        )
 
-        if build_playlist:
-            Library.write_playlist(
-                ids=ids,
-                user_id=self.user_id,
-                playlist_type=f'most-listened-{time_range}',
-            )
+    def get_recently_played(self, time_range: str, number_of_songs: int = 50, build_playlist: bool = False) -> pd.DataFrame:
+        """Function that creates the last played songs playlist for a given period of time in the users profile
 
-        return dataframe
+        Args:
+            time_range (str, optional): time range ('last-30-minutes', 'last-hour', 'last-3-hours', 'last-6-hours', 'last-12-hours', 'last-day', 'last-3-days', 'last-week', 'last-2-weeks', 'last-month', 'last-3-months', 'last-6-months', 'last-year'). Defaults to 'last-day'.
+            number_of_songs (int, optional): Number of the most listened songs to return. Defaults to 50.
+            build_playlist (bool, optional): Whether to create, or update, a playlist in the user's library. Defaults to False.
+
+        Returns:
+            pd.DataFrame: pandas DataFrame containing the last "number_of_songs" songs played in the time range
+        """
+        after = UserUtil._get_timestamp_from_time_range(time_range)
+
+        recently_played_songs = UserUtil.get_recently_played_songs(limit=number_of_songs, after=after)
+
+        return UserUtil._build_playlist_df(
+            time_range=time_range,
+            data=recently_played_songs,
+            build_playlist=build_playlist,
+            playlist_type='recently-played',
+        )
 
     def get_profile_recommendation(
             self,

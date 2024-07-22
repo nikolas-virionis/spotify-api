@@ -32,8 +32,8 @@ class SongUtil:
                     'id': song_id,
                     'genres': genres,
                     'popularity': popularity,
+                    'artists': list(artists),
                     'lyrics': vader_sentiment_analysis['lyrics'],
-                    'artists': [artist for artist in artists],
                     'vader_sentiment': vader_sentiment_analysis['vader_sentiment'],
                 })
 
