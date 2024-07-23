@@ -1,4 +1,4 @@
-
+import os
 import time
 import uvicorn
 import threading
@@ -153,6 +153,9 @@ async def callback(code: str):
     """
 
     token, refresh_token = get_access_token(code)
+
+    if not os.path.exists('./.spotify-recommender-util/'):
+        os.mkdir('./.spotify-recommender-util/')
 
     with open('./.spotify-recommender-util/execution-refresh.txt', 'w') as f:
         f.write(refresh_token)

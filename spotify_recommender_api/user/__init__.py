@@ -1,1 +1,1 @@
-from spotify_recommender_api.user.user import User
+from spotify_recommender_api.user.user import User, RECENTLY_PLAYED_CRITERIAS, RECENTLY_PLAYED_TIME_RANGES, MOST_LISTENED_TIME_RANGES
