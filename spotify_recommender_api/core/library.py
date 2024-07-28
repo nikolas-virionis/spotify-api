@@ -4,7 +4,7 @@ import datetime
 import contextlib
 
 from typing import Union, Any
-from spotify_recommender_api.requests.api_handler import LibraryHandler, PlaylistHandler
+from spotify_recommender_api.requests import LibraryHandler, PlaylistHandler
 
 class Library:
 
@@ -365,7 +365,7 @@ class Library:
         Returns:
             tuple[str, str]: The playlist name and description.
         """
-        time_range = kwargs['time_range'].replace('_', ' ')
+        time_range = kwargs['time_range'].replace('-', ' ')
         playlist_name = f"Recently played songs in the {time_range}".capitalize()
         description = f"{'All ' if kwargs['all_songs'] else ''}Songs played in the {time_range}"
 
@@ -387,9 +387,9 @@ class Library:
         Returns:
             tuple[str, str]: The playlist name and description.
         """
-        time_range = kwargs['time_range'].replace('_', ' ')
+        time_range = kwargs['time_range'].replace('-', ' ')
         criteria = kwargs['criteria']
-        playlist_name = f"Recently played Recommendations in the {time_range}".capitalize()
+        playlist_name = f"Recently played recommendations in the {time_range}".capitalize()
         description = f"Recommendation playlist based on {criteria} criteria of the recently played in the {time_range}"
 
         if kwargs['save_with_date']:
@@ -452,6 +452,8 @@ class Library:
                     ' Term Most-listened Tracks' in playlist[1] or
                     f', within the playlist {base_playlist_name}' in playlist[2] or
                     'Recommendation (' in name or
+                    'Recently played songs in the ' in name or
+                    'Recently played recommendations in the ' in name or
                     not playlist[2]
                 )
             ),

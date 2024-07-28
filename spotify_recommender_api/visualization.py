@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 
 from typing import Union
 
-sns.set()
+sns.set_theme()
 
 
 def plot_bar_chart(df: pd.DataFrame, chart_title: Union[str, None] = None, top: int = 10, plot_max: bool = True) -> None:

@@ -1,16 +1,13 @@
-import nltk
 import logging
 import warnings
 import pandas as pd
-nltk.download('vader_lexicon', quiet=True)
 import spotify_recommender_api.util as util
 
-from typing import Union, Any, Callable
-from spotify_recommender_api.playlist.playlist import Playlist
-from spotify_recommender_api.error import NoPlaylistProvidedError
-from spotify_recommender_api.playlist.liked_songs import LikedSongs
-from spotify_recommender_api.requests.request_handler import RequestHandler
-from spotify_recommender_api.user import User, RECENTLY_PLAYED_CRITERIAS, RECENTLY_PLAYED_TIME_RANGES, MOST_LISTENED_TIME_RANGES
+from spotify_recommender_api.requests  import RequestHandler
+from typing                            import Union, Any, Callable
+from spotify_recommender_api.playlist  import Playlist, LikedSongs
+from spotify_recommender_api.error     import NoPlaylistProvidedError
+from spotify_recommender_api.user      import User, RECENTLY_PLAYED_CRITERIAS, RECENTLY_PLAYED_TIME_RANGES, MOST_LISTENED_TIME_RANGES
 
 warnings.filterwarnings('error')
 
@@ -166,6 +163,7 @@ class SpotifyAPI:
             save_with_date=save_with_date,
             build_playlist=build_playlist,
             number_of_songs=number_of_songs,
+            _auto=False
         )
 
     def get_recently_played_recommendations(
@@ -208,6 +206,7 @@ class SpotifyAPI:
             save_with_date=save_with_date,
             build_playlist=build_playlist,
             number_of_songs=number_of_songs,
+            _auto=False
         )
 
     def get_profile_recommendation(
@@ -365,9 +364,7 @@ class SpotifyAPI:
                 'energy',
                 'instrumentalness',
                 'tempo',
-                'valence',
-                'vader_sentiment',
-                'lyrics'
+                'valence'
             ]
         ]
 
@@ -606,8 +603,8 @@ class SpotifyAPI:
             This function's progress is NOT linear since the different playlist types need different API calls and agregations, which interfere with the time each one will take.
 
         Arguments:
-            playlist_types_to_update (list[str], optional, keyword-argument): List of playlist types to update. For example, if you only want to update song-related playlists use this argument as ['song-related']. Defaults to all == ['most-listened-tracks', 'song-related', 'artist-mix', 'artist-full', 'playlist-recommendation', 'short-term-profile-recommendation', 'medium-term-profile-recommendation', 'long-term-profile-recommendation', 'mood', 'most-listened-recommendation', recently-played', 'recently-played-recommendations'].
-            playlist_types_not_to_update (list[str], optional, keyword-argument): List of playlist types not to update. For example, if you want to update all playlists but song-related playlists use this argument as ['song-related']. it can be used alongside with the playlist_types_to_update but it can become confusing or redundant. Defaults to none == [].
+            - playlist_types_to_update (list[str], optional, keyword-argument): List of playlist types to update. For example, if you only want to update song-related playlists use this argument as ['song-related']. Defaults to all == ['most-listened-tracks', 'song-related', 'artist-mix', 'artist-full', 'playlist-recommendation', 'short-term-profile-recommendation', 'medium-term-profile-recommendation', 'long-term-profile-recommendation', 'mood', 'most-listened-recommendation', 'recently-played', 'recently-played-recommendations'].
+            - playlist_types_not_to_update (list[str], optional, keyword-argument): List of playlist types not to update. For example, if you want to update all playlists but song-related playlists use this argument as ['song-related']. it can be used alongside with the playlist_types_to_update but it can become confusing or redundant. Defaults to none == [].
         """
         self.user.update_all_generated_playlists(
             base_playlist=getattr(self, 'playlist', None),
@@ -616,9 +613,10 @@ class SpotifyAPI:
         )
 
 def start_api(
-    user_id: str, *,
+    *,
     log_level: str = 'INFO',
     liked_songs: bool = False,
+    user_id: Union[str, None] = None,
     playlist_url: Union[str, None] = None,
     playlist_id: Union[str, None] = None,
 ) -> SpotifyAPI:
@@ -627,14 +625,12 @@ def start_api(
     Note:
         Internet Connection is required
 
-    Args:
-        user_id(str): the id of user, present in the user account profile
-
     Keyword Arguments:
-        playlist_url (str, optional, keyword-argument only): the url for the playlist, which is visible when trying to share it. Defaults to False.
-        playlist_id (str, optional, keyword-argument only): the id of the playlist, an unique big hash which identifies the playlist. Defaults to False.
-        liked_songs (bool, optional, keyword-argument only): A flag to identify if the playlist to be mapped is the Liked Songs. Defaults to False.
-        log_level (str, optional, keyword-argument only): The log level, of the logging library, to be used. Defaults to INFO
+        - log_level (str, optional, keyword-argument only): The log level, of the logging library, to be used. Defaults to INFO
+        - liked_songs (bool, optional, keyword-argument only): A flag to identify if the playlist to be mapped is the Liked Songs. Defaults to False.
+        - user_id( str, optional, keyword-argument only): *Deprecated* The id of user, present in the user account profile. After version 5.4.0 it is retrieved via the api, instead. But for the purpose of backwars compatibility it is still available.
+        - playlist_url (str, optional, keyword-argument only): the url for the playlist, which is visible when trying to share it. Defaults to False.
+        - playlist_id (str, optional, keyword-argument only): the id of the playlist, an unique big hash which identifies the playlist. Defaults to False.
 
     Raises:
         ValueError: when passing the arguments, there should be only one or none filled between playlist_url, playlist_id and liked_songs
@@ -651,6 +647,8 @@ def start_api(
         format='%(asctime)s.%(msecs)03d - %(levelname)s: %(message)s',
     )
 
+    logging.warning('After version 5.4.0 it has been noticed that more and more 429 errors are being raised, and no amount of exponential backoff can handle them, which are related to the Spotify API rate limits. If you encounter this error, please wait a little before trying again. If the problem persists, please submit an issue at the github repo, but close to the middle of July/2024 a extension request has been submitted to Spotify to increase the rate limits and if/when it is accepted, the problem will go away.')
+
     if (playlist_url is not None or playlist_id is not None) and liked_songs or (playlist_url is not None and playlist_id is not None):
         raise ValueError('It is necessary to specify only one or none of the following parameters: playlist_id or playlist_url or liked_songs')
 
@@ -658,5 +656,13 @@ def start_api(
 
     RequestHandler.get_auth()
     logging.debug('Authentication complete')
+
+    if user_id is None:
+        logging.debug('Retrieving User ID')
+        user_id = User.retrieve_user_id()
+        logging.info(f'Retrieved user id: {user_id}')
+    else:
+        logging.info('After version 5.4.0, the argument user_id is not mandatory, since it is now retrieved via the api. But when passed, it overrides this configuration')
+        logging.info(f'Using user_id: {user_id}')
 
     return SpotifyAPI(playlist_id=playlist_id, user_id=user_id, playlist_url=playlist_url, liked_songs=liked_songs)

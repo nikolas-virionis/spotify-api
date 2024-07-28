@@ -280,20 +280,31 @@ class UserHandler:
         return RequestHandler.get_request(url=f'{BASE_URL}/me/top/artists?{time_range=!s}&{limit=!s}')
 
     @staticmethod
-    def get_recently_played_songs(after: int, limit: int, next_url: str = None) -> requests.Response:
+    def get_recently_played_songs(before: int, limit: int) -> requests.Response:
         """
         Get the user's recently played songs.
 
         Args:
-            after (int): The timestamp in milliseconds to get songs after.
+            before (int): The timestamp in milliseconds to get songs before.
             limit (int): The maximum number of songs to retrieve.
 
         Returns:
             requests.Response: The response object containing the user's recently played songs.
         """
-        url = f'{BASE_URL}/me/player/recently-played?{after=!s}&{limit=!s}' if next_url is None else next_url
+        url = f'{BASE_URL}/me/player/recently-played?{before=!s}&{limit=!s}'
 
         return RequestHandler.get_request(url=url)
+
+    @staticmethod
+    def get_user_profile() -> requests.Response:
+        """
+        Get the user's profile.
+
+        Returns:
+            requests.Response: The response object containing the user's profile.
+        """
+        return RequestHandler.get_request(url=f'{BASE_URL}/me')
+
 
 class ArtistHandler:
     """Class for handling Spotify artist-related API requests."""

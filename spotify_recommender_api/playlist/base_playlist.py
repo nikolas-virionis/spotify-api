@@ -70,24 +70,9 @@ class BasePlaylist(ABC):
 
     def _retrieve_playlist_csv(self) -> pd.DataFrame:
         try:
-            csv_playlist = pd.read_csv(f'{self.playlist_name}.csv', index_col=[0])
-
-            if all(col in csv_playlist.columns for col in {'lyrics', 'vader_sentiment'}):
-                return csv_playlist
-
-            logging.warning('After version 5.3.0, there are 2 new columns for each song: lyrics and vader_sentiment. It is recommended that if you intend to use the csv in the future, you use the playlist_to_csv() method again')
-
-            logging.info('Retrieving Lyrics and Vader Sentiment Analysis')
-
-            return self._fill_lyrics_and_vader(csv_playlist)
-
+            return pd.read_csv(f'{self.playlist_name}.csv', index_col=[0])
         except FileNotFoundError as file_not_found_error:
             raise FileNotFoundError('The playlist with the specified ID does not exist in the CSV format, try again but selecting the "web" option, as the source for the playlist') from file_not_found_error
-
-    def _fill_lyrics_and_vader(self, df: pd.DataFrame) -> pd.DataFrame:
-        df[['lyrics', 'vader_sentiment']] = df.apply(lambda row: Song.vader_sentiment_analysis(row['name'], eval(row['artists'])[0]), axis='columns', result_type='expand')
-
-        return df
 
     def get_playlist_from_csv(self) -> pd.DataFrame:
         return self._retrieve_playlist_csv()

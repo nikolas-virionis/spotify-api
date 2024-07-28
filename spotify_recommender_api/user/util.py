@@ -4,16 +4,17 @@ import time
 import logging
 import datetime
 import pandas as pd
+import spotify_recommender_api.util as util
 
 from typing import Union
 from functools import reduce
 from spotify_recommender_api.song import Song
+from spotify_recommender_api.core import Library
 from spotify_recommender_api.artist import Artist
-from spotify_recommender_api.core.library import Library
-from spotify_recommender_api.playlist.base_playlist import BasePlaylist
-from spotify_recommender_api.requests.api_handler import LibraryHandler, UserHandler
-from spotify_recommender_api.requests.request_handler import RequestHandler, BASE_URL
+from spotify_recommender_api.playlist import BasePlaylist
+from spotify_recommender_api.requests import LibraryHandler, UserHandler, RequestHandler, BASE_URL
 
+TIME_OFFSET = util.get_time_offset()
 
 
 class UserUtil:
@@ -229,6 +230,31 @@ class UserUtil:
         return url
 
     @staticmethod
+    def _build_recommendations_url_recently_played(number_of_songs: int, main_criteria: str, artists: 'list[str]', genres: 'list[str]') -> str:
+        """Builds the URL for the recommendations based on the main criteria and seed data.
+
+        Args:
+            number_of_songs (int): Number of songs in the recommendations playlist.
+            main_criteria (str): Main criteria for the recommendations playlist.
+            artists (list[str]): List of artist IDs.
+            genres (list[str]): List of genres.
+            tracks (list[str]): List of track IDs.
+
+        Returns:
+            str: URL for the recommendations.
+        """
+        url = f'{BASE_URL}/recommendations?limit={number_of_songs}'
+
+        if main_criteria == 'artists':
+            url += f'&seed_artists={",".join(artists)}'
+        elif main_criteria == 'genres':
+            url += f'&seed_genres={",".join(genres)}'
+        elif main_criteria == 'mixed':
+            url += f'&seed_artists={",".join(artists[:2])}&seed_genres={",".join(genres[:3])}'
+
+        return url
+
+    @staticmethod
     def _playlist_needs_update(playlist: 'tuple[str, str, str, int]', playlist_types_to_update: 'list[str]', base_playlist_name: Union[str, None] = None) -> bool:
         """Function to determine if a playlist inside the user's library needs to be updated
 
@@ -252,6 +278,20 @@ class UserUtil:
                 playlist_type in playlist_types_to_update
                 for playlist_type in {'short-term-profile-recommendation', 'medium-term-profile-recommendation', 'long-term-profile-recommendation'}
             )
+        ):
+            return True
+
+        elif (
+            ' - 20' not in name and
+            'Recently played songs in the ' in name and
+            'recently-played' in playlist_types_to_update
+        ):
+            return True
+
+        elif (
+            ' - 20' not in name and
+            'Recently played recommendations in the ' in name and
+            'recently-played-recommendations' in playlist_types_to_update
         ):
             return True
 
@@ -562,7 +602,7 @@ class UserUtil:
         """
         return (
             ' - 20' not in name and
-            'Recently played Recommendations in the ' in name and
+            'Recently played recommendations in the ' in name and
             'recently-played-recommendations' in playlist_types_to_update
         )
 
@@ -931,7 +971,7 @@ class UserUtil:
 
 
     @classmethod
-    def _get_timestamp_from_time_range(cls, time_range: str) -> int:
+    def _get_timestamp_from_time_range(cls, time_range: str) -> 'tuple[int, int]':
         """Gets the timestamp from a time range.
 
         Args:
@@ -944,10 +984,10 @@ class UserUtil:
 
         after = now - cls._get_timedelta_from_time_range(time_range)
 
-        return int(time.mktime(after.timetuple()) * 1_000)
+        return int(time.mktime(after.timetuple()) * 1_000), int(time.mktime(now.timetuple()) * 1_000)
 
     @classmethod
-    def get_recently_played_songs(cls, after: int, limit: int, before: Union[int, None] = None) -> 'list[dict[str, str]]':
+    def get_recently_played_songs(cls, after: int, limit: int, before: Union[int, None] = None, _auto: bool = False) -> 'list[dict[str, str]]':
         """Get the recently played songs.
 
         Args:
@@ -959,11 +999,18 @@ class UserUtil:
         """
 
         songs = []
-        next_url = None
-        for _ in range(0, limit, 50):
-            song_batch = []
+        stop = False
 
-            recently_played = UserHandler.get_recently_played_songs(after=after, limit=min(limit, 50), next_url=next_url).json()
+        while not stop:
+            song_batch = []
+            song_ids_set = {song['id'] for song in songs}
+            if len(songs) >= limit:
+                break
+
+            if before is not None and before <= after:
+                stop = True
+
+            recently_played = UserHandler.get_recently_played_songs(before=before, limit=min(limit, 50)).json()
 
             items = recently_played.get('items')
 
@@ -973,7 +1020,21 @@ class UserUtil:
             for song in items:
                 song_id, name, popularity, artists, added_at, genres = Song.song_data_batch(song)
 
-                vader_sentiment_analysis = Song.vader_sentiment_analysis(song_name=name, artist_name=artists[0])
+                if song_id in song_ids_set or song_id in [song['id'] for song in song_batch]:
+                    continue
+
+                played_at = datetime.datetime.strptime(song['played_at'].replace('Z', ''), '%Y-%m-%dT%H:%M:%S.%f')
+
+                if TIME_OFFSET:
+                    if TIME_OFFSET > 0:
+                        played_at += datetime.timedelta(hours=TIME_OFFSET)
+                    else:
+                        played_at -= datetime.timedelta(hours=abs(TIME_OFFSET))
+
+                played_at = int(time.mktime(played_at.timetuple()) * 1_000)
+
+                if played_at < after:
+                    continue
 
                 song_batch.append({
                     'name': name,
@@ -981,35 +1042,46 @@ class UserUtil:
                     'genres': genres,
                     'added_at': added_at,
                     'popularity': popularity,
-                    'lyrics': vader_sentiment_analysis['lyrics'],
                     'artists': list(artists),
-                    'vader_sentiment': vader_sentiment_analysis['vader_sentiment'],
                 })
 
-            songs_ids = [song['track']['id'] for song in items]
+            if not song_batch:
+                break
 
-            songs_audio_features = Song.batch_query_audio_features(songs_ids[:len(songs_ids)//2]) + Song.batch_query_audio_features(songs_ids[len(songs_ids)//2:])
+            songs_ids = [song['id'] for song in song_batch]
+
+            songs_audio_features = []
+
+            for offset in range(0, len(songs_ids), 100):
+                songs_audio_features += Song.batch_query_audio_features(songs_ids[offset:offset + 100])
 
             for song, song_audio_features in zip(song_batch, songs_audio_features):
                 song.update(song_audio_features)
 
             songs += song_batch
 
-            next_url = recently_played.get('next')
+            before = int(recently_played.get('cursors', {}).get('after'))
+
 
         if len(songs) < limit:
-            logging.info(
-                'The number of recently played songs is less than the limit, '
-                f'due to there being less than {limit} songs played in the selected time range. '
-                f'Returning {len(songs)} songs'
-            )
-
+            if _auto:
+                logging.debug(
+                    'The number of recently played songs is less than the limit, '
+                    f'due to there being less than {limit} songs played in the selected time range. '
+                    f'Returning {len(songs)} songs'
+                )
+            else:
+                logging.info(
+                    'The number of recently played songs is less than the limit, '
+                    f'due to there being less than {limit} songs played in the selected time range. '
+                    f'Returning {len(songs)} songs'
+                )
         return songs
 
     @staticmethod
     def _build_playlist_df(data: 'list[dict[str,]]', build_playlist: bool, playlist_type: str, user_id: str, **kwargs) -> pd.DataFrame:
         dataframe = pd.DataFrame(data)
-        ids = dataframe['id'].tolist()
+        ids = dataframe['id'].drop_duplicates().tolist()
 
         if build_playlist:
             Library.write_playlist(
@@ -1035,14 +1107,15 @@ class UserUtil:
         """
         genres = []
         artists = []
-        next_url = None
-        after = UserUtil._get_timestamp_from_time_range(time_range)
+        stop = False
 
-        for _ in range(0, 1500, 50):
+        after, before = UserUtil._get_timestamp_from_time_range(time_range)
 
-            recently_played = UserHandler.get_recently_played_songs(after=after, limit=50, next_url=next_url).json()
+        while not stop:
+            if before is not None and before <= after:
+                stop = True
 
-            next_url = recently_played.get('next')
+            recently_played = UserHandler.get_recently_played_songs(before=before, limit=50).json()
 
             items = recently_played.get('items')
 
@@ -1050,6 +1123,20 @@ class UserUtil:
                 break
 
             for song in items:
+
+                played_at = datetime.datetime.strptime(song['played_at'].replace('Z', ''), '%Y-%m-%dT%H:%M:%S.%f')
+
+                if TIME_OFFSET:
+                    if TIME_OFFSET > 0:
+                        played_at += datetime.timedelta(hours=TIME_OFFSET)
+                    else:
+                        played_at -= datetime.timedelta(hours=abs(TIME_OFFSET))
+
+                played_at = int(time.mktime(played_at.timetuple()) * 1_000)
+
+                if played_at < after:
+                    continue
+
                 if "track" in song:
                     song = song['track']
 
@@ -1059,4 +1146,15 @@ class UserUtil:
                 artists += artists_temp
                 genres += genres_temp
 
+            before = int(recently_played.get('cursors', {}).get('after'))
+
         return artists, genres
+
+    @staticmethod
+    def retrieve_user_profile() -> dict:
+        """Retrieves the user's profile.
+
+        Returns:
+            dict: The user's profile.
+        """
+        return UserHandler.get_user_profile().json()

@@ -6,21 +6,28 @@ import spotify_recommender_api.util as util
 from typing import Union
 from collections import Counter
 from dataclasses import dataclass
+from spotify_recommender_api.song import SongUtil
 from spotify_recommender_api.user.util import UserUtil
-from spotify_recommender_api.song.util import SongUtil
-from spotify_recommender_api.core.library import Library
-from spotify_recommender_api.playlist.base_playlist import BasePlaylist
-from spotify_recommender_api.requests.request_handler import RequestHandler
-from spotify_recommender_api.requests.api_handler import PlaylistHandler, UserHandler
+from spotify_recommender_api.playlist import BasePlaylist
+from spotify_recommender_api.requests import RequestHandler, PlaylistHandler, UserHandler
 
-RECENTLY_PLAYED_CRITERIAS = ['mixed', 'artists', 'genres']
-MOST_LISTENED_TIME_RANGES = ['long_term', 'medium_term', 'short_term']
+RECENTLY_PLAYED_MAX_NUMBER  = 1500
+RECENTLY_PLAYED_CRITERIAS   = ['mixed', 'artists', 'genres']
+MOST_LISTENED_TIME_RANGES   = ['long_term', 'medium_term', 'short_term']
 RECENTLY_PLAYED_TIME_RANGES = ['last-30-minutes', 'last-hour', 'last-3-hours', 'last-6-hours', 'last-12-hours', 'last-day', 'last-3-days', 'last-week', 'last-2-weeks', 'last-month', 'last-3-months', 'last-6-months', 'last-year']
-
 
 @dataclass
 class User:
     user_id: str
+
+    @staticmethod
+    def retrieve_user_id() -> str:
+        """Function that retrieves the user id of the user that is currently logged in
+
+        Returns:
+            str: User id of the user that is currently logged in
+        """
+        return UserUtil.retrieve_user_profile()['id']
 
     def get_most_listened(self, time_range: str = 'long', number_of_songs: int = 50, build_playlist: bool = False) -> pd.DataFrame:
         """Function that creates the most-listened songs playlist for a given period of time in the users profile
@@ -53,7 +60,7 @@ class User:
             playlist_type=f'most-listened-{time_range}',
         )
 
-    def get_recently_played(self, time_range: str, number_of_songs: int = 50, save_with_date: bool = False, build_playlist: bool = False) -> pd.DataFrame:
+    def get_recently_played(self, time_range: str, number_of_songs: int = 50, save_with_date: bool = False, build_playlist: bool = False, _auto: bool = False) -> pd.DataFrame:
         """Function that creates the last played songs playlist for a given period of time in the users profile
 
         Args:
@@ -64,9 +71,21 @@ class User:
         Returns:
             pd.DataFrame: pandas DataFrame containing the last "number_of_songs" songs played in the time range
         """
-        after = UserUtil._get_timestamp_from_time_range(time_range)
+        after, before = UserUtil._get_timestamp_from_time_range(time_range)
 
-        recently_played_songs = UserUtil.get_recently_played_songs(limit=number_of_songs, after=after)
+        recently_played_songs = UserUtil.get_recently_played_songs(
+            after=after,
+            _auto=_auto,
+            before=before,
+            limit=RECENTLY_PLAYED_MAX_NUMBER if number_of_songs is True else number_of_songs,
+        )
+
+        if not recently_played_songs:
+            if not _auto:
+                logging.info(f'No songs found in the {time_range} time range')
+            else:
+                logging.debug(f'No songs found in the {time_range} time range')
+            return
 
         return UserUtil._build_playlist_df(
             user_id=self.user_id,
@@ -84,7 +103,8 @@ class User:
             main_criteria: str = 'mixed',
             save_with_date: bool = False,
             build_playlist: bool = False,
-            time_range: str = 'last-day'
+            time_range: str = 'last-day',
+            _auto: bool = False
         ) -> pd.DataFrame:
         """Builds a Recently played based recommendation
 
@@ -105,20 +125,27 @@ class User:
         """
         artists, genres = UserUtil._get_recently_played_artists_genres(time_range)
 
+        if not artists + genres:
+            if not _auto:
+                logging.info(f'No songs found in the {time_range} time range')
+            else:
+                logging.debug(f'No songs found in the {time_range} time range')
+            return
+
         artists = [artist for artist, _ in Counter(artists).most_common(5)]
         genres = [genre for genre, _ in Counter(genres).most_common(5)]
 
-        url = UserUtil._build_recommendations_url(number_of_songs, main_criteria, artists, genres, [])
+        url = UserUtil._build_recommendations_url_recently_played(number_of_songs, main_criteria, artists, genres)
 
         recommendations = RequestHandler.get_request(url=url).json()
         songs = SongUtil._build_song_objects(recommendations)
 
         return UserUtil._build_playlist_df(
             data=songs,
-            date=save_with_date,
             user_id=self.user_id,
             time_range=time_range,
             criteria=main_criteria,
+            save_with_date=save_with_date,
             build_playlist=build_playlist,
             playlist_type='recently-played-recommendations'
         )
@@ -247,7 +274,7 @@ class User:
                     self.update_recently_played_playlist(total_tracks, name, description)
 
                 elif UserUtil._should_update_recently_played_recommendations(name, playlist_types_to_update):
-                    self.update_recently_played_recommendations_playlist(total_tracks, name, description)
+                    self.update_recently_played_recommendations_playlist(total_tracks, name)
 
                 elif UserUtil._should_update_profile_recommendation(name, playlist_types_to_update):
                     self.update_profile_recommendation_playlist(playlist_types_to_update, playlist_id, name, description, total_tracks)
@@ -284,6 +311,7 @@ class User:
             name (str): Name of the playlist.
         """
         self.get_recently_played(
+            _auto=True,
             build_playlist=True,
             number_of_songs=True if description.startswith('All ') else total_tracks,
             time_range='-'.join(name.split("Recently played songs in the ")[-1].split(' ')).lower(),
@@ -297,10 +325,11 @@ class User:
             name (str): Name of the playlist.
         """
         self.get_recently_played_recommendations(
+            _auto=True,
             build_playlist=True,
             number_of_songs=total_tracks,
             main_criteria=name.split('(')[-1].split(')')[0],
-            time_range='-'.join(name.split("Recently played Recommendations in the ")[-1].split(' (')[0].split(' ')).lower(),
+            time_range='-'.join(name.split("Recently played recommendations in the ")[-1].split(' (')[0].split(' ')).lower(),
         )
 
     def update_profile_recommendation_playlist(self, playlist_types_to_update: 'list[str]', playlist_id: str, name: str, description: str, total_tracks: int) -> None:

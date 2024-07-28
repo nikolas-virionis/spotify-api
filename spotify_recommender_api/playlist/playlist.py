@@ -2,8 +2,8 @@ import logging
 import spotify_recommender_api.util as util
 
 from spotify_recommender_api.song import Song
+from spotify_recommender_api.requests import PlaylistHandler
 from spotify_recommender_api.playlist.base_playlist import BasePlaylist
-from spotify_recommender_api.requests.api_handler import PlaylistHandler
 
 class Playlist(BasePlaylist):
 
@@ -33,8 +33,6 @@ class Playlist(BasePlaylist):
             for song in playlist_songs.json()["items"]:
                 song_id, name, popularity, artists, added_at, genres = Song.song_data_batch(song)
 
-                vader_sentiment_analysis = Song.vader_sentiment_analysis(song_name=name, artist_name=artists[0])
-
                 song_batch.append({
                     'name': name,
                     'id': song_id,
@@ -42,8 +40,6 @@ class Playlist(BasePlaylist):
                     'added_at': added_at,
                     'popularity': popularity,
                     'artists': list(artists),
-                    'lyrics': vader_sentiment_analysis['lyrics'],
-                    'vader_sentiment': vader_sentiment_analysis['vader_sentiment'],
                 })
 
             songs_ids = [song['track']['id'] for song in playlist_songs.json()["items"]]
