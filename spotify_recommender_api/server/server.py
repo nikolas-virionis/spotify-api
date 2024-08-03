@@ -1,4 +1,4 @@
-
+import os
 import time
 import uvicorn
 import threading
@@ -7,13 +7,13 @@ import contextlib
 
 from fastapi import FastAPI, status
 from fastapi.responses import HTMLResponse
-from spotify_recommender_api.requests.auth_handler import AuthHandler
+from spotify_recommender_api.requests import AuthHandler
 from spotify_recommender_api.server.sensitive import CLIENT_ID, CLIENT_SECRET
 
 app = FastAPI()
 
-redirect_uri = 'http://localhost:8000/callback'
-scope = ["playlist-modify-private", "playlist-read-private", "user-library-read", "user-library-modify", "user-top-read"]
+REDIRECT_URI = 'http://localhost:8000/callback'
+SCOPES = ["playlist-modify-private", "playlist-read-private", "user-library-read", "user-library-modify", "user-top-read", "user-read-recently-played"]
 
 
 class Server(uvicorn.Server):
@@ -67,7 +67,7 @@ def get_access_token(auth_code: str) -> 'tuple[str, str]':
     response = AuthHandler.authorization_token(
         auth_code=auth_code,
         client_id=CLIENT_ID,
-        redirect_uri=redirect_uri,
+        redirect_uri=REDIRECT_URI,
         client_secret=CLIENT_SECRET
     )
 
@@ -80,7 +80,7 @@ async def auth():
     Returns:
         fastapi.responses.HTMLResponse: HTML page to trigger the authentication
     """
-    auth_url = f"https://accounts.spotify.com/authorize?response_type=code&client_id={CLIENT_ID}&redirect_uri={redirect_uri}&scope={' '.join(scope)}"
+    auth_url = f"https://accounts.spotify.com/authorize?response_type=code&client_id={CLIENT_ID}&redirect_uri={REDIRECT_URI}&scope={' '.join(SCOPES)}"
     return HTMLResponse(content=f'''
         <!DOCTYPE html>
         <html>
@@ -153,6 +153,9 @@ async def callback(code: str):
     """
 
     token, refresh_token = get_access_token(code)
+
+    if not os.path.exists('./.spotify-recommender-util/'):
+        os.mkdir('./.spotify-recommender-util/')
 
     with open('./.spotify-recommender-util/execution-refresh.txt', 'w') as f:
         f.write(refresh_token)

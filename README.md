@@ -25,8 +25,8 @@
 
 
 ## Use Case
- - This is the first section of this readme, because, you will see, that this package can help, but nothing is perfect, so it will, as long as you fit in the use cases ;(
- - There are more general recommendation features, such as profile, playlist and general recommendations, but also there are a few other features which would have the perfect use case as the one that has one playlist (or more) where you put a lot of songs in different times and mood styles, and when you listen to it, you feel like only listening to a part of it, some days later, that part is useless, but some other part is awesome. The big issue here is that those "parts" are shuffled, all across the playlist. Then how would one find those songs they crave, today, tomorrow, and later? Speaking from experience, it is not worth it to map manually a 1000-song playlist and filter out 50 or 100 of them.
+ - This is the first section of this readme, because, you will see, that this package can help, but nothing is perfect, so it will, as long as you fit in it's use cases
+ - There are more general recommendation features, such as profile, playlist, recently played and general recommendations, but also there are a few other features which would have the perfect use case as the one that has one playlist (or more) where you put a lot of songs in different times and mood styles, and when you listen to it, you feel like only listening to a part of it, some days later, that part is useless, but some other part is awesome. The big issue here is that those "parts" are shuffled, all across the playlist. Then how would one find those songs they crave, today, tomorrow, and later? Speaking from experience, it is not worth it to map manually a 1000-song playlist and filter out 50 or 100 of them.
  - This package comes to solve this issue, roughly, because it tries to find the nearest songs taking into consideration genres, artists, popularity, and some audio features, such as danceability, energy, instrumentalness, tempo, and valence, using an adaptation of the KNN supervised machine learning technique to find the closest songs to some threshold.
  - One issue with this is that Spotify API is not perfect, E.g. a lot of artists do not have any genre associated with them, which, as justified in the next topic, is the main source of genre information used
  - Another issue is that Spotify API does not provide, at the time of publication of version 5.0.0, neither song nor album genres, which compromises a portion of the accuracy of the recommendations. Still, I recommend you give it a try since because of the use of all other variables, it has a decent to good accuracy.
@@ -71,27 +71,26 @@ Firstly, it's necessary to import the method start_api from the package spotify_
   --- Playlist URL: The playlist URL is available when right-clicking the playlist name / or going to the three dots that represent the playlist options <br>
   --- Playlist ID: The playlist id is available as the hash string between the last '/' in and the '?' in the playlist url<br>
   <img src='./readme-pictures/Playlist Configs.png' width='25%'><br>
-  --- User ID: The user id is available when clicking the account, and accessing its information, on Spotify's website<br>
-  <img src='./readme-pictures/Account.png' width='25%'><br>
+  --- User ID: (Not necessary after version 5.4.0) The user id is available when clicking the account, and accessing its information, on Spotify's website<br>
   --- Liked Songs: A flag to pass in case the playlist you want to use is your profile Liked Songs <br>
   --- Log level: the logging package log level. Defaults to INFO, but can be DEBUG, INFO, WARNING and ERROR <br>
   --- Retrieval Type: The retrieval_type parameter must be either "csv" or "web"
 
   - Calling the function:
 ~~~python
-api = start_api(user_id='<USER_ID>')
+api = start_api()
 ~~~
 Or
 ~~~python
-api = start_api(user_id='<USER_ID>', playlist_url='<PLAYLIST_URL>', retrieval_type='csv')
+api = start_api(playlist_url='<PLAYLIST_URL>', retrieval_type='csv')
 ~~~
 Or
 ~~~python
-api = start_api(user_id='<USER_ID>', playlist_id='<PLAYLIST_ID>', retrieval_type='web')
+api = start_api(playlist_id='<PLAYLIST_ID>', retrieval_type='web')
 ~~~
 Or
 ~~~python
-api = start_api(user_id='<USER_ID>', liked_songs=True, retrieval_type='web')
+api = start_api(liked_songs=True, retrieval_type='web')
 ~~~
 Though, to be honest, it is easier and more convenient to use either the playlist URL or the liked_songs flag
 
@@ -218,7 +217,10 @@ api.get_recommendations_for_song(
  - get_playlist_trending_genres
 ~~~python
 # Parameters
-get_playlist_trending_genres(time_range: str = 'all_time', plot_top: int|bool = False)
+get_playlist_trending_genres(
+    time_range: str = 'all_time',
+    plot_top: int | bool = False
+)
 # Method Use Example
 api.get_playlist_trending_genres()
 # Function that returns a pandas DataFrame with all genres within the playlist and both their
@@ -230,9 +232,12 @@ api.get_playlist_trending_genres()
  - get_playlist_trending_artists
 ~~~python
 # Parameters
-get_playlist_trending_artists(time_range: str = 'all_time', plot_top: int|bool = False)
+get_playlist_trending_artists(
+    time_range: str = 'all_time',
+    plot_top: int | bool = False
+)
 # Method Use Example
-api.get_playlist_trending_artists()
+api.get_playlist_trending_artists(plot_top=15)
 # Function that returns a pandas DataFrame with all artists within the playlist and both their
 # overall appearance and the percentage of their appearance over the entire playlist
 # in the given time_range
@@ -350,19 +355,61 @@ api.playlist_songs_based_on_most_listened_tracks(
 # Function to create a playlist with songs from the base playlist that are the closest to the user's most listened songs
 # BUILD_PLAYLIST WILL CHANGE THE USER'S LIBRARY IF SET TO TRUE
 ~~~~~~
+ - get_recently_played
+~~~python
+# Parameters
+get_recently_played(
+    time_range: str = 'last-day',
+    build_playlist: bool = False,
+    save_with_date: bool = False,
+    number_of_songs: 'Union[int, bool]' = 50,
+)
+# Method Use Example
+api.get_recently_played(
+    number_of_songs=50,
+    build_playlist=True,
+    time_range='last-month',
+)
+# Function to create a playlist with the last played songs by the user in the selected time range
+# save_with_date is a flag to save the recommendations as a playlist at a point in time Snapshot
+# time_range can be one of the following: ('last-30-minutes', 'last-hour', 'last-3-hours', 'last-6-hours', 'last-12-hours', 'last-day', 'last-3-days', 'last-week', 'last-2-weeks', 'last-month', 'last-3-months', 'last-6-months', 'last-year')
+# BUILD_PLAYLIST WILL CHANGE THE USER'S LIBRARY IF SET TO TRUE
+~~~~~~
+ - get_recently_played_recommendations
+~~~python
+# Parameters
+get_recently_played_recommendations(
+    number_of_songs: int = 50,
+    time_range: str = 'last-day',
+    main_criteria: str = 'mixed',
+    save_with_date: bool = False,
+    build_playlist: bool = False,
+)
+# Method Use Example
+api.get_recently_played_recommendations(
+    number_of_songs=50,
+    build_playlist=True,
+    main_criteria='genres',
+    time_range='last-week',
+)
+# Function to create a playlist with songs recommended based on the main criteria over the last played songs by the user in the selected time range
+# save_with_date is a flag to save the recommendations as a playlist at a point in time Snapshot
+# time_range can be one of the following: ('last-30-minutes', 'last-hour', 'last-3-hours', 'last-6-hours', 'last-12-hours', 'last-day', 'last-3-days', 'last-week', 'last-2-weeks', 'last-month', 'last-3-months', 'last-6-months', 'last-year')
+# BUILD_PLAYLIST WILL CHANGE THE USER'S LIBRARY IF SET TO TRUE
+~~~~~~
  - update_all_generated_playlists
 ~~~python
 # Parameters
 update_all_generated_playlists(
-    playlist_types_to_update: list[str] = ['most-listened-tracks', 'song-related', 'artist-mix', 'artist-full', 'playlist-recommendation', 'short-term-profile-recommendation', 'medium-term-profile-recommendation', 'long-term-profile-recommendation', 'mood', 'most-listened-recommendation'],
+    playlist_types_to_update: list[str] = ['most-listened-tracks', 'song-related', 'artist-mix', 'artist-full', 'playlist-recommendation', 'short-term-profile-recommendation', 'medium-term-profile-recommendation', 'long-term-profile-recommendation', 'mood', 'most-listened-recommendation', 'recently-played', 'recently-played-recommendations'],
     playlist_types_not_to_update: list[str] = []
 )
 # Method Use Example
 api.update_all_generated_playlists()
 # or for example api.update_all_generated_playlists(playlist_types_to_update=['playlist-recommendation'])
 # Function updates all the playlists once generated by this package in batch
-# Note that if only a few updates are preferred, the methods above are a better fit\
-# But for any combination of types of updates this method fits well
+# Note that if only a few updates specific playlists are preferred, the methods above are a better fit
+# But for any combination of types of playlist updates this method fits well
 ~~~
 
 ## Suggestions

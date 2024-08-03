@@ -3,8 +3,8 @@ import spotify_recommender_api.util as util
 
 from typing import Union
 from spotify_recommender_api.song import Song
+from spotify_recommender_api.requests import PlaylistHandler
 from spotify_recommender_api.playlist.base_playlist import BasePlaylist
-from spotify_recommender_api.requests.api_handler import PlaylistHandler
 
 class LikedSongs(BasePlaylist):
 
@@ -37,17 +37,13 @@ class LikedSongs(BasePlaylist):
             for song in playlist_songs.json()["items"]:
                 song_id, name, popularity, artists, added_at, genres = Song.song_data_batch(song)
 
-                vader_sentiment_analysis = Song.vader_sentiment_analysis(song_name=name, artist_name=artists[0])
-
                 song_batch.append({
                     'name': name,
                     'id': song_id,
                     'genres': genres,
                     'added_at': added_at,
                     'popularity': popularity,
-                    'lyrics': vader_sentiment_analysis['lyrics'],
-                    'artists': [artist for artist in artists],
-                    'vader_sentiment': vader_sentiment_analysis['vader_sentiment'],
+                    'artists': list(artists),
                 })
 
             songs_ids = [song['track']['id'] for song in playlist_songs.json()["items"]]

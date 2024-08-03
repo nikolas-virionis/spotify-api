@@ -1,13 +1,23 @@
 import sys
+import time
 import logging
 import warnings
 import datetime
 import functools
 
-from dateutil import tz
-from typing import Any, Callable, Union
-from spotify_recommender_api.requests.api_handler import PlaylistHandler
+from dateutil.tz                      import tzutc
+from spotify_recommender_api.requests import PlaylistHandler
+from typing                           import Any, Callable, Union
 
+
+def get_time_offset() -> int:
+    """Returns the timezone offset in hours
+
+    Returns:
+        int: Timezone offset in hours
+    """
+    offset = time.timezone if (time.localtime().tm_isdst == 0) else time.altzone
+    return int(offset / 60 / 60 * -1)
 
 def playlist_url_to_id(url: str) -> str:
     """Extracts the playlist id from it's URL
@@ -51,9 +61,9 @@ def get_datetime_by_time_range(time_range: str = 'all_time') -> datetime.datetim
     if time_range not in ['all_time', 'month', 'trimester', 'semester', 'year']:
         raise ValueError('time_range must be one of the following: "all_time", "month", "trimester", "semester", "year"')
 
-    now = datetime.datetime.now(tz=tz.gettz('UTC'))
+    now = datetime.datetime.now(tz=tzutc())
     date_options = {
-        'all_time': datetime.datetime(year=2000, month=1, day=1, hour=0, minute=0, second=0, microsecond=0, tzinfo=tz.gettz('UTC')),
+        'all_time': datetime.datetime(year=2000, month=1, day=1, hour=0, minute=0, second=0, microsecond=0, tzinfo=tzutc()),
         'month': now - datetime.timedelta(days=30),
         'trimester': now - datetime.timedelta(days=90),
         'semester': now - datetime.timedelta(days=180),
@@ -61,7 +71,6 @@ def get_datetime_by_time_range(time_range: str = 'all_time') -> datetime.datetim
     }
 
     return date_options[time_range]
-
 
 def list_to_count_dict(dictionary: dict, item: str) -> dict:
     """Tranforms a list of strings into a dictionary which has the strings as keys and the amount they appear as values

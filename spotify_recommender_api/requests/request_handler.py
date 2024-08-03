@@ -5,8 +5,8 @@ import requests
 import functools
 
 from typing import Union, Callable, Any
+from spotify_recommender_api.auth import AuthenticationHandler
 from spotify_recommender_api.requests.auth_handler import AuthHandler
-from spotify_recommender_api.auth.authentication import AuthenticationHandler
 from spotify_recommender_api.server.sensitive import CLIENT_ID, CLIENT_SECRET
 from spotify_recommender_api.error import HTTPRequestError, TooManyRequestsError, AccessTokenExpiredError
 

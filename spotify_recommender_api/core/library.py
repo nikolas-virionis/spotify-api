@@ -4,7 +4,7 @@ import datetime
 import contextlib
 
 from typing import Union, Any
-from spotify_recommender_api.requests.api_handler import LibraryHandler, PlaylistHandler
+from spotify_recommender_api.requests import LibraryHandler, PlaylistHandler
 
 class Library:
 
@@ -94,12 +94,12 @@ class Library:
             base_playlist_name=base_playlist_name
         ):
             new_id = playlist_found[0]
-            playlist_tracks = cls._get_playlist_tracks(new_id)
-
-            cls._delete_playlist_tracks(new_id, playlist_tracks)
 
             if cls._should_update_playlist_details(playlist_name, playlist_found[1], new_id):
                 cls._update_playlist_details(new_id, playlist_name, description)
+
+            playlist_tracks = cls._get_playlist_tracks(new_id)
+            cls._delete_playlist_tracks(new_id, playlist_tracks)
 
         else:
             data = {
@@ -157,6 +157,12 @@ class Library:
 
         if playlist_type == 'most-listened-recommendation':
             return cls._get_most_listened_recommendation_playlist_info(base_playlist_name, **kwargs)
+
+        if 'recently-played-recommendations' in playlist_type:
+            return cls._get_recently_played_recommendations_playlist_info(**kwargs)
+
+        if 'recently-played' in playlist_type:
+            return cls._get_recently_played_playlist_info(**kwargs)
 
         raise ValueError('Invalid playlist type')
 
@@ -348,6 +354,53 @@ class Library:
         description = f"Songs related to the {time_range} most listened tracks, within the playlist {base_playlist_name}"
         return playlist_name, description
 
+    @staticmethod
+    def _get_recently_played_playlist_info(**kwargs) -> 'tuple[str, str]':
+        """Generates the playlist name and description for a most listened recommendation playlist.
+
+        Args:
+            base_playlist_name (str): The name of the base playlist.
+            **kwargs: Additional arguments.
+
+        Returns:
+            tuple[str, str]: The playlist name and description.
+        """
+        time_range = kwargs['time_range'].replace('-', ' ')
+        playlist_name = f"Recently played songs in the {time_range}".capitalize()
+        description = f"{'All ' if kwargs['all_songs'] else ''}Songs played in the {time_range}"
+
+        if kwargs['save_with_date']:
+            now = datetime.datetime.now(tz=pytz.timezone('UTC'))
+            playlist_name += f" ({now.strftime('%Y-%m-%d')})"
+            description += f" - {now.strftime('%Y-%m-%d')} snapshot"
+
+        return playlist_name, description
+
+    @staticmethod
+    def _get_recently_played_recommendations_playlist_info(**kwargs) -> 'tuple[str, str]':
+        """Generates the playlist name and description for a most listened recommendation playlist.
+
+        Args:
+            base_playlist_name (str): The name of the base playlist.
+            **kwargs: Additional arguments.
+
+        Returns:
+            tuple[str, str]: The playlist name and description.
+        """
+        time_range = kwargs['time_range'].replace('-', ' ')
+        criteria = kwargs['criteria']
+        playlist_name = f"Recently played recommendations in the {time_range}".capitalize()
+        description = f"Recommendation playlist based on {criteria} criteria of the recently played in the {time_range}"
+
+        if kwargs['save_with_date']:
+            now = datetime.datetime.now(tz=pytz.timezone('UTC'))
+            playlist_name += f" ({criteria} - {now.strftime('%Y-%m-%d')})"
+            description += f" - {now.strftime('%Y-%m-%d')} snapshot"
+        else:
+            playlist_name += f" ({criteria})"
+
+        return playlist_name, description
+
 
 
     @classmethod
@@ -399,6 +452,8 @@ class Library:
                     ' Term Most-listened Tracks' in playlist[1] or
                     f', within the playlist {base_playlist_name}' in playlist[2] or
                     'Recommendation (' in name or
+                    'Recently played songs in the ' in name or
+                    'Recently played recommendations in the ' in name or
                     not playlist[2]
                 )
             ),

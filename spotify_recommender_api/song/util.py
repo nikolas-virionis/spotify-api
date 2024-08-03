@@ -25,16 +25,12 @@ class SongUtil:
             for song in songs_chunk:
                 song_id, name, popularity, artists, _, genres = Song.song_data_batch(song=song)
 
-                vader_sentiment_analysis = Song.vader_sentiment_analysis(song_name=name, artist_name=artists[0])
-
                 song_batch.append({
                     'name': name,
                     'id': song_id,
                     'genres': genres,
                     'popularity': popularity,
-                    'lyrics': vader_sentiment_analysis['lyrics'],
-                    'artists': [artist for artist in artists],
-                    'vader_sentiment': vader_sentiment_analysis['vader_sentiment'],
+                    'artists': list(artists),
                 })
 
             songs_ids = [song['id'] for song in songs_chunk]
