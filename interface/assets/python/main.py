@@ -46,4 +46,4 @@ def start(event) -> None:
     if window.localStorage.getItem('spotify-recommender-token'):
         pass
 
-    window.location.href = "authentication.html"
+    window.location.href = "features.html"

@@ -14,35 +14,300 @@
     <header>
         <h1>Spotify Recommender API</h1>
     </header>
+
+    <!-- Loading modal -->
+    <div class="loading-modal" id="loading-modal">
+        <div class="loading-content">
+            <img src="https://media.giphy.com/media/3o7buik2sgS2GrmBFm/giphy.gif" alt="Loading..." width="80">
+            <div>Loading features, please wait...</div>
+        </div>
+    </div>
+
+    <!-- Main content -->
     <div class="description">
         <p>Explore music recommendations tailored just for you. Choose one of the options below to get started!</p>
     </div>
     <div class="container">
-        <div class="title">Profile Recommendations</div>
+        <div class="title">Profile Features</div>
         <div class="row">
-            <button class="button"><i class="fa fa-music"></i> Top Tracks</button>
-            <button class="button"><i class="fa fa-star"></i> New Releases</button>
-            <button class="button"><i class="fa fa-calendar-week"></i> Discover Weekly</button>
+            <button class="button" onclick="openModal('modal-most-listened')">
+                <i class="fa fa-music"></i>Most Listened Tracks
+                <i class="fa fa-info-circle info-icon"></i>
+                <div class="info-popup">Configure settings for tracks you listen to the most.</div>
+            </button>
+            <button class="button" onclick="openModal('modal-recently-played')">
+                <i class="fa fa-star"></i>Recently Played Tracks
+                <i class="fa fa-info-circle info-icon"></i>
+                <div class="info-popup">Configure settings for recently played tracks.</div>
+            </button>
+            <button class="button" onclick="openModal('modal-recently-played-recommendations')">
+                <i class="fa fa-calendar-week"></i>Recently Played Based Recommendations
+                <i class="fa fa-info-circle info-icon"></i>
+                <div class="info-popup">Configure recommendations based on recently played tracks.</div>
+            </button>
         </div>
         <div class="section-divider"></div>
         <div class="row">
-            <button class="button"><i class="fa fa-calendar-day"></i> Daily Mix 1</button>
-            <button class="button"><i class="fa fa-calendar-day"></i> Daily Mix 2</button>
-            <button class="button"><i class="fa fa-calendar-day"></i> Daily Mix 3</button>
+            <button class="button" onclick="openModal('modal-profile-recommendation')">
+                <i class="fa fa-calendar-day"></i>Profile Recommendation
+                <i class="fa fa-info-circle info-icon"></i>
+                <div class="info-popup">Configure settings for profile-based recommendations.</div>
+            </button>
+            <button class="button" onclick="openModal('modal-general-recommendation')">
+                <i class="fa fa-calendar-day"></i>General Recommendation
+                <i class="fa fa-info-circle info-icon"></i>
+                <div class="info-popup">Configure general music recommendations.</div>
+            </button>
         </div>
         <div class="section-divider"></div>
-        <div class="title">Playlist Related Recommendations</div>
+    </div>
+    <div class="container">
+        <div class="title">Playlist Related Features</div>
         <div class="row">
-            <button class="button"><i class="fa fa-headphones"></i> Chill Hits</button>
-            <button class="button"><i class="fa fa-microphone"></i> Rap Caviar</button>
-            <button class="button"><i class="fa fa-guitar"></i> Rock Classics</button>
+            <button class="button" onclick="openModal('modal-save-playlist')">
+                <i class="fa fa-headphones"></i>Save Playlist Locally
+                <i class="fa fa-info-circle info-icon"></i>
+                <div class="info-popup">Configure settings to save playlists locally.</div>
+            </button>
+            <button class="button" onclick="openModal('modal-song-based-recommendation')">
+                <i class="fa fa-microphone"></i>Song-based Recommendation
+                <i class="fa fa-info-circle info-icon"></i>
+                <div class="info-popup">Configure settings for song-based recommendations.</div>
+            </button>
+            <button class="button" onclick="openModal('modal-most-frequent-artists')">
+                <i class="fa fa-guitar"></i>Most Frequent Artists
+                <i class="fa fa-info-circle info-icon"></i>
+                <div class="info-popup">Configure settings for most frequent artists.</div>
+            </button>
         </div>
         <div class="section-divider"></div>
         <div class="row">
-            <button class="button"><i class="fa fa-smile"></i> Mood Booster</button>
-            <button class="button"><i class="fa fa-dumbbell"></i> Work Out</button>
-            <button class="button"><i class="fa fa-party"></i> Party Hits</button>
+            <button class="button" onclick="openModal('modal-most-frequent-genres')">
+                <i class="fa fa-smile"></i>Most Frequent Genres
+                <i class="fa fa-info-circle info-icon"></i>
+                <div class="info-popup">Configure settings for most frequent genres.</div>
+            </button>
+            <button class="button" onclick="openModal('modal-artist-only')">
+                <i class="fa fa-dumbbell"></i>Artist Only
+                <i class="fa fa-info-circle info-icon"></i>
+                <div class="info-popup">Configure settings for artist-only recommendations.</div>
+            </button>
+            <button class="button" onclick="openModal('modal-artist-mix')">
+                <i class="fa fa-party"></i>Artist Mix
+                <i class="fa fa-info-circle info-icon"></i>
+                <div class="info-popup">Configure settings for artist mix recommendations.</div>
+            </button>
+        </div>
+        <div class="section-divider"></div>
+        <div class="row">
+            <button class="button" onclick="openModal('modal-playlist-audio-features-extraordinary')">
+                <i class="fa fa-smile"></i>Playlist Audio Features Extraordinary Songs
+                <i class="fa fa-info-circle info-icon"></i>
+                <div class="info-popup">Configure settings for extraordinary songs in playlists.</div>
+            </button>
+            <button class="button" onclick="openModal('modal-playlist-audio-features-statistics')">
+                <i class="fa fa-dumbbell"></i>Playlist Audio Features Statistics
+                <i class="fa fa-info-circle info-icon"></i>
+                <div class="info-popup">Configure settings for audio features statistics of playlists.</div>
+            </button>
+            <button class="button" onclick="openModal('modal-playlist-based-recommendation')">
+                <i class="fa fa-party"></i>Playlist-based Recommendation
+                <i class="fa fa-info-circle info-icon"></i>
+                <div class="info-popup">Configure settings for recommendations based on playlists.</div>
+            </button>
+        </div>
+        <div class="section-divider"></div>
+        <div class="row">
+            <button class="button" onclick="openModal('modal-mood-based-recommendations')">
+                <i class="fa fa-smile"></i>Mood-based Recommendations
+                <i class="fa fa-info-circle info-icon"></i>
+                <div class="info-popup">Configure settings for mood-based recommendations.</div>
+            </button>
+            <button class="button" onclick="openModal('modal-most-listened-based-recommendations')">
+                <i class="fa fa-dumbbell"></i>Most Listened based Recommendations
+                <i class="fa fa-info-circle info-icon"></i>
+                <div class="info-popup">Configure settings for recommendations based on most listened tracks.</div>
+            </button>
+        </div>
+        <div class="section-divider"></div>
+    </div>
+    <div class="container">
+        <div class="title">User Library Features</div>
+        <button class="button" onclick="openModal('modal-update-generated-playlists')">
+            <i class="fa fa-smile"></i>Update Generated Playlists
+            <i class="fa fa-info-circle info-icon"></i>
+            <div class="info-popup">Configure settings to update generated playlists.</div>
+        </button>
+    </div>
+
+    <!-- Modals -->
+    <div class="modal" id="modal-most-listened">
+        <div class="modal-content">
+            <span class="close" onclick="closeModal('modal-most-listened')">&times;</span>
+            <h2>Most Listened Tracks</h2>
+            <p>Configure your settings for tracks you listen to the most.</p>
+            <!-- Add form or options for configuration here -->
         </div>
     </div>
+
+    <div class="modal" id="modal-recently-played">
+        <div class="modal-content">
+            <span class="close" onclick="closeModal('modal-recently-played')">&times;</span>
+            <h2>Recently Played Tracks</h2>
+            <p>Configure your settings for recently played tracks.</p>
+            <!-- Add form or options for configuration here -->
+        </div>
+    </div>
+
+    <div class="modal" id="modal-recently-played-recommendations">
+        <div class="modal-content">
+            <span class="close" onclick="closeModal('modal-recently-played-recommendations')">&times;</span>
+            <h2>Recently Played Based Recommendations</h2>
+            <p>Configure your settings for recommendations based on recently played tracks.</p>
+            <!-- Add form or options for configuration here -->
+        </div>
+    </div>
+
+    <div class="modal" id="modal-profile-recommendation">
+        <div class="modal-content">
+            <span class="close" onclick="closeModal('modal-profile-recommendation')">&times;</span>
+            <h2>Profile Recommendation</h2>
+            <p>Configure your settings for profile-based recommendations.</p>
+            <!-- Add form or options for configuration here -->
+        </div>
+    </div>
+
+    <div class="modal" id="modal-general-recommendation">
+        <div class="modal-content">
+            <span class="close" onclick="closeModal('modal-general-recommendation')">&times;</span>
+            <h2>General Recommendation</h2>
+            <p>Configure general music recommendations.</p>
+            <!-- Add form or options for configuration here -->
+        </div>
+    </div>
+
+    <div class="modal" id="modal-save-playlist">
+        <div class="modal-content">
+            <span class="close" onclick="closeModal('modal-save-playlist')">&times;</span>
+            <h2>Save Playlist Locally</h2>
+            <p>Configure settings to save playlists locally.</p>
+            <!-- Add form or options for configuration here -->
+        </div>
+    </div>
+
+    <div class="modal" id="modal-song-based-recommendation">
+        <div class="modal-content">
+            <span class="close" onclick="closeModal('modal-song-based-recommendation')">&times;</span>
+            <h2>Song-based Recommendation</h2>
+            <p>Configure settings for song-based recommendations.</p>
+            <!-- Add form or options for configuration here -->
+        </div>
+    </div>
+
+    <div class="modal" id="modal-most-frequent-artists">
+        <div class="modal-content">
+            <span class="close" onclick="closeModal('modal-most-frequent-artists')">&times;</span>
+            <h2>Most Frequent Artists</h2>
+            <p>Configure settings for most frequent artists.</p>
+            <!-- Add form or options for configuration here -->
+        </div>
+    </div>
+
+    <div class="modal" id="modal-most-frequent-genres">
+        <div class="modal-content">
+            <span class="close" onclick="closeModal('modal-most-frequent-genres')">&times;</span>
+            <h2>Most Frequent Genres</h2>
+            <p>Configure settings for most frequent genres.</p>
+            <!-- Add form or options for configuration here -->
+        </div>
+    </div>
+
+    <div class="modal" id="modal-artist-only">
+        <div class="modal-content">
+            <span class="close" onclick="closeModal('modal-artist-only')">&times;</span>
+            <h2>Artist Only</h2>
+            <p>Configure settings for artist-only recommendations.</p>
+            <!-- Add form or options for configuration here -->
+        </div>
+    </div>
+
+    <div class="modal" id="modal-artist-mix">
+        <div class="modal-content">
+            <span class="close" onclick="closeModal('modal-artist-mix')">&times;</span>
+            <h2>Artist Mix</h2>
+            <p>Configure settings for artist mix recommendations.</p>
+            <!-- Add form or options for configuration here -->
+        </div>
+    </div>
+
+    <div class="modal" id="modal-playlist-audio-features-extraordinary">
+        <div class="modal-content">
+            <span class="close" onclick="closeModal('modal-playlist-audio-features-extraordinary')">&times;</span>
+            <h2>Playlist Audio Features Extraordinary Songs</h2>
+            <p>Configure settings for extraordinary songs in playlists.</p>
+            <!-- Add form or options for configuration here -->
+        </div>
+    </div>
+
+    <div class="modal" id="modal-playlist-audio-features-statistics">
+        <div class="modal-content">
+            <span class="close" onclick="closeModal('modal-playlist-audio-features-statistics')">&times;</span>
+            <h2>Playlist Audio Features Statistics</h2>
+            <p>Configure settings for audio features statistics of playlists.</p>
+            <!-- Add form or options for configuration here -->
+        </div>
+    </div>
+
+    <div class="modal" id="modal-playlist-based-recommendation">
+        <div class="modal-content">
+            <span class="close" onclick="closeModal('modal-playlist-based-recommendation')">&times;</span>
+            <h2>Playlist-based Recommendation</h2>
+            <p>Configure settings for recommendations based on playlists.</p>
+            <!-- Add form or options for configuration here -->
+        </div>
+    </div>
+
+    <div class="modal" id="modal-mood-based-recommendations">
+        <div class="modal-content">
+            <span class="close" onclick="closeModal('modal-mood-based-recommendations')">&times;</span>
+            <h2>Mood-based Recommendations</h2>
+            <p>Configure settings for mood-based recommendations.</p>
+            <!-- Add form or options for configuration here -->
+        </div>
+    </div>
+
+    <div class="modal" id="modal-most-listened-based-recommendations">
+        <div class="modal-content">
+            <span class="close" onclick="closeModal('modal-most-listened-based-recommendations')">&times;</span>
+            <h2>Most Listened based Recommendations</h2>
+            <p>Configure settings for recommendations based on most listened tracks.</p>
+            <!-- Add form or options for configuration here -->
+        </div>
+    </div>
+
+    <div class="modal" id="modal-update-generated-playlists">
+        <div class="modal-content">
+            <span class="close" onclick="closeModal('modal-update-generated-playlists')">&times;</span>
+            <h2>Update Generated Playlists</h2>
+            <p>Configure settings to update generated playlists.</p>
+            <!-- Add form or options for configuration here -->
+        </div>
+    </div>
+
+    <script>
+        function openModal(modalId) {
+            document.getElementById(modalId).style.display = 'flex';
+        }
+
+        function closeModal(modalId) {
+            document.getElementById(modalId).style.display = 'none';
+        }
+
+        window.onclick = function(event) {
+            if (event.target.classList.contains('modal')) {
+                closeModal(event.target.id);
+            }
+        }
+    </script>
 </body>
 </html>

@@ -35,7 +35,13 @@ class RequestHandler:
                 except AccessTokenExpiredError as e:
                     logging.warning('Error due to the access token expiration')
 
-                    RequestHandler.get_auth()
+                    try:
+                        from pyscript import window
+                        source = 'web'
+                    except ImportError:
+                        source = 'lib'
+
+                    RequestHandler.get_auth(source=source)
 
                     if error_count >= 2:
                         raise
@@ -72,7 +78,7 @@ class RequestHandler:
             bool: True if the access token is valid.
         """
         try:
-            response = cls.get_request_no_retry(url='https://api.spotify.com/v1/me/top/tracks?time_range=short_term&limit=50')
+            response = cls.get_request_no_retry(url='https://api.spotify.com/v1/me/top/tracks?time_range=long_term&limit=1')
 
             if response.status_code == 401:
                 raise AccessTokenExpiredError('Access token expired')
@@ -93,16 +99,24 @@ class RequestHandler:
 
 
     @classmethod
-    def get_auth(cls) -> None:
+    def get_auth(cls, source: str = 'lib') -> None:
         """
         Function to retrieve the authentication token.
+
+        Args:
+            source (str, optional): The source of the request. Defaults to 'lib' due to backwards compatibility.
 
         Raises:
             FileNotFoundError: If the file with the auth token is not found.
             AccessTokenExpiredError: If the access token has expired.
         """
+        if source == 'lib':
+            auth_handler = AuthenticationHandler
+        else:
+            from spotify_recommender_api.auth.web_authentication import AuthenticationHandlerWeb
+            auth_handler = AuthenticationHandlerWeb
         try:
-            AuthenticationHandler._retrieve_local_access_token()
+            auth_handler._retrieve_local_access_token()
 
             cls._validate_token()
 
@@ -113,26 +127,25 @@ class RequestHandler:
         except FileNotFoundError as file_not_found_error:
             logging.debug("File with auth token not found locally", file_not_found_error)
 
-            auth_token = AuthenticationHandler._retrive_new_token()
+            auth_token = auth_handler._retrive_new_token()
 
         except AccessTokenExpiredError as access_token_expired_error:
             logging.debug("Access token expired")
             try:
-                with open('./.spotify-recommender-util/execution-refresh.txt', 'r') as f:
-                    refresh_token = f.readline()
+                refresh_token = auth_handler._retrieve_local_refresh_token()
 
-                    auth_token = cls.get_refreshed_token(refresh_token)
+                auth_token = cls.get_refreshed_token(refresh_token)
 
-                    AuthenticationHandler._headers['Authorization'] = f'Bearer {auth_token}'
+                AuthenticationHandler._headers['Authorization'] = f'Bearer {auth_token}'
 
-                    cls._validate_token()
+                cls._validate_token()
 
-                    logging.info('Token refreshed')
+                logging.info('Token refreshed')
 
             except Exception as refresh_token_error:
                 logging.debug('Error while trying to use the refresh token: ', refresh_token_error)
 
-                auth_token = AuthenticationHandler._retrive_new_token()
+                auth_token = auth_handler._retrive_new_token()
 
         except Exception as e:
             logging.error('There was an error while validating the access token', e)

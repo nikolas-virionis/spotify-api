@@ -647,7 +647,7 @@ def start_api(
         format='%(asctime)s.%(msecs)03d - %(levelname)s: %(message)s',
     )
 
-    logging.warning('After version 5.4.0 it has been noticed that more and more 429 errors are being raised, and no amount of exponential backoff can handle them, which are related to the Spotify API rate limits. If you encounter this error, please wait a little before trying again. If the problem persists, please submit an issue at the github repo, but close to the middle of July/2024 a extension request has been submitted to Spotify to increase the rate limits and if/when it is accepted, the problem will go away.')
+    logging.warning('After version 5.4.0 it has been noticed that more and more 429 errors are being raised, and no amount of exponential backoff can handle them, which are related to the Spotify API rate limits. If you encounter this error, please wait a little before trying again. If the problem persists, please submit an issue at the github repo, but close to the middle of July/2024 an extension request has been submitted to Spotify to increase the rate limits and if/when it is accepted, the problem will go away.')
 
     if (playlist_url is not None or playlist_id is not None) and liked_songs or (playlist_url is not None and playlist_id is not None):
         raise ValueError('It is necessary to specify only one or none of the following parameters: playlist_id or playlist_url or liked_songs')

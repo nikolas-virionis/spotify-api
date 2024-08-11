@@ -12,6 +12,20 @@ class AuthenticationHandler:
     }
 
 
+    @staticmethod
+    def _retrieve_local_refresh_token() -> str:
+        """Function that tries to retrieve the refresh token from the local file where it is stored. In case it does not exist it raises an exception"""
+        try:
+            with open('./.spotify-recommender-util/execution-refresh.txt', 'r') as f:
+                refresh_token = f.readline()
+
+                return refresh_token
+
+        except Exception as refresh_token_error:
+            logging.debug('Error while trying to retrieve the refresh token: ', refresh_token_error)
+
+            raise
+
     @classmethod
     def _retrieve_local_access_token(cls) -> None:
         """Function that tries to retrieve the access token from the local file where it is stored. In case it does not exist it raises an exception"""

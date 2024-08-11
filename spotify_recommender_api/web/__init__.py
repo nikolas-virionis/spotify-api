@@ -1,0 +1,1 @@
+from spotify_recommender_api.web.main import start_api_for_web

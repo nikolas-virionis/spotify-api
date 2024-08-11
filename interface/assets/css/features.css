@@ -1,136 +1,245 @@
+       /* Spotify colors */
+       :root {
+        --spotify-green: #1DB954;
+        --spotify-black: #191414;
+        --spotify-white: #FFFFFF;
+        --spotify-dark-gray: #121212;
+        --spotify-light-gray: #B3B3B3;
+    }
 
-        /* Header styles */
-        header {
-            background-color: var(--spotify-black);
-            text-align: center;
-            border-bottom: 3px solid var(--spotify-green);
-            width: 100%;
-            box-sizing: border-box; /* Include padding and border in element's total width */
+    /* General styles */
+    body {
+        margin: 0;
+        font-family: Arial, sans-serif;
+        color: var(--spotify-white);
+        background: linear-gradient(180deg, var(--spotify-black) 0%, var(--spotify-dark-gray) 100%);
+        overflow-x: hidden; /* Prevent horizontal scrolling */
+        overflow-y: scroll; /* Ensure vertical scrollbar is always visible */
+        box-sizing: border-box; /* Ensure padding and borders are included in the width */
+    }
+
+    /* Custom scrollbar styles */
+    ::-webkit-scrollbar {
+        width: 12px;
+        background: var(--spotify-dark-gray);
+    }
+
+    ::-webkit-scrollbar-thumb {
+        background: darkgreen;
+        border-radius: 10px;
+        border: 3px solid var(--spotify-dark-gray);
+    }
+
+    ::-webkit-scrollbar-thumb:hover {
+        background: rgb(0, 136, 0);
+    }
+
+    ::-webkit-scrollbar-track {
+        background: var(--spotify-dark-gray);
+    }
+
+    ::-webkit-scrollbar-track:hover {
+        background: var(--spotify-dark-gray);
+    }
+
+    /* Header styles */
+    header {
+        background-color: var(--spotify-black);
+        text-align: center;
+        border-bottom: 3px solid var(--spotify-green);
+        width: 100%;
+        box-sizing: border-box; /* Include padding and border in element's total width */
+        padding: 1rem;
+        position: fixed;
+        top: 0;
+    }
+
+    header h1 {
+        font-size: 2.5em;
+        margin: 0;
+    }
+
+    /* Modal styles */
+    .modal, .loading-modal {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.8);
+        display: none;
+        align-items: center;
+        justify-content: center;
+        z-index: 1000;
+    }
+
+    .modal-content, .loading-content {
+        background: var(--spotify-dark-gray);
+        color: var(--spotify-white);
+        border-radius: 8px;
+        padding: 20px;
+        max-width: 90%;
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.6);
+        text-align: center;
+    }
+
+    .modal-content h2 {
+        margin-top: 0;
+    }
+
+    .close {
+        position: absolute;
+        top: 10px;
+        right: 15px;
+        font-size: 1.5em;
+        cursor: pointer;
+    }
+
+    /* Description styles */
+    .description {
+        text-align: center;
+        font-size: 1.4em;
+        padding: 15px;
+        background-color: rgba(0, 0, 0, 0.6);
+        border-radius: 10px;
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.6);
+        margin: 80px auto 20px; /* Center and avoid overflow */
+        max-width: 90%; /* Ensure it doesn't overflow */
+    }
+
+    /* Container styles */
+    .container {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        max-width: 100%; /* Ensure it fits within viewport */
+        box-sizing: border-box; /* Include padding and border in element's total width */
+        margin-top: 5rem; /* Add space for fixed header */
+    }
+
+    /* Row styles */
+    .row {
+        display: flex;
+        justify-content: center;
+        flex-wrap: wrap;
+        gap: 20px;
+        margin-bottom: 40px;
+        width: 85vw; /* Ensure it fits within container */
+        max-width: 85vw; /* Ensure it fits within container */
+    }
+
+    /* Title styles */
+    .title {
+        font-size: 1.8em;
+        font-weight: bold;
+        color: var(--spotify-green);
+        text-align: center;
+        margin: 20px 0;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        border-bottom: 2px solid var(--spotify-light-gray);
+        text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5);
+        animation: fadeIn 1s ease-in-out;
+    }
+
+    @keyframes fadeIn {
+        from {
+            opacity: 0;
+            transform: translateY(-10px);
         }
-
-        header h1 {
-            font-size: 2.5em;
+        to {
+            opacity: 1;
+            transform: translateY(0);
         }
+    }
 
-        /* Main content styles */
-        .main-content {
-            margin-left: 250px;
-            flex-grow: 1;
-            padding: 20px;
-        }
+    /* Button styles */
+    .button {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 27vw;
+        height: 9vh;
+        background: linear-gradient(135deg, var(--spotify-green), #1ed760);
+        color: var(--spotify-white);
+        border: none;
+        border-radius: 8px;
+        font-size: 1.2em;
+        font-weight: bold;
+        cursor: pointer;
+        transition: background-color 0.3s ease, transform 0.3s ease, box-shadow 0.3s ease;
+        text-align: center;
+        padding: 0;
+        margin: 0;
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+        position: relative;
+    }
 
-        /* Description styles */
-        .description {
-            text-align: center;
-            font-size: 1.4em;
-            padding: 15px;
-            background-color: rgba(0, 0, 0, 0.6);
-            border-radius: 10px;
-            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.6);
-            margin: 1vh auto; /* Center and avoid overflow */
-            max-width: 100%; /* Ensure it doesn't overflow */
-        }
+    .button:hover {
+        background: linear-gradient(135deg, #1ed760, var(--spotify-green));
+        transform: scale(1.05);
+        color: var(--spotify-black);
+        box-shadow: 0 6px 12px rgba(0, 0, 0, 0.4);
+    }
 
-        /* Container styles */
-        .container {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            max-width: 100%; /* Ensure it fits within viewport */
-            box-sizing: border-box; /* Include padding and border in element's total width */
-        }
+    .button:active {
+        background: linear-gradient(135deg, #1aab4a, var(--spotify-dark-gray));
+    }
 
-        /* Row styles */
-        .row {
-            display: flex;
-            justify-content: center;
-            flex-wrap: nowrap;
-            gap: 20px;
-            margin-bottom: 40px;
-            width: 85vw; /* Ensure it fits within container */
-            max-width: 85vw; /* Ensure it fits within container */
-            overflow: hidden; /* Allow horizontal scroll if needed */
-            box-sizing: border-box; /* Include padding and border in element's total width */
-        }
+    .button i {
+        margin-right: 10px;
+    }
 
-        /* Title styles */
-        .title {
-            font-size: 1.8em;
-            font-weight: bold;
-            color: var(--spotify-green);
-            text-align: left;
-            margin: 20px 0;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-            width: 83vw;
-            padding-left: 20px;
-            border-bottom: 2px solid var(--spotify-light-gray);
-            text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5);
-            animation: fadeIn 1s ease-in-out;
-            box-sizing: border-box; /* Include padding and border in element's total width */
-        }
+    .info-icon {
+        margin-left: 10px;
+        cursor: pointer;
+    }
 
-        @keyframes fadeIn {
-            from {
-                opacity: 0;
-                transform: translateY(-10px);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
-        }
+    .info-popup {
+        display: none;
+        position: absolute;
+        background-color: var(--spotify-dark-gray);
+        color: var(--spotify-white);
+        border-radius: 5px;
+        padding: 10px;
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.6);
+        z-index: 1000;
+        top: 50%;
+        left: 100%;
+        transform: translateX(10px) translateY(-50%);
+        white-space: nowrap;
+    }
 
-        /* Button styles */
+    .button:hover .info-popup {
+        display: block;
+    }
+
+    /* Section divider */
+    .section-divider {
+        width: 85vw;
+        height: 1px;
+        background: var(--spotify-light-gray);
+        margin: 40px auto;
+    }
+
+    /* Responsive Design */
+    @media (max-width: 768px) {
         .button {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            width: 27vw;
-            height: 9vh;
-            background: linear-gradient(135deg, var(--spotify-green), #1ed760);
-            color: var(--spotify-white);
-            border: none;
-            border-radius: 8px;
+            width: 80vw;
+            font-size: 1em;
+            height: 60px;
+        }
+
+        .title {
+            font-size: 1.5em;
+        }
+
+        .description {
             font-size: 1.2em;
-            font-weight: bold;
-            cursor: pointer;
-            transition: background-color 0.3s ease, transform 0.3s ease, box-shadow 0.3s ease;
-            text-align: center;
-            padding: 0;
-            margin: 0;
-            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
         }
 
-        .button:hover {
-            background: linear-gradient(135deg, #1ed760, var(--spotify-green));
-            transform: scale(1.05);
-            color: var(--spotify-black);
-            box-shadow: 0 6px 12px rgba(0, 0, 0, 0.4);
+        .main-content {
+            margin-left: 0;
+            padding: 10px;
         }
-
-        .button:active {
-            background: linear-gradient(135deg, #1aab4a, var(--spotify-dark-gray));
-        }
-
-        .button i {
-            margin-right: 1%;
-        }
-
-        /* Responsive Design */
-        @media (max-width: 768px) {
-            .button {
-                width: 80vw;
-                font-size: 1em;
-                height: 60px;
-            }
-
-            .title {
-                font-size: 1.5em;
-            }
-
-            .main-content {
-                margin-left: 0;
-                padding: 10px;
-            }
-        }
+    }

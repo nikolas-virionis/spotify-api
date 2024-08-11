@@ -22,12 +22,6 @@ with open('../security/spotify.json', 'r') as f:
     client_secret = spotify_credentials['client_secret']
     if "localhost" in window.location.href or "127.0.0" in window.location.href:
         redirect_uri = "http://127.0.0.1:5500/spotify-api/interface/authorization.html"
-        
-    print(f'{auth_code = }')
-    print(f'{client_id = }')
-    print(f'{redirect_uri = }')
-    print(f'{client_secret = }')
-
 
     auth_req = requests.post(
         auth=(client_id, client_secret),
@@ -39,11 +33,11 @@ with open('../security/spotify.json', 'r') as f:
         },
     ).json()
 
-    print(auth_req)
-
     auth_token = auth_req['access_token']
     refresh_token = auth_req['refresh_token']
 
     window.localStorage.setItem('spotify-recommender-token', auth_token)
     window.localStorage.setItem('spotify-recommender-refresh-token', refresh_token)
+
+    window.close()
 
