@@ -139,6 +139,8 @@ sensitiveOG.py
 
 *.json
 
+!pyscript.json
+
 test/
 
 util/

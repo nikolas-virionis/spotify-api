@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Spotify Recommender Tutorial</title>
+    <link rel="stylesheet" href="assets/css/styles.css">
+    <link rel="stylesheet" href="assets/css/tutorial.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <style>
+
+    </style>
+</head>
+<body>
+    <header>
+        <h1>Spotify Recommender Tutorial</h1>
+    </header>
+
+    <main>
+        <section>
+            <h2>Use Case</h2>
+            <p>This package helps users manage and find songs within large playlists by utilizing a recommendation system. It is particularly useful when you have a playlist with many songs from various genres and want to find specific songs or parts of songs that suit your current mood or preferences.</p>
+            <p>Key features include recommendations based on genres, artists, and audio features, as well as playlist management. The package uses K-Nearest Neighbors (KNN) for recommendations, which considers genre, popularity, and audio features like danceability, energy, and tempo.</p>
+            <p><strong class="important">Note:</strong> Due to limitations in the Spotify API, some genre information may be missing, but the package still provides valuable recommendations based on other available data.</p>
+        </section>
+
+        <section>
+            <h2>Setup</h2>
+            <p>To use the Spotify Recommender package, follow these setup steps:</p>
+
+            <h3>Requirements</h3>
+            <ul>
+                <li><strong>Network Connection:</strong> Required for retrieving song data from Spotify.</li>
+                <li><strong>Patience:</strong> The initial data mapping process can be time-consuming due to multiple API requests per song.</li>
+                <li><strong>A fitting playlist (for the playlist features):</strong> Ideal for playlists with 200+ songs from different genres.</li>
+                <li><strong>Spotify Access:</strong> Ensure you have access to a Spotify account.</li>
+            </ul>
+
+            <h3>Starting the API</h3>
+            <p>To start the API, you need to gather initial information such as the playlist URL and user ID (if applicable). Here’s how the different options work:</p>
+            <ul>
+                <li><strong>Playlist Url:</strong> The URL of the playlist you want to use. You can obtain it by right-clicking the playlist name or selecting the three dots next to the playlist and then clicking share (optional).</li>
+                <li><strong>Liked Songs (If the playlist to be used is your "liked songs" playlist):</strong> Set this flag if you want to use your Liked Songs playlist.</li>
+                <li><strong>Playlist Id (not recommended):</strong> The unique identifier of the playlist found in the playlist URL.</li>
+                <li><strong>User Id (not required, since it's retrieved via Spotify login):</strong> Required only in versions before 5.4.0, this is your Spotify user ID.</li>
+            </ul>
+
+            <h3>Getting the Auth Token</h3>
+            <p>When you start the API, a web browser will open for you to log in to your Spotify account and authorize the application. The access token will be cached for 60 minutes. After it expires, re-authentication will be required if the application is still running.</p>
+        </section>
+
+        <section>
+            <h2>Features</h2>
+            <p>Here’s a brief overview of the features available in the package:</p>
+
+            <h3>Select Playlist</h3>
+            <p>Select a playlist for mapping and recommendations. You can provide a playlist ID, URL, or set the Liked Songs flag.</p>
+
+            <h3>Get Most Listened</h3>
+            <p>Retrieve a list of the most listened-to tracks within a specified time range. You can also choose to build a new playlist from these tracks.</p>
+
+            <h3>Get Profile Recommendation</h3>
+            <p>Get recommendations based on your Spotify profile. Customize the number of songs, recommendation criteria, and whether to save the recommendations as a playlist.</p>
+
+            <h3>Get General Recommendation</h3>
+            <p>Generate recommendations based on specified genres, artists, or tracks. You can also use the audio features from a provided playlist as a basis for recommendations.</p>
+
+            <h3>Get Playlist</h3>
+            <p>Retrieve the base playlist.</p>
+
+            <h3>Get Recommendations For Song</h3>
+            <p>Get recommendations based on a specific song inside a previously provided playlist. Includes options for whether to build a playlist.</p>
+
+            <h3>Get Playlist Trending Genres</h3>
+            <p>Identify trending genres within a playlist and plot the top genres if specified.</p>
+
+            <h3>Get Playlist Trending Artists</h3>
+            <p>Identify trending artists within a playlist and plot the top artists if specified.</p>
+
+            <h3>Artist Only Playlist</h3>
+            <p>Create a playlist with songs from a specific artist. Optionally ensure all of the artist’s songs are included.</p>
+
+            <h3>Artist Specific Playlist</h3>
+            <p>Create a playlist with songs from a specific artist and add similar songs.</p>
+
+            <h3>Audio Features Extraordinary Songs</h3>
+            <p>Get a list of songs with the maximum and minimum values for key audio features like danceability and energy.</p>
+
+            <h3>Audio Features Statistics</h3>
+            <p>Retrieve statistics for audio features in the playlist, including maximum, minimum, and average values.</p>
+
+            <h3>Get Playlist Recommendation</h3>
+            <p>Get recommendations based on the base playlist and save them as a playlist if desired.</p>
+
+            <h3>Get Songs by Mood</h3>
+            <p>Create a playlist based on the mood of the songs. You can exclude mostly instrumental songs if needed.</p>
+
+            <h3>Playlist Songs Based On Most Listened Tracks</h3>
+            <p>Create a playlist with songs similar to your most listened-to tracks inside the previously provided playlist.</p>
+
+            <h3>Get Recently Played</h3>
+            <p>Create a playlist with songs recently played within a specified time range.</p>
+
+            <h3>Get Recently Played Recommendations</h3>
+            <p>Get recommendations based on your recently played songs. Options include saving as a playlist and specifying the time range.</p>
+
+            <h3>Update All Generated Playlists</h3>
+            <p>Update all previously generated playlists in batch. Specify which playlists to update or leave empty to update all.</p>
+        </section>
+
+        <section>
+            <h2>Suggestions</h2>
+            <p>To keep your Spotify library organized, consider creating playlists based on various moods, genres, or artists. Regularly updating your playlists with new recommendations can keep your music fresh and tailored to your preferences.</p>
+            <p>For more advanced use, explore the ability to combine different recommendation methods to create unique playlists or discover new music trends. For example, using Smart Shuffle in one of the generated playlists.</p>
+        </section>
+    </main>
+
+    <footer>
+        <p>&copy; 2024 Spotify Recommender Tutorial</p>
+    </footer>
+</body>
+</html>

@@ -1,0 +1,110 @@
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    line-height: 1.6;
+    margin: 0;
+    padding: 0;
+    background-color: #121212; /* Dark background for dark theme */
+    color: #e0e0e0; /* Light text for contrast */
+}
+
+header {
+    background-color: #1db954; /* Spotify green */
+    color: #fff;
+    padding: 20px;
+    text-align: center;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.4);
+}
+
+header h1 {
+    margin: 0;
+    font-size: 2.5em;
+}
+
+footer {
+    background-color: #1db954; /* Spotify green */
+    color: #fff;
+    padding: 10px;
+    text-align: center;
+    box-shadow: 0 -2px 4px rgba(0,0,0,0.4);
+    position: relative;
+    bottom: 0;
+    width: 100%;
+}
+
+main {
+    max-width: 1200px;
+    margin: 20px auto;
+    padding: 0 20px;
+}
+
+h2 {
+    color: #1db954; /* Spotify green */
+    border-bottom: 2px solid #1db954;
+    padding-bottom: 5px;
+    margin-bottom: 20px;
+    font-size: 1.8em;
+}
+
+h3 {
+    color: #e0e0e0;
+    margin-top: 20px;
+    font-size: 1.4em;
+}
+
+p {
+    margin: 0 0 20px;
+}
+
+ul {
+    list-style: disc;
+    padding-left: 20px;
+}
+
+li {
+    margin-bottom: 10px;
+}
+
+code {
+    background-color: #333; /* Darker background for code blocks */
+    color: #f4f4f4; /* Light text for code */
+    padding: 4px 6px;
+    border-radius: 4px;
+    font-size: 0.9em;
+}
+
+pre {
+    background-color: #333; /* Darker background for code blocks */
+    color: #f4f4f4; /* Light text for preformatted code */
+    padding: 15px;
+    border-radius: 4px;
+    overflow-x: auto;
+}
+
+.important {
+    color: #ff5733; /* Light red color for emphasis */
+    font-weight: bold;
+}
+
+.note {
+    background-color: #1e1e1e; /* Slightly lighter dark background for notes */
+    border-left: 5px solid #333; /* Dark border for notes */
+    padding: 10px;
+    margin-bottom: 20px;
+    border-radius: 4px;
+}
+
+@media (max-width: 768px) {
+    header h1, footer p {
+        font-size: 1.5em;
+    }
+
+    main {
+        padding: 0 10px;
+    }
+}
+
+@media (max-width: 480px) {
+    header h1, footer p {
+        font-size: 1.2em;
+    }
+}

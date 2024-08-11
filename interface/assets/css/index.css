@@ -1,0 +1,322 @@
+
+        /* Spotify colors */
+        :root {
+            --spotify-green: #1DB954;
+            --spotify-black: #191414;
+            --spotify-white: #FFFFFF;
+            --spotify-dark-gray: #121212;
+            --spotify-light-gray: #B3B3B3;
+            --spotify-hover-green: #1ed760;
+            --spotify-info-background: #333;
+            --spotify-info-text: #f0f0f0;
+        }
+
+        /* General styles */
+        body {
+            margin: 0;
+            font-family: Arial, sans-serif;
+            color: var(--spotify-white);
+            background: linear-gradient(180deg, var(--spotify-black) 0%, var(--spotify-dark-gray) 100%);
+            overflow-x: hidden;
+            overflow-y: scroll;
+        }
+
+        /* Header styles */
+        header {
+            background-color: var(--spotify-black);
+            text-align: center;
+            padding: 30px;
+            border-bottom: 4px solid var(--spotify-green);
+        }
+
+        header h1 {
+            font-size: 2.5em;
+            margin: 0;
+        }
+
+        /* Main content styles */
+        .main-content {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 80vh;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .main-content h2 {
+            font-size: 2.5em;
+            margin: 0 0 30px 0;
+            color: var(--spotify-green);
+        }
+
+        .main-content p {
+            font-size: 1.4em;
+            margin: 0 0 40px 0;
+            padding: 0 30px;
+            max-width: 900px;
+            line-height: 1.6;
+            color: var(--spotify-light-gray);
+        }
+
+        .cta-buttons {
+            display: flex;
+            gap: 20px;
+            justify-content: center;
+            margin-top: 30px;
+        }
+
+        .cta-buttons .button {
+            width: 15vw;
+            height: 6.5vh;
+            background: linear-gradient(135deg, var(--spotify-green), var(--spotify-hover-green));
+            color: var(--spotify-white);
+            border: none;
+            border-radius: 8px;
+            font-size: 1.2em;
+            font-weight: bold;
+            cursor: pointer;
+            transition: background-color 0.3s ease, transform 0.3s ease, box-shadow 0.3s ease;
+            text-align: center;
+            line-height: 60px;
+            padding: 0;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+            position: relative;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .cta-buttons .button:hover {
+            background: linear-gradient(135deg, var(--spotify-hover-green), var(--spotify-green));
+            transform: scale(1.05);
+            color: var(--spotify-black);
+            box-shadow: 0 6px 12px rgba(0, 0, 0, 0.4);
+        }
+
+        .cta-buttons .button:active {
+            background: linear-gradient(135deg, #1aab4a, var(--spotify-dark-gray));
+        }
+
+        .cta-buttons .button i {
+            margin-right: 3%;
+        }
+
+        .info-icon {
+            font-size: 1em;
+            color: var(--spotify-info-text);
+            margin-left: 3%;
+            cursor: pointer;
+            transition: color 0.3s ease;
+        }
+
+        .info-icon:hover {
+            color: var(--spotify-info-background);
+        }
+
+        .button-info {
+            position: absolute;
+            bottom: 100%;
+            left: 25%;
+            transform: translateX(-25%);
+            background: var(--spotify-info-background);
+            color: var(--spotify-white);
+            border-radius: 6px;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.3s ease, transform 0.3s ease;
+            box-shadow: 0 6px 12px rgba(0, 0, 0, 0.4);
+            font-size: 0.8em;
+            max-width: 20vw;
+            width: 20vw;
+            max-height: 10vh;
+            height: auto;
+            padding: 10px;
+            line-height: 1.2;
+            z-index: 10;
+            text-align: center;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .button-info::before {
+            content: '';
+            position: absolute;
+            bottom: 100%;
+            left: 50%;
+            transform: translateX(-50%);
+            border-width: 6px;
+            border-style: solid;
+            border-color: transparent transparent var(--spotify-info-background) transparent;
+        }
+
+        .cta-buttons .button .info-icon:hover + .button-info {
+            opacity: 1;
+            visibility: visible;
+            transform: translateY(-10px);
+        }
+
+        /* Modal styles */
+        .modal {
+            display: none; /* Hidden by default */
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            overflow: auto;
+            background-color: rgba(0, 0, 0, 0.7); /* Black with opacity */
+            justify-content: center;
+            align-items: center;
+        }
+
+        .modal-content {
+            background-color: var(--spotify-black);
+            color: var(--spotify-white);
+            margin: 15% auto;
+            padding: 20px;
+            border: 1px solid var(--spotify-green);
+            border-radius: 10px;
+            width: 80%;
+            max-width: 500px;
+            position: relative;
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid var(--spotify-green);
+            padding-bottom: 10px;
+            margin-bottom: 10px;
+        }
+
+        .modal-header h2 {
+            margin: 0;
+        }
+
+        .close {
+            color: var(--spotify-green);
+            font-size: 1.5em;
+            font-weight: bold;
+            cursor: pointer;
+        }
+
+        .close:hover {
+            color: var(--spotify-white);
+        }
+
+        .modal-body {
+            width: 45vw;
+            height: 15vh;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            font-size: 1.2em;
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .form-group label {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            position: relative;
+            padding-left: 30px;
+        }
+
+        /* Custom checkbox styles */
+        .form-group input[type="checkbox"] {
+            appearance: none;
+            background-color: var(--spotify-dark-gray);
+            border: 2px solid var(--spotify-light-gray);
+            border-radius: 5px;
+            width: 20px;
+            height: 20px;
+            cursor: pointer;
+            position: relative;
+        }
+
+        .form-group input[type="checkbox"]:checked {
+            background-color: var(--spotify-green);
+            border-color: var(--spotify-green);
+        }
+
+        .form-group input[type="checkbox"]:checked::before {
+            content: "\f00c"; /* Font Awesome checkmark icon */
+            font-family: 'Font Awesome 6 Free';
+            font-weight: 900;
+            color: var(--spotify-white);
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 14px;
+        }
+
+        .form-group input[type="text"] {
+            padding: 10px;
+            border: 1px solid var(--spotify-light-gray);
+            border-radius: 5px;
+            background-color: var(--spotify-dark-gray);
+            color: var(--spotify-white);
+            width: 100%;
+            display: none;
+            transition: border-color 0.3s ease;
+        }
+
+        .form-group input[type="text"].disabled {
+            background-color: var(--spotify-dark-gray);
+            color: var(--spotify-light-gray);
+            cursor: text;
+            border-color: var(--spotify-light-gray);
+        }
+
+        .form-group input[type="text"]:focus {
+            border-color: var(--spotify-green);
+            outline: none;
+        }
+
+        /* Submit button styles */
+        .modal-footer {
+            display: flex;
+            justify-content: flex-end;
+            margin-top: 20px;
+        }
+
+        #submitBtn {
+            background: linear-gradient(135deg, var(--spotify-green), var(--spotify-hover-green));
+            color: var(--spotify-white);
+            border: none;
+            border-radius: 8px;
+            font-size: 1.2em;
+            font-weight: bold;
+            padding: 10px 20px;
+            cursor: pointer;
+            transition: background-color 0.3s ease, transform 0.3s ease, box-shadow 0.3s ease;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+        }
+
+        #submitBtn:hover {
+            background: linear-gradient(135deg, var(--spotify-hover-green), var(--spotify-green));
+            transform: scale(1.05);
+            box-shadow: 0 6px 12px rgba(0, 0, 0, 0.4);
+        }
+
+        #submitBtn:active {
+            background: linear-gradient(135deg, #1aab4a, var(--spotify-dark-gray));
+        }
+
+        /* Responsive Design */
+        @media (max-width: 768px) {
+            .modal-content {
+                width: 90%;
+            }
+        }

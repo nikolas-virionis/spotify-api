@@ -1,0 +1,43 @@
+        /* Spotify colors */
+        :root {
+            --spotify-green: #1DB954;
+            --spotify-black: #191414;
+            --spotify-white: #FFFFFF;
+            --spotify-dark-gray: #121212;
+            --spotify-light-gray: #B3B3B3;
+        }
+
+        /* General styles */
+        body {
+            margin: 0;
+            font-family: Arial, sans-serif;
+            color: var(--spotify-white);
+            background: linear-gradient(180deg, var(--spotify-black) 0%, var(--spotify-dark-gray) 100%);
+            overflow-x: hidden; /* Prevent horizontal scrolling */
+            overflow-y: scroll; /* Ensure vertical scrollbar is always visible */
+            box-sizing: border-box; /* Ensure padding and borders are included in the width */
+        }
+
+        /* Custom scrollbar styles */
+        ::-webkit-scrollbar {
+            width: 12px;
+            background: var(--spotify-dark-gray);
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: darkgreen;
+            border-radius: 10px;
+            border: 3px solid var(--spotify-dark-gray);
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: rgb(0, 136, 0);
+        }
+
+        ::-webkit-scrollbar-track {
+            background: var(--spotify-dark-gray);
+        }
+
+        ::-webkit-scrollbar-track:hover {
+            background: var(--spotify-dark-gray);
+        }

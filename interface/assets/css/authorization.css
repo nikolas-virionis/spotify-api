@@ -1,0 +1,41 @@
+body {
+    background-color: #191414;
+    font-family: 'Helvetica Neue', sans-serif;
+    color: white;
+    margin: 0;
+    padding: 0;
+}
+
+.header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 1rem;
+    background-color: #282828;
+    height: 4rem;
+}
+
+.header h1 {
+    font-size: 2rem;
+    margin: auto;
+    padding: auto;
+}
+
+a {
+    display: block;
+    background-color: #1DB954;
+    color: white;
+    padding: 1.5rem 4rem;
+    text-align: center;
+    text-decoration: none;
+    border-radius: 2rem;
+    margin: 4rem auto 0;
+    max-width: 25rem;
+    font-size: 1.5rem;
+    font-weight: bold;
+}
+
+a:hover {
+    background-color: #1ED760;
+    cursor: pointer;
+}

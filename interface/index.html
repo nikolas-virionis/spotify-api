@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Spotify Recommender API - Landing Page</title>
+    <link rel="stylesheet" href="./assets/css/styles.css">
+    <link rel="stylesheet" href="./assets/css/index.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <link rel="stylesheet" href="https://pyscript.net/releases/2024.8.1/core.css">
+    <script type="module" src="https://pyscript.net/releases/2024.8.1/core.js"></script>
+    <script defer src="./assets/js/index.js"></script>
+    <script defer type="py" src="./assets/python/main.py" config="./assets/python/pyscript.json" async></script>
+
+</head>
+<body>
+    <header>
+        <h1>Spotify Recommender API</h1>
+    </header>
+    <div class="main-content">
+        <h2>Welcome to Spotify Recommender API</h2>
+        <p>Discover music recommendations tailored just for you with our powerful API. <br> Start exploring and enhance your music experience today!</p>
+        <div class="cta-buttons">
+            <button id="startApiBtn" class="button">
+                <i class="fa fa-play"></i> Start API
+                <i class="fa fa-info-circle info-icon"></i>
+                <div class="button-info">Begin using our API to receive personalized music recommendations based on your preferences.</div>
+            </button>
+            <a href="tutorial.html" class="button">
+                <i class="fa fa-book"></i> View Tutorial
+                <i class="fa fa-info-circle info-icon"></i>
+                <div class="button-info">Follow our step-by-step tutorial to learn how to make the most of our API.</div>
+            </a>
+        </div>
+    </div>
+
+    <!-- Modal -->
+    <div id="apiModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>API Setup</h2>
+                <span class="close">&times;</span>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label><input type="checkbox" id="PlaylistUrl"> Playlist URL:</label>
+                    <input type="text" id="PlaylistUrlText" class="disabled" placeholder="Playlist URL">
+                </div>
+                <div class="form-group">
+                    <label><input type="checkbox" id="LikedSongs"> Liked Songs:</label>
+                </div>
+                <div class="form-group">
+                    <label><input type="checkbox" id="PlaylistID"> Playlist ID:</label>
+                    <input type="text" id="PlaylistIDText" class="disabled" placeholder="Playlist ID">
+                </div>
+                <div class="form-group">
+                    <label><input type="checkbox" id="UserID"> User ID:</label>
+                    <input type="text" id="UserIDText" class="disabled" placeholder="User ID">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button id="submitBtn" type="button" py-click="start">Submit</button>
+            </div>
+        </div>
+    </div>
+
+</body>
+</html>
