@@ -77,7 +77,7 @@ class SpotifyAPIWeb(SpotifyAPI):
 def start_api_for_web(
     *,
     liked_songs: bool = False,
-    log_level: str = 'WARNING',
+    log_level: str = 'DEBUG',
     user_id: Union[str, None] = None,
     playlist_url: Union[str, None] = None,
     playlist_id: Union[str, None] = None,
