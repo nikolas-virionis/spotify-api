@@ -61,7 +61,7 @@ class AuthenticationHandlerWeb:
         window.open(
             f'https://accounts.spotify.com/authorize?client_id={CLIENT_ID}&response_type=code&redirect_uri={redirect_uri}&scope={" ".join(SCOPES)}',
             '_blank',
-            'location=yes,height=570,width=520,scrollbars=yes,status=yes'
+            # 'location=yes,height=570,width=520,scrollbars=yes,status=yes'
         )
 
         for i in range(300):

@@ -28,7 +28,7 @@ if not setup_info:
 if not (setup_info.get('liked_songs') or setup_info.get('playlist_id') or setup_info.get('playlist_url')):
     document.querySelector('#container-playlist').style.display = 'none'
 
-api = start_api_for_web(**setup_info, log_level='INFO')
+api = start_api_for_web(**setup_info, log_level='DEBUG')
 
 def get_most_listened(event):
     time_range = document.querySelector('#time-range-most-listened').value

@@ -39,5 +39,6 @@ with open('../security/spotify.json', 'r') as f:
     window.localStorage.setItem('spotify-recommender-token', auth_token)
     window.localStorage.setItem('spotify-recommender-refresh-token', refresh_token)
 
-    window.close()
+    # window.close()
+    window.location.href = "features.html"
 

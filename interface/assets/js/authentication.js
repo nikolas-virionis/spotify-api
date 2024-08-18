@@ -1,0 +1,2 @@
+document.querySelector('a').href = 'https://accounts.spotify.com/authorize?client_id=ddf4e1944b254754ba1a17d0dd8e517b&response_type=code&redirect_uri=http://127.0.0.1:5500/spotify-api/interface/authorization.html&scope=playlist-modify-private playlist-read-private user-library-read user-library-modify user-top-read user-read-recently-played'
+// https://spotify-recommender.free.nf/authorization.html
