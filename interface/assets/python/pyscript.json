@@ -1,7 +1,8 @@
 {
     "packages": [
         "spotify-recommender-api",
-        "ssl"
+        "ssl",
+        "typer"
     ],
     "files": {
         "../security/spotify.json": "../security/spotify.json"

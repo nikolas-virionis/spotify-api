@@ -22,7 +22,7 @@ setup(
     long_description=long_description,
     url="https://github.com/nikolas-virionis/spotify-api",
     packages=find_packages(),
-    install_requires=['pandas', 'requests', 'seaborn', 'matplotlib', 'fastapi', 'uvicorn', 'pyscript'],
+    install_requires=['pandas', 'requests', 'seaborn', 'matplotlib', 'fastapi', 'uvicorn'],
     classifiers=[
         "Programming Language :: Python :: 3",
         "Programming Language :: Python :: 3.8",

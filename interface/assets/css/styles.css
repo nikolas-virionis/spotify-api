@@ -41,3 +41,7 @@
         ::-webkit-scrollbar-track:hover {
             background: var(--spotify-dark-gray);
         }
+
+        .py-error {
+            display: none;
+        }

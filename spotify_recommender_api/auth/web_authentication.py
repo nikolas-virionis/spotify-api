@@ -2,14 +2,8 @@ import os
 import logging
 import time
 
-from pyscript import window
 from spotify_recommender_api.server.server import SCOPES
 from spotify_recommender_api.server.sensitive import CLIENT_ID
-
-if any(p in window.location.href for p in ['localhost', '127.0.0']):
-    redirect_uri = 'http://127.0.0.1:5500/spotify-api/interface/authorization.html'
-else:
-    redirect_uri = 'https://spotify-recommender.free.nf/authorization.html'
 
 class AuthenticationHandlerWeb:
     """Class that contains both headers, with authentication, and authentication gathering actions"""
@@ -17,6 +11,7 @@ class AuthenticationHandlerWeb:
     @staticmethod
     def _retrieve_local_refresh_token() -> str:
         """Function that tries to retrieve the refresh token from the local file where it is stored. In case it does not exist it raises an exception"""
+        from pyscript import window
         try:
             refresh_token = window.localStorage.getItem('spotify-recommender-refresh-token')
 
@@ -34,6 +29,7 @@ class AuthenticationHandlerWeb:
     @classmethod
     def _retrieve_local_access_token(cls) -> None:
         """Function that tries to retrieve the access token from the local file where it is stored. In case it does not exist it raises an exception"""
+        from pyscript import window
         try:
             auth_token = window.localStorage.getItem('spotify-recommender-token')
 
@@ -55,6 +51,12 @@ class AuthenticationHandlerWeb:
         Returns:
             str: The newly retrieved access token
         """
+        from pyscript import window
+
+        if any(p in window.location.href for p in ['localhost', '127.0.0']):
+            redirect_uri = 'http://127.0.0.1:5500/spotify-api/interface/authorization.html'
+        else:
+            redirect_uri = 'https://spotify-recommender.free.nf/authorization.html'
 
         window.open(
             f'https://accounts.spotify.com/authorize?client_id={CLIENT_ID}&response_type=code&redirect_uri={redirect_uri}&scope={" ".join(SCOPES)}',

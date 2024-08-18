@@ -1081,9 +1081,9 @@ class UserUtil:
     @staticmethod
     def _build_playlist_df(data: 'list[dict[str,]]', build_playlist: bool, playlist_type: str, user_id: str, **kwargs) -> pd.DataFrame:
         dataframe = pd.DataFrame(data)
-        ids = dataframe['id'].drop_duplicates().tolist()
 
         if build_playlist:
+            ids = dataframe['id'].drop_duplicates().tolist()
             Library.write_playlist(
                 ids=ids,
                 user_id=user_id,
