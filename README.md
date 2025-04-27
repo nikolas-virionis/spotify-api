@@ -1,4 +1,4 @@
-# spotify-recommender
+# spotify-recommender (Deactivated because of changes in Spotify API)
 ![GitHub repo size](https://img.shields.io/github/repo-size/nikolas-virionis/spotify-api)
 ![GitHub last commit](https://img.shields.io/github/last-commit/nikolas-virionis/spotify-api?style=plastic)
 ![PyPI - Python Version](https://img.shields.io/pypi/pyversions/spotify-recommender-api?style=plastic)
@@ -6,6 +6,10 @@
 ![PyPI - Downloads](https://img.shields.io/pypi/dm/spotify-recommender-api?style=plastic)<br>
 
 <img src='./readme-pictures/Spotify Logo.png' width='60%'>
+
+## This package has been running since jan/2022. But in between 2024 and 2025 a few changes were made to Spotify API itself that just break the core of this package, mainly on the recommendations and other endpoints being removed on their end, authentication issues on certain other endpoints, and now their new policy for developers. I am writing this on april 26th 2025 21:18 BRT and after more than 3 years of maintaining this package I am officially putting it to rest.
+## For anyone who has used and enjoyed it as much as I have, a can only thank the attention and the consideration to use the product of many sleepless nights. It's been real, it's been good, and mostly it's been real good. Have a good one! 
+
 
 - [spotify-recommender](#spotify-recommender)
   - [Use Case](#use-case)
